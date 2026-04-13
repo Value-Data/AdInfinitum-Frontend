@@ -21,3 +21,7 @@ Thumbs.db
 
 # Testing / coverage
 coverage/
+tsconfig.node.tsbuildinfo
+tsconfig.tsbuildinfo
+vite.config.d.ts
+vite.config.d.ts.map
