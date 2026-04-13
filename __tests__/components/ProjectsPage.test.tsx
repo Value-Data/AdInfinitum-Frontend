@@ -28,29 +28,27 @@ vi.mock('../../src/context/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-const sampleProjects = [
-  {
-    id: 'p1',
-    name: 'Salar Alpha',
-    description: 'Test project',
-    created_by: 'admin-id',
-    created_at: '2026-01-15T10:00:00',
-    updated_at: '2026-01-16T10:00:00',
-    last_execution_status: 'completed',
-  },
-  {
-    id: 'p2',
-    name: 'Salar Beta',
-    description: null,
-    created_by: 'admin-id',
-    created_at: '2026-02-20T10:00:00',
-    updated_at: '2026-02-21T10:00:00',
-    last_execution_status: null,
-  },
-];
-
 vi.mock('../../src/services/api', () => ({
-  getProjects: vi.fn().mockResolvedValue(sampleProjects),
+  getProjects: vi.fn().mockResolvedValue([
+    {
+      id: 'p1',
+      name: 'Salar Alpha',
+      description: 'Test project',
+      created_by: 'admin-id',
+      created_at: '2026-01-15T10:00:00',
+      updated_at: '2026-01-16T10:00:00',
+      last_execution_status: 'completed',
+    },
+    {
+      id: 'p2',
+      name: 'Salar Beta',
+      description: null,
+      created_by: 'admin-id',
+      created_at: '2026-02-20T10:00:00',
+      updated_at: '2026-02-21T10:00:00',
+      last_execution_status: null,
+    },
+  ]),
   createProject: vi.fn(),
 }));
 
