@@ -1,0 +1,380 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import type {
+  Project,
+  ProjectConfig,
+  PondConfig,
+  EncaladoConfig,
+  DailyScheduleItem,
+} from '../types';
+import {
+  getProject,
+  getProjectConfig,
+  updateProjectConfig,
+  getProjectConfigDefaults,
+} from '../services/api';
+import BrineEditor from '../components/BrineEditor';
+import PondEditor from '../components/PondEditor';
+import SaltFactorEditor from '../components/SaltFactorEditor';
+import EncaladoConfigForm from '../components/EncaladoConfigForm';
+import DailyScheduleEditor from '../components/DailyScheduleEditor';
+import ExecutionList from '../components/ExecutionList';
+import RunSimulationPanel from '../components/RunSimulationPanel';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+
+type TabKey = 'config' | 'executions';
+
+const DEFAULT_ENCALADO: EncaladoConfig = {
+  availability_days_year: 328.5,
+  boron_removal_fraction: 0.4,
+  lime_excess_factor: 1.17,
+  lime_slurry_conc: 0.25,
+  lime_CaO_purity: 0.833,
+  CaCl2_SO4_factor: 0.7,
+  CaCl2_sol_conc: 0.381,
+  CaCl2_purity: 0.9494,
+  CaCl2_NaCl_fraction: 0.0425,
+  CaCl2_MgCl2_fraction: 0.005,
+  CaCl2_CaSO4_fraction: 0.0003,
+  cake_retention: 0.56,
+  cake_wash_ratio: 1.0,
+  cake_wash_recovery: 0.35,
+  use_CaCl2: true,
+  temperature_C: 15.0,
+};
+
+// Defined OUTSIDE the component so React doesn't re-create it on every render
+function SectionHeader({
+  title,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  title: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="card mb-3 overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold hover:bg-gray-50"
+        style={{ color: 'var(--color-text)' }}
+        onClick={onToggle}
+      >
+        <span>{title}</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+      {isOpen && <div className="px-4 pb-4">{children}</div>}
+    </div>
+  );
+}
+
+export default function ProjectDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const { isAdmin } = useAuth();
+  const [project, setProject] = useState<Project | null>(null);
+  const [config, setConfig] = useState<ProjectConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>(isAdmin ? 'config' : 'executions');
+  const [refreshExecKey, setRefreshExecKey] = useState(0);
+
+  // Local config state for editing
+  const [brine, setBrine] = useState<Record<string, number>>({});
+  const [preconPonds, setPreconPonds] = useState<PondConfig[]>([]);
+  const [preconFaktor, setPreconFaktor] = useState<number[]>([]);
+  const [encaladoConfig, setEncaladoConfig] = useState<EncaladoConfig>(DEFAULT_ENCALADO);
+  const [encaladoFaktor, setEncaladoFaktor] = useState<number[]>([]);
+  const [postlimingPonds, setPostlimingPonds] = useState<PondConfig[]>([]);
+  const [postlimingFaktor, setPostlimingFaktor] = useState<number[]>([]);
+  const [dailySchedule, setDailySchedule] = useState<DailyScheduleItem[]>([]);
+
+  // Collapsible sections
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    brine: true,
+    precon_ponds: false,
+    precon_faktor: false,
+    encalado: false,
+    encalado_faktor: false,
+    postliming_ponds: false,
+    postliming_faktor: false,
+    schedule: false,
+  });
+
+  const toggleSection = useCallback((key: string) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    if (!id) return;
+    try {
+      const proj = await getProject(id);
+      setProject(proj);
+
+      if (isAdmin) {
+        const cfg = await getProjectConfig(id);
+        setConfig(cfg);
+        setBrine(cfg.brine || {});
+        setPreconPonds(cfg.precon_ponds || []);
+        setPreconFaktor(cfg.precon_faktor || []);
+        setEncaladoConfig((cfg.encalado_config as EncaladoConfig) || DEFAULT_ENCALADO);
+        setEncaladoFaktor(cfg.encalado_faktor || []);
+        setPostlimingPonds(cfg.postliming_ponds || []);
+        setPostlimingFaktor(cfg.postliming_faktor || []);
+        setDailySchedule(cfg.daily_schedule || []);
+      }
+    } catch {
+      // handled
+    } finally {
+      setLoading(false);
+    }
+  }, [id, isAdmin]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleLoadDefaults = async () => {
+    if (!id) return;
+    try {
+      const defaults = await getProjectConfigDefaults(id);
+      setBrine(defaults.brine);
+      setPreconPonds(defaults.precon_ponds);
+      setPreconFaktor(defaults.precon_faktor);
+      setEncaladoConfig(defaults.encalado_config as unknown as EncaladoConfig);
+      setEncaladoFaktor(defaults.encalado_faktor);
+      setPostlimingPonds(defaults.postliming_ponds);
+      setPostlimingFaktor(defaults.postliming_faktor);
+      setDailySchedule(defaults.daily_schedule);
+      setSaveMsg('Valores por defecto cargados. Guarde para aplicar.');
+    } catch {
+      setSaveMsg('Error al cargar valores por defecto');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!id) return;
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const updated = await updateProjectConfig(id, {
+        brine,
+        precon_ponds: preconPonds,
+        precon_faktor: preconFaktor,
+        encalado_config: encaladoConfig as unknown as Record<string, unknown>,
+        encalado_faktor: encaladoFaktor,
+        postliming_ponds: postlimingPonds,
+        postliming_faktor: postlimingFaktor,
+        daily_schedule: dailySchedule,
+      });
+      setConfig(updated);
+      setSaveMsg('Configuracion guardada exitosamente.');
+    } catch {
+      setSaveMsg('Error al guardar la configuracion.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="card p-8 text-center">
+        <p style={{ color: 'var(--color-danger)' }}>Proyecto no encontrado.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>
+            {project.name}
+          </h2>
+          {project.description && (
+            <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+              {project.description}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div
+        className="flex gap-0 border-b mb-6"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        {isAdmin && (
+          <button
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'config' ? 'border-current' : 'border-transparent'
+            }`}
+            style={{
+              color: activeTab === 'config' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+              borderColor: activeTab === 'config' ? 'var(--color-primary)' : 'transparent',
+            }}
+            onClick={() => setActiveTab('config')}
+          >
+            Configuracion
+          </button>
+        )}
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'executions' ? 'border-current' : 'border-transparent'
+          }`}
+          style={{
+            color: activeTab === 'executions' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+            borderColor: activeTab === 'executions' ? 'var(--color-primary)' : 'transparent',
+          }}
+          onClick={() => setActiveTab('executions')}
+        >
+          Ejecuciones
+        </button>
+      </div>
+
+      {/* Config Tab (Admin only) */}
+      {activeTab === 'config' && isAdmin && (
+        <div>
+          {/* Load defaults button */}
+          <div className="flex justify-end mb-3">
+            <button className="btn btn-outline btn-sm" onClick={handleLoadDefaults}>
+              Cargar valores por defecto
+            </button>
+          </div>
+
+          <SectionHeader
+            title="1. Salmuera de Pozo"
+            isOpen={openSections.brine}
+            onToggle={() => toggleSection('brine')}
+          >
+            <BrineEditor value={brine} onChange={setBrine} />
+          </SectionHeader>
+
+          <SectionHeader
+            title="2. Pozas de Preconcentracion"
+            isOpen={openSections.precon_ponds}
+            onToggle={() => toggleSection('precon_ponds')}
+          >
+            <PondEditor value={preconPonds} onChange={setPreconPonds} label="Pozas preconcentracion" />
+          </SectionHeader>
+
+          <SectionHeader
+            title="3. Factores de Sales Preconcentracion"
+            isOpen={openSections.precon_faktor}
+            onToggle={() => toggleSection('precon_faktor')}
+          >
+            <SaltFactorEditor value={preconFaktor} onChange={setPreconFaktor} />
+          </SectionHeader>
+
+          <SectionHeader
+            title="4. Parametros de Encalado"
+            isOpen={openSections.encalado}
+            onToggle={() => toggleSection('encalado')}
+          >
+            <EncaladoConfigForm value={encaladoConfig} onChange={setEncaladoConfig} />
+          </SectionHeader>
+
+          <SectionHeader
+            title="5. Factores de Sales Encalado"
+            isOpen={openSections.encalado_faktor}
+            onToggle={() => toggleSection('encalado_faktor')}
+          >
+            <SaltFactorEditor value={encaladoFaktor} onChange={setEncaladoFaktor} />
+          </SectionHeader>
+
+          <SectionHeader
+            title="6. Pozas de Post-liming"
+            isOpen={openSections.postliming_ponds}
+            onToggle={() => toggleSection('postliming_ponds')}
+          >
+            <PondEditor value={postlimingPonds} onChange={setPostlimingPonds} label="Pozas post-liming" />
+          </SectionHeader>
+
+          <SectionHeader
+            title="7. Factores de Sales Post-liming"
+            isOpen={openSections.postliming_faktor}
+            onToggle={() => toggleSection('postliming_faktor')}
+          >
+            <SaltFactorEditor value={postlimingFaktor} onChange={setPostlimingFaktor} />
+          </SectionHeader>
+
+          <SectionHeader
+            title="8. Cronograma Diario"
+            isOpen={openSections.schedule}
+            onToggle={() => toggleSection('schedule')}
+          >
+            <DailyScheduleEditor value={dailySchedule} onChange={setDailySchedule} />
+          </SectionHeader>
+
+          {/* Save button */}
+          <div className="flex items-center gap-3 mt-4">
+            <button
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  Guardando...
+                </>
+              ) : (
+                'Guardar Configuracion'
+              )}
+            </button>
+            {saveMsg && (
+              <p
+                className="text-sm"
+                style={{
+                  color: saveMsg.includes('Error')
+                    ? 'var(--color-danger)'
+                    : 'var(--color-success)',
+                }}
+              >
+                {saveMsg}
+              </p>
+            )}
+          </div>
+
+          {/* Run Simulation Panel */}
+          <RunSimulationPanel
+            projectId={project.id}
+            onExecutionCreated={() => {
+              setActiveTab('executions');
+              setRefreshExecKey((k) => k + 1);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Executions Tab */}
+      {activeTab === 'executions' && (
+        <ExecutionList key={refreshExecKey} projectId={project.id} />
+      )}
+    </div>
+  );
+}
