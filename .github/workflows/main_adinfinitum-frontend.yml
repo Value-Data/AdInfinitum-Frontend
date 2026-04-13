@@ -25,7 +25,7 @@ jobs:
 
       - name: npm install, build, and test
         env:
-          VITE_API_BASE_URL: http://20.49.55.70:8000/api/v1
+          VITE_API_BASE_URL: https://adinfinitum-api.eastus2.cloudapp.azure.com/api/v1
         run: |
           npm install
           npm run build --if-present
