@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type {
@@ -22,6 +22,7 @@ import DailyScheduleEditor from '../components/DailyScheduleEditor';
 import ExecutionList from '../components/ExecutionList';
 import RunSimulationPanel from '../components/RunSimulationPanel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { downloadExcel, parseWorkbookFile } from '../utils/configExcel';
 
 type TabKey = 'config' | 'executions';
 
@@ -149,6 +150,79 @@ export default function ProjectDetailPage() {
     fetchData();
   }, [fetchData]);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDownloadTemplate = () => {
+    const safeName = (project?.name || 'proyecto').replace(/[^a-z0-9-_]+/gi, '_');
+    downloadExcel(
+      {
+        brine,
+        precon_ponds: preconPonds,
+        precon_faktor: preconFaktor,
+        encalado_config: encaladoConfig,
+        encalado_faktor: encaladoFaktor,
+        postliming_ponds: postlimingPonds,
+        postliming_faktor: postlimingFaktor,
+        daily_schedule: dailySchedule,
+      },
+      `config_${safeName}.xlsx`,
+    );
+    setSaveMsg('Plantilla Excel descargada.');
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const parsed = await parseWorkbookFile(file);
+      const applied: string[] = [];
+      if (parsed.brine) {
+        setBrine(parsed.brine);
+        applied.push('salmuera');
+      }
+      if (parsed.precon_ponds) {
+        setPreconPonds(parsed.precon_ponds);
+        applied.push('pozas precon');
+      }
+      if (parsed.precon_faktor) {
+        setPreconFaktor(parsed.precon_faktor);
+        applied.push('factores precon');
+      }
+      if (parsed.encalado_config) {
+        setEncaladoConfig({ ...encaladoConfig, ...parsed.encalado_config });
+        applied.push('encalado');
+      }
+      if (parsed.encalado_faktor) {
+        setEncaladoFaktor(parsed.encalado_faktor);
+        applied.push('factores encalado');
+      }
+      if (parsed.postliming_ponds) {
+        setPostlimingPonds(parsed.postliming_ponds);
+        applied.push('pozas post-liming');
+      }
+      if (parsed.postliming_faktor) {
+        setPostlimingFaktor(parsed.postliming_faktor);
+        applied.push('factores post-liming');
+      }
+      if (parsed.daily_schedule) {
+        setDailySchedule(parsed.daily_schedule);
+        applied.push('cronograma');
+      }
+      if (applied.length === 0) {
+        setSaveMsg('Error: el archivo no contiene hojas reconocidas.');
+      } else {
+        setSaveMsg(`Excel cargado (${applied.join(', ')}). Guarde para aplicar.`);
+      }
+    } catch (err) {
+      setSaveMsg(`Error al leer el Excel: ${(err as Error).message}`);
+    }
+  };
+
   const handleLoadDefaults = async () => {
     if (!id) return;
     try {
@@ -259,8 +333,21 @@ export default function ProjectDetailPage() {
       {/* Config Tab (Admin only) */}
       {activeTab === 'config' && isAdmin && (
         <div>
-          {/* Load defaults button */}
-          <div className="flex justify-end mb-3">
+          {/* Config action buttons */}
+          <div className="flex justify-end mb-3 gap-2 flex-wrap">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+            <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate}>
+              Descargar Excel
+            </button>
+            <button className="btn btn-outline btn-sm" onClick={handleImportClick}>
+              Cargar desde Excel
+            </button>
             <button className="btn btn-outline btn-sm" onClick={handleLoadDefaults}>
               Cargar valores por defecto
             </button>
