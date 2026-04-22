@@ -1,36 +1,41 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ExecutionResult, SolverResult } from '../types';
-import { getExecution, exportExecution } from '../services/api';
+import { getExecution } from '../services/api';
+import { exportExecutionToExcel } from '../utils/exportExecutionExcel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import StatusBadge from '../components/common/StatusBadge';
 import KPICards from '../components/KPICards';
-import BalanceTable from '../components/BalanceTable';
-import PropertiesTable from '../components/PropertiesTable';
-import SaltsTable from '../components/SaltsTable';
-import CompositionTable from '../components/CompositionTable';
 import ResultCharts from '../components/ResultCharts';
 import ParameterSnapshot from '../components/ParameterSnapshot';
 import EncaladoResultPanel from '../components/EncaladoResultPanel';
+import PondDetailBreakdown from '../components/PondDetailBreakdown';
+import GlobalBalanceTable, {
+  type GlobalStreamId,
+  type GlobalStreamValues,
+} from '../components/GlobalBalanceTable';
+import {
+  averageEncaladoResults,
+  averageSolverResults,
+  averageTemperatures,
+} from '../utils/averageResults';
 
 type ResultTab =
   | 'resumen'
-  | 'balance'
-  | 'propiedades'
-  | 'sales'
-  | 'composicion'
-  | 'graficos'
+  | 'global'
+  | 'precon'
   | 'encalado'
+  | 'postliming'
+  | 'graficos'
   | 'parametros';
 
 const TABS_FULL: { key: ResultTab; label: string }[] = [
   { key: 'resumen', label: 'Resumen' },
-  { key: 'balance', label: 'Balance' },
-  { key: 'propiedades', label: 'Propiedades' },
-  { key: 'sales', label: 'Sales' },
-  { key: 'composicion', label: 'Composicion' },
-  { key: 'graficos', label: 'Graficos' },
+  { key: 'global', label: 'Global' },
+  { key: 'precon', label: 'Preconcentración' },
   { key: 'encalado', label: 'Encalado' },
+  { key: 'postliming', label: 'Post-liming' },
+  { key: 'graficos', label: 'Graficos' },
   { key: 'parametros', label: 'Parametros' },
 ];
 
@@ -38,6 +43,20 @@ const TABS_FULL: { key: ResultTab; label: string }[] = [
 interface StageData {
   label: string;
   result: SolverResult;
+  temperature_C?: number;
+}
+
+function extractSingleDayTemperature(
+  parameters_snapshot: Record<string, unknown> | null | undefined,
+): number | undefined {
+  if (!parameters_snapshot) return undefined;
+  const schedule = parameters_snapshot.daily_schedule as
+    | Array<{ temperature_C?: number }>
+    | undefined;
+  if (!schedule || schedule.length === 0) return undefined;
+  const selectedDays = parameters_snapshot.selected_days as number[] | undefined;
+  const idx = selectedDays && selectedDays.length > 0 ? selectedDays[0] : 0;
+  return schedule[idx]?.temperature_C ?? schedule[0]?.temperature_C;
 }
 
 /**
@@ -183,6 +202,173 @@ function DailySummaryTable({ dailyResults }: {
   );
 }
 
+/**
+ * Best-effort mapping from the engine results (precon / encalado / postliming)
+ * to the 16 P_2XXX/P_3XXX streams consumed by GlobalBalanceTable.
+ * If the backend later ships a `results.streams` object with a full or partial
+ * override, those values win (merged per-field).
+ */
+function buildGlobalStreams(
+  precon: SolverResult | undefined,
+  encalado: Record<string, unknown> | undefined,
+  postliming: SolverResult | undefined,
+  preconTemp: number | undefined,
+  postlimingTemp: number | undefined,
+  encaladoTemp: number | undefined,
+  backendOverride?: Partial<Record<GlobalStreamId, GlobalStreamValues>>,
+): Partial<Record<GlobalStreamId, GlobalStreamValues>> {
+  const out: Partial<Record<GlobalStreamId, GlobalStreamValues>> = {};
+
+  const num = (v: unknown): number | undefined => {
+    if (v == null) return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  const sumBrine = (aq: { eq_liquid_dll?: number[] } | undefined): number | undefined => {
+    if (!aq?.eq_liquid_dll || !Array.isArray(aq.eq_liquid_dll)) return undefined;
+    return aq.eq_liquid_dll.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
+  };
+
+  // --- Preconcentracion ---
+  if (precon) {
+    const wellField = sumBrine(precon.initial_aqsol as { eq_liquid_dll?: number[] } | undefined);
+    const totalDilPrecon = (precon.ponds ?? []).reduce((a, p) => a + (p.dilution ?? 0), 0);
+
+    out['2001'] = {
+      total_mass_day: wellField,
+      liquids_day: wellField,
+      solids_day: 0,
+      temperature: preconTemp,
+    };
+    out['2002'] = {
+      total_mass_day: precon.total_salt + precon.total_entrainment,
+      solids_day: precon.total_salt,
+      liquids_day: precon.total_entrainment,
+      temperature: preconTemp,
+    };
+    out['2003'] = {
+      total_mass_day: precon.total_leakage,
+      liquids_day: precon.total_leakage,
+      solids_day: 0,
+      temperature: preconTemp,
+    };
+    out['2004'] = {
+      total_mass_day: precon.total_evaporation,
+      liquids_day: precon.total_evaporation,
+      solids_day: 0,
+      temperature: preconTemp,
+    };
+    out['2005'] = {
+      total_mass_day: totalDilPrecon,
+      liquids_day: totalDilPrecon,
+      solids_day: 0,
+    };
+    out['2006'] = {
+      total_mass_day: precon.final_outlet_flow,
+      liquids_day: precon.final_outlet_flow,
+      solids_day: 0,
+      temperature: preconTemp,
+    };
+  }
+
+  // --- Encalado ---
+  if (encalado) {
+    const lime = num(encalado.lime_commercial);
+    const cacl2 = num(encalado.CaCl2_commercial);
+    const h2oSlurry = num(encalado.H2O_slurry);
+    const h2oCaCl2 = num(encalado.H2O_CaCl2);
+    const cakeWash = num(encalado.cake_wash_flow);
+    // Water (2503) = P_2515 = H2O CaCl2 (P_2504) + H2O lechada (P_2508) + Cake wash (P_2514)
+    const totalWater =
+      h2oSlurry != null || h2oCaCl2 != null || cakeWash != null
+        ? (h2oCaCl2 ?? 0) + (h2oSlurry ?? 0) + (cakeWash ?? 0)
+        : undefined;
+    const cacl2Dry =
+      cacl2 != null && h2oCaCl2 != null ? Math.max(0, cacl2 - h2oCaCl2) : undefined;
+    const solidsDry = num(encalado.total_solids_dry);
+    const solidsWet =
+      solidsDry != null || cakeWash != null ? (solidsDry ?? 0) + (cakeWash ?? 0) : undefined;
+
+    out['2501'] = {
+      total_mass_day: lime,
+      solids_day: lime,
+      liquids_day: 0,
+      temperature: encaladoTemp,
+    };
+    out['2502'] = {
+      total_mass_day: cacl2,
+      solids_day: cacl2Dry,
+      liquids_day: h2oCaCl2,
+      temperature: encaladoTemp,
+    };
+    out['2503'] = {
+      total_mass_day: totalWater,
+      liquids_day: totalWater,
+      solids_day: 0,
+      temperature: encaladoTemp,
+    };
+    out['2504'] = {
+      total_mass_day: solidsWet,
+      solids_day: solidsDry,
+      liquids_day: cakeWash,
+      temperature: encaladoTemp,
+    };
+  }
+
+  // --- Postliming ---
+  if (postliming) {
+    const inlet = sumBrine(postliming.initial_aqsol as { eq_liquid_dll?: number[] } | undefined);
+    const totalDilPost = (postliming.ponds ?? []).reduce((a, p) => a + (p.dilution ?? 0), 0);
+
+    out['3001'] = {
+      total_mass_day: inlet,
+      liquids_day: inlet,
+      solids_day: 0,
+      temperature: postlimingTemp,
+    };
+    out['3002'] = {
+      total_mass_day: postliming.total_salt + postliming.total_entrainment,
+      solids_day: postliming.total_salt,
+      liquids_day: postliming.total_entrainment,
+      temperature: postlimingTemp,
+    };
+    out['3003'] = {
+      total_mass_day: postliming.total_leakage,
+      liquids_day: postliming.total_leakage,
+      solids_day: 0,
+      temperature: postlimingTemp,
+    };
+    out['3004'] = {
+      total_mass_day: postliming.total_evaporation,
+      liquids_day: postliming.total_evaporation,
+      solids_day: 0,
+      temperature: postlimingTemp,
+    };
+    out['3005'] = {
+      total_mass_day: totalDilPost,
+      liquids_day: totalDilPost,
+      solids_day: 0,
+    };
+    out['3006'] = {
+      total_mass_day: postliming.final_outlet_flow,
+      liquids_day: postliming.final_outlet_flow,
+      solids_day: 0,
+      temperature: postlimingTemp,
+    };
+  }
+
+  // Backend override wins per-field
+  if (backendOverride) {
+    for (const [id, vals] of Object.entries(backendOverride)) {
+      const key = id as GlobalStreamId;
+      out[key] = { ...(out[key] ?? {}), ...(vals ?? {}) };
+    }
+  }
+
+  return out;
+}
+
 export default function ExecutionResultsPage() {
   const { id } = useParams<{ id: string }>();
   const [execution, setExecution] = useState<ExecutionResult | null>(null);
@@ -190,6 +376,7 @@ export default function ExecutionResultsPage() {
   const [activeTab, setActiveTab] = useState<ResultTab>('resumen');
   const [exporting, setExporting] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
+  const [viewMode, setViewMode] = useState<'day' | 'average'>('average');
 
   const fetchExecution = useCallback(async () => {
     if (!id) return;
@@ -207,21 +394,34 @@ export default function ExecutionResultsPage() {
     fetchExecution();
   }, [fetchExecution]);
 
-  const handleExport = async () => {
-    if (!id) return;
+  const handleExport = () => {
+    if (!execution || !id) return;
     setExporting(true);
     try {
-      const blob = await exportExecution(id);
+      const blob = exportExecutionToExcel({
+        execution,
+        stages: stagesToShow,
+        encalado: encaladoData,
+        streams: streamsForExport,
+        isMultiDay: !!isMultiDay,
+        viewMode,
+        validDaysCount: nValid,
+        dailyResults: isMultiDay ? dailyResults : undefined,
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ejecucion_${id.substring(0, 8)}.xlsx`;
+      const suffix =
+        isMultiDay && viewMode === 'average'
+          ? '_promedio'
+          : isMultiDay
+            ? `_dia${selectedDay + 1}`
+            : '';
+      a.download = `ejecucion_${id.substring(0, 8)}${suffix}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch {
-      // handled
     } finally {
       setExporting(false);
     }
@@ -283,39 +483,168 @@ export default function ExecutionResultsPage() {
   const isMultiDay = dailyResults && Array.isArray(dailyResults) && dailyResults.length > 0;
   const numDays = isMultiDay ? dailyResults.length : 1;
 
-  // For multi-day, show stages of the selected day. For single, show all stages.
+  // For multi-day, show stages of the selected day OR averaged across valid days.
+  // For single, show all stages.
   let stagesToShow: StageData[] = [];
   let encaladoData: Record<string, unknown> | null = null;
 
+  // Valid days (no error_stage) used as the denominator for averaging.
+  const validDays = isMultiDay
+    ? dailyResults.filter((dr) => !(dr.result as { error_stage?: string })?.error_stage)
+    : [];
+  const nValid = validDays.length;
+  const labelSuffix =
+    isMultiDay && viewMode === 'average' ? ` (promedio de ${nValid} día${nValid === 1 ? '' : 's'})` : '';
+
   if (results) {
     if (isMultiDay) {
-      const dayResult = dailyResults[selectedDay]?.result;
-      if (dayResult) {
-        const fakeSingleDay = dayResult as Record<string, unknown>;
-        if (fakeSingleDay.precon) {
-          stagesToShow.push({ label: 'Preconcentracion', result: fakeSingleDay.precon as SolverResult });
+      if (viewMode === 'average' && nValid > 0) {
+        const preconArr = validDays
+          .map((dr) => (dr.result as Record<string, unknown>).precon as SolverResult | undefined)
+          .filter((p): p is SolverResult => p != null);
+        const postArr = validDays
+          .map((dr) => (dr.result as Record<string, unknown>).postliming as SolverResult | undefined)
+          .filter((p): p is SolverResult => p != null);
+        const encArr = validDays
+          .map((dr) => (dr.result as Record<string, unknown>).encalado as Record<string, unknown> | undefined)
+          .filter((e): e is Record<string, unknown> => e != null);
+        const directPreconArr = validDays
+          .map((dr) => dr.result as unknown as SolverResult)
+          .filter(
+            (r) =>
+              r &&
+              !(r as unknown as { precon?: unknown }).precon &&
+              !(r as unknown as { postliming?: unknown }).postliming &&
+              Array.isArray((r as unknown as { ponds?: unknown }).ponds),
+          );
+        const avgTemp = averageTemperatures(validDays.map((dr) => dr.temperature_C));
+
+        if (preconArr.length > 0) {
+          stagesToShow.push({
+            label: `Preconcentracion${labelSuffix}`,
+            result: averageSolverResults(preconArr),
+            temperature_C: avgTemp,
+          });
         }
-        if (fakeSingleDay.encalado) {
-          encaladoData = fakeSingleDay.encalado as Record<string, unknown>;
+        if (encArr.length > 0) {
+          encaladoData = averageEncaladoResults(encArr);
         }
-        if (fakeSingleDay.postliming) {
-          stagesToShow.push({ label: 'Post-liming', result: fakeSingleDay.postliming as SolverResult });
+        if (postArr.length > 0) {
+          stagesToShow.push({
+            label: `Post-liming${labelSuffix}`,
+            result: averageSolverResults(postArr),
+            temperature_C: avgTemp,
+          });
         }
-        // Direct solver result (precon-only multi-day)
-        if (!fakeSingleDay.precon && !fakeSingleDay.postliming && 'ponds' in fakeSingleDay) {
-          stagesToShow.push({ label: 'Preconcentracion', result: fakeSingleDay as unknown as SolverResult });
+        if (preconArr.length === 0 && postArr.length === 0 && directPreconArr.length > 0) {
+          stagesToShow.push({
+            label: `Preconcentracion${labelSuffix}`,
+            result: averageSolverResults(directPreconArr),
+            temperature_C: avgTemp,
+          });
+        }
+      } else {
+        const dayResult = dailyResults[selectedDay]?.result;
+        const dayTemp = dailyResults[selectedDay]?.temperature_C;
+        if (dayResult) {
+          const fakeSingleDay = dayResult as Record<string, unknown>;
+          if (fakeSingleDay.precon) {
+            stagesToShow.push({ label: 'Preconcentracion', result: fakeSingleDay.precon as SolverResult, temperature_C: dayTemp });
+          }
+          if (fakeSingleDay.encalado) {
+            encaladoData = fakeSingleDay.encalado as Record<string, unknown>;
+          }
+          if (fakeSingleDay.postliming) {
+            stagesToShow.push({ label: 'Post-liming', result: fakeSingleDay.postliming as SolverResult, temperature_C: dayTemp });
+          }
+          // Direct solver result (precon-only multi-day)
+          if (!fakeSingleDay.precon && !fakeSingleDay.postliming && 'ponds' in fakeSingleDay) {
+            stagesToShow.push({ label: 'Preconcentracion', result: fakeSingleDay as unknown as SolverResult, temperature_C: dayTemp });
+          }
         }
       }
     } else {
       stagesToShow = extractStages(results);
+      const singleTemp = extractSingleDayTemperature(execution.parameters_snapshot);
+      stagesToShow = stagesToShow.map(s => ({ ...s, temperature_C: singleTemp }));
       if (results.encalado) {
         encaladoData = results.encalado as Record<string, unknown>;
       }
     }
   }
 
-  // Only show encalado tab if there's encalado data
-  const TABS = TABS_FULL.filter(t => t.key !== 'encalado' || encaladoData != null);
+  // Build the 16-stream payload once (shared by Global tab render + Excel export).
+  const streamsForExport: Partial<Record<GlobalStreamId, GlobalStreamValues>> = (() => {
+    let precon: SolverResult | undefined;
+    let postliming: SolverResult | undefined;
+    let encalado: Record<string, unknown> | undefined;
+    let preconTemp: number | undefined;
+    let postlimingTemp: number | undefined;
+
+    if (isMultiDay && dailyResults) {
+      if (viewMode === 'average' && nValid > 0) {
+        const preconArr = validDays
+          .map((dr) => (dr.result as Record<string, unknown>).precon as SolverResult | undefined)
+          .filter((p): p is SolverResult => p != null);
+        const postArr = validDays
+          .map((dr) => (dr.result as Record<string, unknown>).postliming as SolverResult | undefined)
+          .filter((p): p is SolverResult => p != null);
+        const encArr = validDays
+          .map((dr) => (dr.result as Record<string, unknown>).encalado as Record<string, unknown> | undefined)
+          .filter((e): e is Record<string, unknown> => e != null);
+        precon = preconArr.length > 0 ? averageSolverResults(preconArr) : undefined;
+        postliming = postArr.length > 0 ? averageSolverResults(postArr) : undefined;
+        encalado = encArr.length > 0 ? averageEncaladoResults(encArr) : undefined;
+        const avgTemp = averageTemperatures(validDays.map((dr) => dr.temperature_C));
+        preconTemp = avgTemp;
+        postlimingTemp = avgTemp;
+      } else {
+        const dr = dailyResults[selectedDay];
+        const day = dr?.result as Record<string, unknown> | undefined;
+        precon = day?.precon as SolverResult | undefined;
+        encalado = day?.encalado as Record<string, unknown> | undefined;
+        postliming = day?.postliming as SolverResult | undefined;
+        preconTemp = dr?.temperature_C;
+        postlimingTemp = dr?.temperature_C;
+      }
+    } else if (results) {
+      precon = results.precon as SolverResult | undefined;
+      encalado = results.encalado as Record<string, unknown> | undefined;
+      postliming = results.postliming as SolverResult | undefined;
+      const singleTemp = extractSingleDayTemperature(execution.parameters_snapshot);
+      preconTemp = singleTemp;
+      postlimingTemp = singleTemp;
+    }
+
+    const encaladoTemp =
+      ((execution.parameters_snapshot?.encalado_config as Record<string, unknown> | undefined)
+        ?.temperature_C as number | undefined) ?? undefined;
+
+    const backendStreams =
+      (results as Record<string, unknown> | null | undefined)?.streams as
+        | Partial<Record<GlobalStreamId, GlobalStreamValues>>
+        | undefined;
+
+    return buildGlobalStreams(
+      precon,
+      encalado,
+      postliming,
+      preconTemp,
+      postlimingTemp,
+      encaladoTemp,
+      backendStreams,
+    );
+  })();
+
+  // Hide tabs that have no data to show
+  const hasPrecon = stagesToShow.some(s => s.label.toLowerCase().includes('precon'));
+  const hasPostliming = stagesToShow.some(s => s.label.toLowerCase().includes('post'));
+  const TABS = TABS_FULL.filter((t) => {
+    if (t.key === 'encalado') return encaladoData != null;
+    if (t.key === 'precon') return hasPrecon;
+    if (t.key === 'postliming') return hasPostliming;
+    return true;
+  });
 
   const renderStageResults = (
     renderFn: (label: string, result: SolverResult) => React.ReactNode,
@@ -411,27 +740,67 @@ export default function ExecutionResultsPage() {
       {/* Result Tabs */}
       {execution.status === 'completed' && results && (
         <>
-          {/* Multi-day: summary table + day selector */}
+          {/* Multi-day: summary table + view mode toggle + day selector */}
           {isMultiDay && (
             <>
               <DailySummaryTable dailyResults={dailyResults} />
 
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3 mb-4">
                 <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                  Ver detalle del dia:
+                  Ver:
                 </span>
-                <select
-                  className="input"
-                  style={{ width: 'auto' }}
-                  value={selectedDay}
-                  onChange={(e) => setSelectedDay(Number(e.target.value))}
+                <div
+                  className="inline-flex"
+                  style={{ borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--color-border)' }}
                 >
-                  {dailyResults.map((dr, i) => (
-                    <option key={i} value={i}>
-                      {dr.date_label || `Dia ${dr.day + 1}`} (T={dr.temperature_C}°C)
-                    </option>
-                  ))}
-                </select>
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 text-sm font-medium"
+                    style={{
+                      backgroundColor:
+                        viewMode === 'average' ? 'var(--color-primary)' : 'transparent',
+                      color:
+                        viewMode === 'average' ? '#fff' : 'var(--color-text-secondary)',
+                    }}
+                    onClick={() => setViewMode('average')}
+                  >
+                    Promedio ({nValid} {nValid === 1 ? 'día' : 'días'})
+                  </button>
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 text-sm font-medium"
+                    style={{
+                      backgroundColor:
+                        viewMode === 'day' ? 'var(--color-primary)' : 'transparent',
+                      color:
+                        viewMode === 'day' ? '#fff' : 'var(--color-text-secondary)',
+                      borderLeft: '1px solid var(--color-border)',
+                    }}
+                    onClick={() => setViewMode('day')}
+                  >
+                    Día específico
+                  </button>
+                </div>
+
+                {viewMode === 'day' && (
+                  <>
+                    <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                      Día:
+                    </span>
+                    <select
+                      className="input"
+                      style={{ width: 'auto' }}
+                      value={selectedDay}
+                      onChange={(e) => setSelectedDay(Number(e.target.value))}
+                    >
+                      {dailyResults.map((dr, i) => (
+                        <option key={i} value={i}>
+                          {dr.date_label || `Dia ${dr.day + 1}`} (T={dr.temperature_C}°C)
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -467,25 +836,59 @@ export default function ExecutionResultsPage() {
               <KPICards stageLabel={label} result={result} />
             ))}
 
-          {activeTab === 'balance' &&
-            renderStageResults((label, result) => (
-              <BalanceTable stageLabel={label} result={result} />
-            ))}
+          {activeTab === 'global' && <GlobalBalanceTable streams={streamsForExport} />}
 
-          {activeTab === 'propiedades' &&
-            renderStageResults((label, result) => (
-              <PropertiesTable stageLabel={label} result={result} />
-            ))}
+          {activeTab === 'precon' && (() => {
+            const preconStages = stagesToShow.filter(s =>
+              s.label.toLowerCase().includes('precon'),
+            );
+            if (preconStages.length === 0) {
+              return (
+                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  No hay datos de preconcentración para esta ejecución.
+                </p>
+              );
+            }
+            return (
+              <>
+                {preconStages.map((s, i) => (
+                  <div key={i} className="mb-6">
+                    <PondDetailBreakdown
+                      stageLabel={s.label}
+                      result={s.result}
+                      temperature_C={s.temperature_C}
+                    />
+                  </div>
+                ))}
+              </>
+            );
+          })()}
 
-          {activeTab === 'sales' &&
-            renderStageResults((label, result) => (
-              <SaltsTable stageLabel={label} result={result} />
-            ))}
-
-          {activeTab === 'composicion' &&
-            renderStageResults((label, result) => (
-              <CompositionTable stageLabel={label} result={result} />
-            ))}
+          {activeTab === 'postliming' && (() => {
+            const postStages = stagesToShow.filter(s =>
+              s.label.toLowerCase().includes('post'),
+            );
+            if (postStages.length === 0) {
+              return (
+                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  No hay datos de post-liming para esta ejecución.
+                </p>
+              );
+            }
+            return (
+              <>
+                {postStages.map((s, i) => (
+                  <div key={i} className="mb-6">
+                    <PondDetailBreakdown
+                      stageLabel={s.label}
+                      result={s.result}
+                      temperature_C={s.temperature_C}
+                    />
+                  </div>
+                ))}
+              </>
+            );
+          })()}
 
           {activeTab === 'graficos' &&
             renderStageResults((label, result) => (
@@ -493,7 +896,14 @@ export default function ExecutionResultsPage() {
             ))}
 
           {activeTab === 'encalado' && encaladoData && (
-            <EncaladoResultPanel stageLabel="Encalado" result={encaladoData} />
+            <EncaladoResultPanel
+              stageLabel="Encalado"
+              result={encaladoData}
+              temperature_C={
+                ((execution.parameters_snapshot?.encalado_config as Record<string, unknown> | undefined)
+                  ?.temperature_C as number | undefined) ?? undefined
+              }
+            />
           )}
 
           {activeTab === 'parametros' && execution.parameters_snapshot && (
