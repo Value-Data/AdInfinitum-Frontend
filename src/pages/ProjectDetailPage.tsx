@@ -104,9 +104,14 @@ export default function ProjectDetailPage() {
   const [postlimingPonds, setPostlimingPonds] = useState<PondConfig[]>([]);
   const [postlimingFaktor, setPostlimingFaktor] = useState<number[]>([]);
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleItem[]>([]);
+  const [saltNames, setSaltNames] = useState<string[]>([]);
+  const [preconDaysYear, setPreconDaysYear] = useState<number>(365);
+  const [encaladoDaysYear, setEncaladoDaysYear] = useState<number>(328.5);
+  const [postlimingDaysYear, setPostlimingDaysYear] = useState<number>(365);
 
   // Collapsible sections
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    calendar: false,
     brine: true,
     precon_ponds: false,
     precon_faktor: false,
@@ -128,7 +133,10 @@ export default function ProjectDetailPage() {
       setProject(proj);
 
       if (isAdmin) {
-        const cfg = await getProjectConfig(id);
+        const [cfg, defaults] = await Promise.all([
+          getProjectConfig(id),
+          getProjectConfigDefaults(id).catch(() => null),
+        ]);
         setConfig(cfg);
         setBrine(cfg.brine || {});
         setPreconPonds(cfg.precon_ponds || []);
@@ -138,6 +146,16 @@ export default function ProjectDetailPage() {
         setPostlimingPonds(cfg.postliming_ponds || []);
         setPostlimingFaktor(cfg.postliming_faktor || []);
         setDailySchedule(cfg.daily_schedule || []);
+        setPreconDaysYear(cfg.precon_days_year ?? defaults?.precon_days_year ?? 365);
+        setEncaladoDaysYear(
+          cfg.encalado_days_year ??
+            (cfg.encalado_config as { availability_days_year?: number } | null)
+              ?.availability_days_year ??
+            defaults?.encalado_days_year ??
+            328.5,
+        );
+        setPostlimingDaysYear(cfg.postliming_days_year ?? defaults?.postliming_days_year ?? 365);
+        if (defaults?.salt_names) setSaltNames(defaults.salt_names);
       }
     } catch {
       // handled
@@ -164,6 +182,10 @@ export default function ProjectDetailPage() {
         postliming_ponds: postlimingPonds,
         postliming_faktor: postlimingFaktor,
         daily_schedule: dailySchedule,
+        salt_names: saltNames,
+        precon_days_year: preconDaysYear,
+        encalado_days_year: encaladoDaysYear,
+        postliming_days_year: postlimingDaysYear,
       },
       `config_${safeName}.xlsx`,
     );
@@ -213,6 +235,16 @@ export default function ProjectDetailPage() {
         setDailySchedule(parsed.daily_schedule);
         applied.push('cronograma');
       }
+      if (parsed.precon_days_year != null) setPreconDaysYear(parsed.precon_days_year);
+      if (parsed.encalado_days_year != null) setEncaladoDaysYear(parsed.encalado_days_year);
+      if (parsed.postliming_days_year != null) setPostlimingDaysYear(parsed.postliming_days_year);
+      if (
+        parsed.precon_days_year != null ||
+        parsed.encalado_days_year != null ||
+        parsed.postliming_days_year != null
+      ) {
+        applied.push('calendario');
+      }
       if (applied.length === 0) {
         setSaveMsg('Error: el archivo no contiene hojas reconocidas.');
       } else {
@@ -235,6 +267,9 @@ export default function ProjectDetailPage() {
       setPostlimingPonds(defaults.postliming_ponds);
       setPostlimingFaktor(defaults.postliming_faktor);
       setDailySchedule(defaults.daily_schedule);
+      setPreconDaysYear(defaults.precon_days_year);
+      setEncaladoDaysYear(defaults.encalado_days_year);
+      setPostlimingDaysYear(defaults.postliming_days_year);
       setSaveMsg('Valores por defecto cargados. Guarde para aplicar.');
     } catch {
       setSaveMsg('Error al cargar valores por defecto');
@@ -250,11 +285,17 @@ export default function ProjectDetailPage() {
         brine,
         precon_ponds: preconPonds,
         precon_faktor: preconFaktor,
-        encalado_config: encaladoConfig as unknown as Record<string, unknown>,
+        encalado_config: {
+          ...encaladoConfig,
+          availability_days_year: encaladoDaysYear,
+        } as unknown as Record<string, unknown>,
         encalado_faktor: encaladoFaktor,
         postliming_ponds: postlimingPonds,
         postliming_faktor: postlimingFaktor,
         daily_schedule: dailySchedule,
+        precon_days_year: preconDaysYear,
+        encalado_days_year: encaladoDaysYear,
+        postliming_days_year: postlimingDaysYear,
       });
       setConfig(updated);
       setSaveMsg('Configuracion guardada exitosamente.');
@@ -354,6 +395,38 @@ export default function ProjectDetailPage() {
           </div>
 
           <SectionHeader
+            title="0. Calendario Operativo (dias/ano)"
+            isOpen={openSections.calendar}
+            onToggle={() => toggleSection('calendar')}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                { label: 'Preconcentracion', value: preconDaysYear, set: setPreconDaysYear, hint: 'Pozas operan continuo (default 365).' },
+                { label: 'Encalado', value: encaladoDaysYear, set: setEncaladoDaysYear, hint: 'Disponibilidad de planta (default 328.5).' },
+                { label: 'Postliming', value: postlimingDaysYear, set: setPostlimingDaysYear, hint: 'Pozas operan continuo (default 365).' },
+              ].map((f) => (
+                <div key={f.label}>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text)' }}>
+                    {f.label}
+                  </label>
+                  <input
+                    type="number"
+                    className="input input-number w-full"
+                    step={0.5}
+                    min={0}
+                    max={365}
+                    value={f.value}
+                    onChange={(e) => f.set(parseFloat(e.target.value) || 0)}
+                  />
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                    {f.hint}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </SectionHeader>
+
+          <SectionHeader
             title="1. Salmuera de Pozo"
             isOpen={openSections.brine}
             onToggle={() => toggleSection('brine')}
@@ -374,7 +447,7 @@ export default function ProjectDetailPage() {
             isOpen={openSections.precon_faktor}
             onToggle={() => toggleSection('precon_faktor')}
           >
-            <SaltFactorEditor value={preconFaktor} onChange={setPreconFaktor} />
+            <SaltFactorEditor value={preconFaktor} onChange={setPreconFaktor} saltNames={saltNames} />
           </SectionHeader>
 
           <SectionHeader
@@ -390,7 +463,7 @@ export default function ProjectDetailPage() {
             isOpen={openSections.encalado_faktor}
             onToggle={() => toggleSection('encalado_faktor')}
           >
-            <SaltFactorEditor value={encaladoFaktor} onChange={setEncaladoFaktor} />
+            <SaltFactorEditor value={encaladoFaktor} onChange={setEncaladoFaktor} saltNames={saltNames} />
           </SectionHeader>
 
           <SectionHeader
@@ -406,7 +479,7 @@ export default function ProjectDetailPage() {
             isOpen={openSections.postliming_faktor}
             onToggle={() => toggleSection('postliming_faktor')}
           >
-            <SaltFactorEditor value={postlimingFaktor} onChange={setPostlimingFaktor} />
+            <SaltFactorEditor value={postlimingFaktor} onChange={setPostlimingFaktor} saltNames={saltNames} />
           </SectionHeader>
 
           <SectionHeader

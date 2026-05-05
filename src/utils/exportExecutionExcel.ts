@@ -150,10 +150,33 @@ const GLOBAL_STREAM_NAMES: Record<GlobalStreamId, string> = {
   '3005': 'Dilution Water for Postliming Ponds',
   '3006': 'Brine Out from Postliming Pond',
 };
-const YEARLY_DAYS = 328.5;
+const DEFAULT_PONDS_DAYS_YEAR = 365;
+const DEFAULT_ENCALADO_DAYS_YEAR = 328.5;
+
+interface PhaseDaysYear {
+  precon: number;
+  encalado: number;
+  postliming: number;
+}
+
+function daysForGlobalStream(id: GlobalStreamId, days: PhaseDaysYear): number {
+  if (id.startsWith('25')) return days.encalado;
+  if (id.startsWith('30')) return days.postliming;
+  return days.precon;
+}
 
 function buildGlobalSheet(input: ExportInput): unknown[][] {
   const { streams } = input;
+  const snap = input.execution.parameters_snapshot ?? {};
+  const encaladoCfg = snap.encalado_config as Record<string, unknown> | undefined;
+  const days: PhaseDaysYear = {
+    precon: (snap.precon_days_year as number | undefined) ?? DEFAULT_PONDS_DAYS_YEAR,
+    encalado:
+      (snap.encalado_days_year as number | undefined) ??
+      (encaladoCfg?.availability_days_year as number | undefined) ??
+      DEFAULT_ENCALADO_DAYS_YEAR,
+    postliming: (snap.postliming_days_year as number | undefined) ?? DEFAULT_PONDS_DAYS_YEAR,
+  };
   const aoa: unknown[][] = [];
 
   // Phase header
@@ -244,8 +267,12 @@ function buildGlobalSheet(input: ExportInput): unknown[][] {
 
   aoa.push(['h/year', 'h/year', ...GLOBAL_STREAM_ORDER.map(() => 7884)]);
   aoa.push(['h/day', 'h/day', ...GLOBAL_STREAM_ORDER.map(() => 24)]);
-  aoa.push(['day/year', 'day/year', ...GLOBAL_STREAM_ORDER.map(() => YEARLY_DAYS)]);
-  // Total Mass year = total_mass_day * YEARLY_DAYS
+  aoa.push([
+    'day/year',
+    'day/year',
+    ...GLOBAL_STREAM_ORDER.map((id) => daysForGlobalStream(id, days)),
+  ]);
+  // Total Mass year = total_mass_day * day/year (per-phase)
   aoa.push([
     'Total Mass',
     'ton/year',
@@ -253,7 +280,7 @@ function buildGlobalSheet(input: ExportInput): unknown[][] {
       const y = streams[id]?.total_mass_year;
       if (typeof y === 'number' && Number.isFinite(y)) return y;
       const d = derive(id, 'total_mass_day');
-      return typeof d === 'number' ? d * YEARLY_DAYS : '';
+      return typeof d === 'number' ? d * daysForGlobalStream(id, days) : '';
     }),
   ]);
   aoa.push(valueRow('Total Mass', 'ton/d', 'total_mass_day'));

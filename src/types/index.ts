@@ -146,6 +146,9 @@ export interface ProjectConfig {
   postliming_ponds: PondConfig[] | null;
   postliming_faktor: number[] | null;
   daily_schedule: DailyScheduleItem[] | null;
+  precon_days_year: number | null;
+  encalado_days_year: number | null;
+  postliming_days_year: number | null;
   updated_at: string;
 }
 
@@ -158,6 +161,9 @@ export interface ProjectConfigUpdate {
   postliming_ponds?: PondConfig[];
   postliming_faktor?: number[];
   daily_schedule?: DailyScheduleItem[];
+  precon_days_year?: number;
+  encalado_days_year?: number;
+  postliming_days_year?: number;
 }
 
 export interface ProjectConfigDefaults {
@@ -169,6 +175,10 @@ export interface ProjectConfigDefaults {
   postliming_ponds: PondConfig[];
   postliming_faktor: number[];
   daily_schedule: DailyScheduleItem[];
+  salt_names: string[];
+  precon_days_year: number;
+  encalado_days_year: number;
+  postliming_days_year: number;
 }
 
 // ---- Project ----

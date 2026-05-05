@@ -31,7 +31,18 @@ interface StreamDef {
 
 const ANNUAL_HOURS = 7884;
 const DAILY_HOURS = 24;
-const YEARLY_DAYS = 328.5;
+const DEFAULT_PONDS_DAYS_YEAR = 365; // pozas precon/postliming operan continuo
+const DEFAULT_ENCALADO_DAYS_YEAR = 328.5; // disponibilidad por defecto de la planta
+
+interface PhaseDays {
+  PRECONCENTRACION: number;
+  ENCALADO: number;
+  POSTLIMING: number;
+}
+
+function daysForPhase(phase: Phase, days: PhaseDays): number {
+  return days[phase];
+}
 
 const ADDITIVE_PROPS = [
   'total_mass_year',
@@ -156,45 +167,53 @@ function formatValue(v: number | undefined | null): string {
   return v.toLocaleString('es-CL', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
 }
 
+interface RowContext {
+  stream: GlobalStreamValues;
+  daysYear: number;
+}
+
 interface RowConfig {
   label: string;
   unit: string;
   dataKey?: AdditiveProp | 'density' | 'moisture' | 'temperature';
   kind?: 'constant' | 'highlight' | 'bold' | 'normal';
-  constant?: number;
-  accessor?: (s: GlobalStreamValues) => number | undefined;
+  /** Constant value; can depend on the stream's phase (e.g. day/year). */
+  constant?: number | ((ctx: RowContext) => number);
+  accessor?: (ctx: RowContext) => number | undefined;
 }
 
 const ROWS: RowConfig[] = [
   { label: 'h/year', unit: 'h/year', kind: 'constant', constant: ANNUAL_HOURS },
   { label: 'h/day', unit: 'h/day', kind: 'constant', constant: DAILY_HOURS },
-  { label: 'day/year', unit: 'day/year', kind: 'constant', constant: YEARLY_DAYS },
+  { label: 'day/year', unit: 'day/year', kind: 'constant', constant: ({ daysYear }) => daysYear },
   {
     label: 'Total Mass',
     unit: 'ton/year',
     dataKey: 'total_mass_year',
     kind: 'highlight',
-    accessor: (s) =>
-      s.total_mass_year ?? (s.total_mass_day != null ? s.total_mass_day * YEARLY_DAYS : undefined),
+    accessor: ({ stream, daysYear }) =>
+      stream.total_mass_year ??
+      (stream.total_mass_day != null ? stream.total_mass_day * daysYear : undefined),
   },
   {
     label: 'Total Mass',
     unit: 'ton/d',
     dataKey: 'total_mass_day',
     kind: 'bold',
-    accessor: (s) => s.total_mass_day,
+    accessor: ({ stream }) => stream.total_mass_day,
   },
-  { label: 'Solids', unit: 'ton/d', dataKey: 'solids_day', accessor: (s) => s.solids_day },
-  { label: 'Liquids', unit: 'ton/d', dataKey: 'liquids_day', accessor: (s) => s.liquids_day },
-  { label: 'Density', unit: 'kg/m³', dataKey: 'density', accessor: (s) => s.density },
-  { label: 'Moisture', unit: '%', dataKey: 'moisture', accessor: (s) => s.moisture },
-  { label: 'Temperature', unit: '°C', dataKey: 'temperature', accessor: (s) => s.temperature },
+  { label: 'Solids', unit: 'ton/d', dataKey: 'solids_day', accessor: ({ stream }) => stream.solids_day },
+  { label: 'Liquids', unit: 'ton/d', dataKey: 'liquids_day', accessor: ({ stream }) => stream.liquids_day },
+  { label: 'Density', unit: 'kg/m³', dataKey: 'density', accessor: ({ stream }) => stream.density },
+  { label: 'Moisture', unit: '%', dataKey: 'moisture', accessor: ({ stream }) => stream.moisture },
+  { label: 'Temperature', unit: '°C', dataKey: 'temperature', accessor: ({ stream }) => stream.temperature },
 ];
 
 function buildFormulaTooltip(
   id: GlobalStreamId,
   resolved: Record<GlobalStreamId, GlobalStreamValues>,
   dataKey: AdditiveProp,
+  daysYear: number,
 ): string | undefined {
   const def = STREAM_DEFS[id];
   if (def.type !== 'derived' || !def.formula) return undefined;
@@ -207,7 +226,7 @@ function buildFormulaTooltip(
   const v = resolved[id]?.[dataKey];
   const shown =
     v ?? (dataKey === 'total_mass_year' && resolved[id]?.total_mass_day != null
-      ? resolved[id].total_mass_day! * YEARLY_DAYS
+      ? resolved[id].total_mass_day! * daysYear
       : undefined);
   const valPart = shown !== undefined ? ` = ${formatValue(shown)}` : '';
   return `${id} = ${addPart}${subPart}${valPart}`;
@@ -216,12 +235,24 @@ function buildFormulaTooltip(
 export interface GlobalBalanceTableProps {
   streams: Partial<Record<GlobalStreamId, GlobalStreamValues>>;
   title?: string;
+  /** Operating days/year per phase. Defaults: 365 / 328.5 / 365. */
+  preconDaysYear?: number;
+  encaladoDaysYear?: number;
+  postlimingDaysYear?: number;
 }
 
 export default function GlobalBalanceTable({
   streams,
   title = 'Balance global del proceso',
+  preconDaysYear = DEFAULT_PONDS_DAYS_YEAR,
+  encaladoDaysYear = DEFAULT_ENCALADO_DAYS_YEAR,
+  postlimingDaysYear = DEFAULT_PONDS_DAYS_YEAR,
 }: GlobalBalanceTableProps) {
+  const phaseDays: PhaseDays = {
+    PRECONCENTRACION: preconDaysYear,
+    ENCALADO: encaladoDaysYear,
+    POSTLIMING: postlimingDaysYear,
+  };
   const resolved = useMemo(() => resolveStreams(streams), [streams]);
 
   const surfaceBg = 'var(--color-surface)';
@@ -309,18 +340,21 @@ export default function GlobalBalanceTable({
                   </td>
                   {STREAM_ORDER.map((id) => {
                     const stream = resolved[id];
+                    const phase = STREAM_DEFS[id].phase;
+                    const daysYear = daysForPhase(phase, phaseDays);
+                    const ctx: RowContext = { stream, daysYear };
                     let value: number | undefined;
                     if (row.kind === 'constant') {
-                      value = row.constant;
+                      value = typeof row.constant === 'function' ? row.constant(ctx) : row.constant;
                     } else if (row.accessor) {
-                      value = row.accessor(stream);
+                      value = row.accessor(ctx);
                     }
                     const isAdditiveRow =
                       row.dataKey != null &&
                       (ADDITIVE_PROPS as readonly string[]).includes(row.dataKey);
                     const tooltip =
                       isAdditiveRow && STREAM_DEFS[id].type === 'derived'
-                        ? buildFormulaTooltip(id, resolved, row.dataKey as AdditiveProp)
+                        ? buildFormulaTooltip(id, resolved, row.dataKey as AdditiveProp, daysYear)
                         : undefined;
                     return (
                       <td
@@ -342,8 +376,9 @@ export default function GlobalBalanceTable({
       <p className="text-xs px-4 pb-3 mt-2" style={{ color: 'var(--color-text-secondary)' }}>
         Streams derivados: <strong>2006</strong> = 2001 + 2005 − 2002 − 2003 − 2004 ·{' '}
         <strong>3006</strong> = 3001 + 3005 − 3002 − 3003 − 3004. Los demás son valores base del
-        backend. Si el backend no trajo <em>total_mass_year</em>, se muestra como{' '}
-        <em>total_mass_day × {YEARLY_DAYS}</em>.
+        backend. <em>day/year</em>: preconcentración = {preconDaysYear}, encalado = {encaladoDaysYear},
+        postliming = {postlimingDaysYear} (configurable por proyecto). Si el backend no trajo{' '}
+        <em>total_mass_year</em>, se calcula como <em>total_mass_day × day/year</em> según fase.
       </p>
     </div>
   );

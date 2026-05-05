@@ -581,6 +581,12 @@ export default function ExecutionResultsPage() {
     let preconTemp: number | undefined;
     let postlimingTemp: number | undefined;
 
+    // A "direct" SolverResult is precon-only (has `ponds`, no `precon`/`postliming` wrapper).
+    const asDirectPrecon = (r: Record<string, unknown> | undefined): SolverResult | undefined =>
+      r && !r.precon && !r.postliming && Array.isArray((r as { ponds?: unknown }).ponds)
+        ? (r as unknown as SolverResult)
+        : undefined;
+
     if (isMultiDay && dailyResults) {
       if (viewMode === 'average' && nValid > 0) {
         const preconArr = validDays
@@ -592,7 +598,15 @@ export default function ExecutionResultsPage() {
         const encArr = validDays
           .map((dr) => (dr.result as Record<string, unknown>).encalado as Record<string, unknown> | undefined)
           .filter((e): e is Record<string, unknown> => e != null);
-        precon = preconArr.length > 0 ? averageSolverResults(preconArr) : undefined;
+        const directPreconArr = validDays
+          .map((dr) => asDirectPrecon(dr.result as Record<string, unknown> | undefined))
+          .filter((p): p is SolverResult => p != null);
+        precon =
+          preconArr.length > 0
+            ? averageSolverResults(preconArr)
+            : directPreconArr.length > 0
+              ? averageSolverResults(directPreconArr)
+              : undefined;
         postliming = postArr.length > 0 ? averageSolverResults(postArr) : undefined;
         encalado = encArr.length > 0 ? averageEncaladoResults(encArr) : undefined;
         const avgTemp = averageTemperatures(validDays.map((dr) => dr.temperature_C));
@@ -601,14 +615,14 @@ export default function ExecutionResultsPage() {
       } else {
         const dr = dailyResults[selectedDay];
         const day = dr?.result as Record<string, unknown> | undefined;
-        precon = day?.precon as SolverResult | undefined;
+        precon = (day?.precon as SolverResult | undefined) ?? asDirectPrecon(day);
         encalado = day?.encalado as Record<string, unknown> | undefined;
         postliming = day?.postliming as SolverResult | undefined;
         preconTemp = dr?.temperature_C;
         postlimingTemp = dr?.temperature_C;
       }
     } else if (results) {
-      precon = results.precon as SolverResult | undefined;
+      precon = (results.precon as SolverResult | undefined) ?? asDirectPrecon(results);
       encalado = results.encalado as Record<string, unknown> | undefined;
       postliming = results.postliming as SolverResult | undefined;
       const singleTemp = extractSingleDayTemperature(execution.parameters_snapshot);
@@ -836,7 +850,24 @@ export default function ExecutionResultsPage() {
               <KPICards stageLabel={label} result={result} />
             ))}
 
-          {activeTab === 'global' && <GlobalBalanceTable streams={streamsForExport} />}
+          {activeTab === 'global' && (() => {
+            const snap = execution.parameters_snapshot ?? {};
+            const encCfg = snap.encalado_config as Record<string, unknown> | undefined;
+            const preconDaysYear = (snap.precon_days_year as number | undefined) ?? 365;
+            const encaladoDaysYear =
+              (snap.encalado_days_year as number | undefined) ??
+              (encCfg?.availability_days_year as number | undefined) ??
+              328.5;
+            const postlimingDaysYear = (snap.postliming_days_year as number | undefined) ?? 365;
+            return (
+              <GlobalBalanceTable
+                streams={streamsForExport}
+                preconDaysYear={preconDaysYear}
+                encaladoDaysYear={encaladoDaysYear}
+                postlimingDaysYear={postlimingDaysYear}
+              />
+            );
+          })()}
 
           {activeTab === 'precon' && (() => {
             const preconStages = stagesToShow.filter(s =>

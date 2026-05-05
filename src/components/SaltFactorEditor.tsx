@@ -30,14 +30,20 @@ export default function SaltFactorEditor({
     const enabled: SaltGroup['items'] = [];
     const inhibited: SaltGroup['items'] = [];
 
-    value.forEach((factor, index) => {
-      const name = saltNames[index] || `Salt ${index}`;
+    // If salt names are known, only render real salts (skip Faktor padding slots).
+    // Otherwise fall back to rendering every position with a numeric label.
+    const limit = saltNames.length > 0 ? saltNames.length : value.length;
+
+    for (let index = 0; index < limit; index++) {
+      const factor = value[index];
+      if (factor === undefined) continue;
+      const name = saltNames[index] || `Sal ${index}`;
       const item = { index, name, factor };
 
       if (factor < 1) favored.push(item);
       else if (factor === 1) enabled.push(item);
       else inhibited.push(item);
-    });
+    }
 
     return [
       { label: 'Favorecidas (F < 1)', description: 'Precipitacion favorecida', items: favored },
@@ -137,7 +143,7 @@ export default function SaltFactorEditor({
       ))}
 
       <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-        Total: {value.length} sales configuradas
+        Total: {groups.reduce((acc, g) => acc + g.items.length, 0)} sales configuradas
       </p>
     </div>
   );

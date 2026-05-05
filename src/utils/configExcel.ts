@@ -20,6 +20,12 @@ export interface ExcelConfig {
   postliming_ponds?: PondConfig[];
   postliming_faktor?: number[];
   daily_schedule?: DailyScheduleItem[];
+  /** Engine salt names indexed by Faktor position (length 137). Optional — used only for export labelling. */
+  salt_names?: string[];
+  /** Operating calendar — days/year per phase. */
+  precon_days_year?: number;
+  encalado_days_year?: number;
+  postliming_days_year?: number;
 }
 
 const SHEET = {
@@ -31,6 +37,7 @@ const SHEET = {
   postlimingPonds: 'Pozas Postliming',
   postlimingFaktor: 'Factores Postliming',
   schedule: 'Cronograma',
+  calendar: 'Calendario',
   readme: 'Instrucciones',
 } as const;
 
@@ -116,11 +123,19 @@ function pondsSheet(ponds: PondConfig[] | undefined): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
-function faktorSheet(factors: number[] | undefined, length = 156): XLSX.WorkSheet {
-  const rows: (string | number)[][] = [['indice', 'factor']];
+function faktorSheet(
+  factors: number[] | undefined,
+  saltNames: string[] | undefined,
+  length = 156,
+): XLSX.WorkSheet {
   const arr = factors ?? [];
-  for (let i = 0; i < Math.max(length, arr.length); i++) {
-    rows.push([i, arr[i] ?? 1]);
+  const names = saltNames ?? [];
+  // If we know the salt names, only export the rows that correspond to real salts
+  // (engine has 137 solid phases; positions 137-155 are unused Faktor padding).
+  const limit = names.length > 0 ? names.length : Math.max(length, arr.length);
+  const rows: (string | number)[][] = [['indice', 'sal', 'factor']];
+  for (let i = 0; i < limit; i++) {
+    rows.push([i, names[i] ?? `Sal ${i}`, arr[i] ?? 1]);
   }
   return XLSX.utils.aoa_to_sheet(rows);
 }
@@ -142,6 +157,14 @@ function scheduleSheet(schedule: DailyScheduleItem[] | undefined): XLSX.WorkShee
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
+function calendarSheet(cfg: ExcelConfig): XLSX.WorkSheet {
+  const rows: (string | number)[][] = [['fase', 'dias_ano']];
+  rows.push(['preconcentracion', cfg.precon_days_year ?? 365]);
+  rows.push(['encalado', cfg.encalado_days_year ?? 328.5]);
+  rows.push(['postliming', cfg.postliming_days_year ?? 365]);
+  return XLSX.utils.aoa_to_sheet(rows);
+}
+
 function readmeSheet(): XLSX.WorkSheet {
   const rows = [
     ['Plantilla de Configuracion — AdInfinitum'],
@@ -149,12 +172,13 @@ function readmeSheet(): XLSX.WorkSheet {
     ['Hoja', 'Descripcion'],
     [SHEET.brine, 'Salmuera inicial: 17 especies (ton/dia). No borre ni renombre especies.'],
     [SHEET.preconPonds, 'Pozas de preconcentracion. Agregue/elimine filas segun necesite.'],
-    [SHEET.preconFaktor, 'Factor[156] de precipitacion preconcentracion (F<1 favorece, F=1 habilita, F>1 inhibe).'],
+    [SHEET.preconFaktor, 'Factores de precipitacion preconcentracion (F<1 favorece, F=1 habilita, F>1 inhibe). Columna sal es informativa; el indice manda al importar.'],
     [SHEET.encalado, 'Parametros de encalado (clave/valor). use_CaCl2 acepta TRUE/FALSE.'],
-    [SHEET.encaladoFaktor, 'Factor[156] de precipitacion encalado.'],
+    [SHEET.encaladoFaktor, 'Factores de precipitacion encalado. Columna sal es informativa.'],
     [SHEET.postlimingPonds, 'Pozas de post-liming.'],
-    [SHEET.postlimingFaktor, 'Factor[156] de precipitacion post-liming.'],
+    [SHEET.postlimingFaktor, 'Factores de precipitacion post-liming. Columna sal es informativa.'],
     [SHEET.schedule, 'Cronograma diario: date_label, temperatura (C), evaporacion (mm/dia).'],
+    [SHEET.calendar, 'Calendario operativo: dias/ano por fase (preconcentracion, encalado, postliming).'],
     [],
     ['Notas'],
     ['- Las hojas no presentes en el archivo se ignoran al importar.'],
@@ -168,15 +192,17 @@ function readmeSheet(): XLSX.WorkSheet {
 
 export function buildWorkbook(cfg: ExcelConfig): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
+  const names = cfg.salt_names;
   XLSX.utils.book_append_sheet(wb, readmeSheet(), SHEET.readme);
   XLSX.utils.book_append_sheet(wb, brineSheet(cfg.brine), SHEET.brine);
   XLSX.utils.book_append_sheet(wb, pondsSheet(cfg.precon_ponds), SHEET.preconPonds);
-  XLSX.utils.book_append_sheet(wb, faktorSheet(cfg.precon_faktor), SHEET.preconFaktor);
+  XLSX.utils.book_append_sheet(wb, faktorSheet(cfg.precon_faktor, names), SHEET.preconFaktor);
   XLSX.utils.book_append_sheet(wb, encaladoSheet(cfg.encalado_config), SHEET.encalado);
-  XLSX.utils.book_append_sheet(wb, faktorSheet(cfg.encalado_faktor), SHEET.encaladoFaktor);
+  XLSX.utils.book_append_sheet(wb, faktorSheet(cfg.encalado_faktor, names), SHEET.encaladoFaktor);
   XLSX.utils.book_append_sheet(wb, pondsSheet(cfg.postliming_ponds), SHEET.postlimingPonds);
-  XLSX.utils.book_append_sheet(wb, faktorSheet(cfg.postliming_faktor), SHEET.postlimingFaktor);
+  XLSX.utils.book_append_sheet(wb, faktorSheet(cfg.postliming_faktor, names), SHEET.postlimingFaktor);
   XLSX.utils.book_append_sheet(wb, scheduleSheet(cfg.daily_schedule), SHEET.schedule);
+  XLSX.utils.book_append_sheet(wb, calendarSheet(cfg), SHEET.calendar);
   return wb;
 }
 
@@ -251,6 +277,25 @@ function parseSchedule(ws: XLSX.WorkSheet): DailyScheduleItem[] {
     }));
 }
 
+function parseCalendar(ws: XLSX.WorkSheet): {
+  precon_days_year?: number;
+  encalado_days_year?: number;
+  postliming_days_year?: number;
+} {
+  const rows = sheetToRows(ws);
+  const out: { precon_days_year?: number; encalado_days_year?: number; postliming_days_year?: number } = {};
+  rows.forEach((r) => {
+    const phase = String(r['fase'] ?? r['Fase'] ?? '').trim().toLowerCase();
+    const raw = r['dias_ano'] ?? r['dias_año'] ?? r['days_year'];
+    if (raw === '' || raw === undefined) return;
+    const n = toNum(raw);
+    if (phase.startsWith('precon')) out.precon_days_year = n;
+    else if (phase.startsWith('encal')) out.encalado_days_year = n;
+    else if (phase.startsWith('post')) out.postliming_days_year = n;
+  });
+  return out;
+}
+
 /* -------- parse workbook -------- */
 
 export async function parseWorkbookFile(file: File): Promise<ExcelConfig> {
@@ -271,6 +316,12 @@ export async function parseWorkbookFile(file: File): Promise<ExcelConfig> {
   if (get(SHEET.postlimingFaktor))
     out.postliming_faktor = parseFaktor(get(SHEET.postlimingFaktor));
   if (get(SHEET.schedule)) out.daily_schedule = parseSchedule(get(SHEET.schedule));
+  if (get(SHEET.calendar)) {
+    const cal = parseCalendar(get(SHEET.calendar));
+    if (cal.precon_days_year != null) out.precon_days_year = cal.precon_days_year;
+    if (cal.encalado_days_year != null) out.encalado_days_year = cal.encalado_days_year;
+    if (cal.postliming_days_year != null) out.postliming_days_year = cal.postliming_days_year;
+  }
 
   return out;
 }
