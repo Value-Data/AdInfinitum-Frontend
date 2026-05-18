@@ -92,6 +92,27 @@ export const TRACE_SPECIES: (keyof BrineData)[] = [
   'BO2-',
 ];
 
+// Orden canónico de los 17 componentes acuosos (sin subdivisión principal/traza).
+export const BRINE_SPECIES_ORDER: (keyof BrineData)[] = [
+  'H2O',
+  'Li+',
+  'Na+',
+  'K+',
+  'Mg++',
+  'Ca++',
+  'H+',
+  'Cl-',
+  'HSO4-',
+  'SO4--',
+  'OH-',
+  'CO2(aq)',
+  'HCO3-',
+  'CO3--',
+  'H3BO3',
+  'B4O7--',
+  'BO2-',
+];
+
 // ---- Pond Config ----
 
 export interface PondConfig {
