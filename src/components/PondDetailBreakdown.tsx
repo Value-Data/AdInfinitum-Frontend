@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { PondResult, SolverResult } from '../types';
 
 interface Props {
@@ -45,6 +45,8 @@ function MatrixSubTable({
   headerLabel,
   ponds,
   getValue,
+  titleRight,
+  valueDigits = 5,
 }: {
   title: string;
   caption?: string;
@@ -52,16 +54,21 @@ function MatrixSubTable({
   headerLabel: string;
   ponds: PondResult[];
   getValue: (rowLabel: string, pond: PondResult) => number | null | undefined;
+  titleRight?: React.ReactNode;
+  valueDigits?: number;
 }) {
   if (rowLabels.length === 0) {
     return (
       <div className="mt-6">
-        <h5
-          className="text-xs font-semibold uppercase tracking-wide mb-2"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
-          {title}
-        </h5>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <h5
+            className="text-xs font-semibold uppercase tracking-wide"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            {title}
+          </h5>
+          {titleRight}
+        </div>
         <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
           Sin datos disponibles.
         </p>
@@ -71,12 +78,15 @@ function MatrixSubTable({
 
   return (
     <div className="mt-6">
-      <h5
-        className="text-xs font-semibold uppercase tracking-wide mb-2"
-        style={{ color: 'var(--color-text-secondary)' }}
-      >
-        {title}
-      </h5>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <h5
+          className="text-xs font-semibold uppercase tracking-wide"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          {title}
+        </h5>
+        {titleRight}
+      </div>
       <div className="overflow-x-auto">
         <table>
           <thead>
@@ -93,7 +103,7 @@ function MatrixSubTable({
                 <td className="font-medium">{label}</td>
                 {ponds.map((p, i) => (
                   <td key={i} className="font-mono">
-                    {formatNum(getValue(label, p) ?? undefined, 5)}
+                    {formatNum(getValue(label, p) ?? undefined, valueDigits)}
                   </td>
                 ))}
               </tr>
@@ -112,6 +122,7 @@ function MatrixSubTable({
 
 export default function PondDetailBreakdown({ stageLabel, result, temperature_C }: Props) {
   const ponds = result.ponds || [];
+  const [liquidView, setLiquidView] = useState<'abs' | 'pct'>('abs');
 
   if (ponds.length === 0) {
     return (
@@ -147,6 +158,43 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
     );
   });
 
+  // Total liquid flow per pond across the rendered species (sum of eq_liquid)
+  const liquidTotalsByPond = ponds.map((p) => {
+    const eq = p.aqsol_result?.eq_liquid || {};
+    return SPECIES.reduce((acc, sp) => acc + (eq[sp] ?? 0), 0);
+  });
+
+  const liquidToggle = (
+    <div
+      className="inline-flex rounded overflow-hidden text-xs"
+      style={{ border: '1px solid var(--color-border, #d1d5db)' }}
+    >
+      {([
+        ['abs', 'ton/d'],
+        ['pct', '%'],
+      ] as const).map(([value, label]) => {
+        const active = liquidView === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setLiquidView(value)}
+            className="px-2 py-1 font-medium"
+            style={{
+              backgroundColor: active
+                ? 'var(--color-primary)'
+                : 'var(--color-surface)',
+              color: active ? '#fff' : 'var(--color-text)',
+              cursor: 'pointer',
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div>
       <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
@@ -181,12 +229,29 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
 
       {/* Liquid composition (flujo de traspaso) */}
       <MatrixSubTable
-        title="Química de flujo de traspaso por componente (ton/d)"
-        caption="Composición del líquido a la salida de cada poza."
+        title={
+          liquidView === 'abs'
+            ? 'Química de flujo de traspaso por componente (ton/d)'
+            : 'Química de flujo de traspaso por componente (%)'
+        }
+        caption={
+          liquidView === 'abs'
+            ? 'Composición del líquido a la salida de cada poza.'
+            : 'Fracción másica de cada componente sobre el total del líquido de salida de la poza.'
+        }
         rowLabels={SPECIES}
         headerLabel="Especie"
         ponds={ponds}
-        getValue={(label, p) => p.aqsol_result?.eq_liquid?.[label] ?? 0}
+        titleRight={liquidToggle}
+        valueDigits={liquidView === 'pct' ? 3 : 5}
+        getValue={(label, p) => {
+          const value = p.aqsol_result?.eq_liquid?.[label] ?? 0;
+          if (liquidView === 'abs') return value;
+          const idx = ponds.indexOf(p);
+          const total = liquidTotalsByPond[idx];
+          if (!total || total <= 0) return 0;
+          return (value / total) * 100;
+        }}
       />
 
       {/* Precipitated salts absolute */}
