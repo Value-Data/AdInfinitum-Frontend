@@ -236,4 +236,25 @@ export async function exportExecution(id: string): Promise<Blob> {
   return data;
 }
 
+// ---- Dynamic execution artifacts ----
+
+export async function listExecutionFiles(
+  id: string,
+): Promise<{ name: string; size_bytes: number }[]> {
+  const { data } = await api.get<{ name: string; size_bytes: number }[]>(
+    `/executions/${id}/files`,
+  );
+  return data;
+}
+
+export async function downloadExecutionFile(
+  id: string,
+  name: string,
+): Promise<Blob> {
+  const { data } = await api.get(`/executions/${id}/files/${encodeURIComponent(name)}`, {
+    responseType: 'blob',
+  });
+  return data;
+}
+
 export default api;

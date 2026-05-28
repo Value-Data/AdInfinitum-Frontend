@@ -21,10 +21,12 @@ import EncaladoConfigForm from '../components/EncaladoConfigForm';
 import DailyScheduleEditor from '../components/DailyScheduleEditor';
 import ExecutionList from '../components/ExecutionList';
 import RunSimulationPanel from '../components/RunSimulationPanel';
+import DynamicModePanel from '../components/DynamicModePanel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { downloadExcel, parseWorkbookFile } from '../utils/configExcel';
 
 type TabKey = 'config' | 'executions';
+type ProjectMode = 'static' | 'dynamic';
 
 const DEFAULT_ENCALADO: EncaladoConfig = {
   availability_days_year: 328.5,
@@ -94,6 +96,7 @@ export default function ProjectDetailPage() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>(isAdmin ? 'config' : 'executions');
   const [refreshExecKey, setRefreshExecKey] = useState(0);
+  const [mode, setMode] = useState<ProjectMode>('static');
 
   // Local config state for editing
   const [brine, setBrine] = useState<Record<string, number>>({});
@@ -336,8 +339,43 @@ export default function ProjectDetailPage() {
             </p>
           )}
         </div>
+
+        {/* Mode selector: Estático / Dinámico */}
+        <div
+          className="inline-flex rounded border overflow-hidden text-sm"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
+          <button
+            className="px-3 py-1.5"
+            style={{
+              background: mode === 'static' ? 'var(--color-primary)' : 'transparent',
+              color: mode === 'static' ? '#fff' : 'var(--color-text)',
+            }}
+            onClick={() => setMode('static')}
+          >
+            Modo Estático
+          </button>
+          <button
+            className="px-3 py-1.5"
+            style={{
+              background: mode === 'dynamic' ? 'var(--color-primary)' : 'transparent',
+              color: mode === 'dynamic' ? '#fff' : 'var(--color-text)',
+            }}
+            onClick={() => setMode('dynamic')}
+          >
+            Modo Dinámico
+          </button>
+        </div>
       </div>
 
+      {/* Dynamic mode: replace tabs with DynamicModePanel */}
+      {mode === 'dynamic' && (
+        <DynamicModePanel projectId={project.id} isAdmin={isAdmin} />
+      )}
+
+      {/* Static mode: existing tabs */}
+      {mode === 'static' && (
+      <>
       {/* Tabs */}
       <div
         className="flex gap-0 border-b mb-6"
@@ -534,6 +572,8 @@ export default function ProjectDetailPage() {
       {/* Executions Tab */}
       {activeTab === 'executions' && (
         <ExecutionList key={refreshExecKey} projectId={project.id} />
+      )}
+      </>
       )}
     </div>
   );
