@@ -20,7 +20,9 @@ import LoadingSpinner from './common/LoadingSpinner';
 import DynamicConfigEditor from './DynamicConfigEditor';
 import DynamicResultsView from './DynamicResultsView';
 import DynamicChainView from './DynamicChainView';
+import DynamicReportModal from './DynamicReportModal';
 import type { DynamicResults } from '../types';
+import { useT } from '../i18n/LanguageContext';
 import {
   applyParsedToConfig,
   downloadDynamicExcel,
@@ -55,6 +57,7 @@ export default function DynamicModePanel({
   projectId: string;
   isAdmin: boolean;
 }) {
+  const t = useT();
   const [config, setConfig] = useState<DynamicConfig | null>(null);
   // Local edited copy of config (for Config tab)
   const [draftConfig, setDraftConfig] = useState<DynamicConfig | null>(null);
@@ -73,6 +76,7 @@ export default function DynamicModePanel({
   const [projectName, setProjectName] = useState<string>('proyecto');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [chainRootId, setChainRootId] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -134,6 +138,75 @@ export default function DynamicModePanel({
           },
         };
         autoFilled = true;
+      }
+
+      // v2: auto-fill missing fields (older configs predate v2 schema).
+      if (dc?.encalado?.config) {
+        const enc = dc.encalado.config as unknown as Record<string, unknown>;
+        let migrated = false;
+        const patched = { ...enc };
+        // 3 V3 flags
+        if (patched.use_filtrate_as_aqsol2_base === undefined) {
+          patched.use_filtrate_as_aqsol2_base = true;
+          migrated = true;
+        }
+        if (patched.use_fn_input_subtraction === undefined) {
+          patched.use_fn_input_subtraction = false;
+          migrated = true;
+        }
+        if (patched.include_cake_wash_in_output === undefined) {
+          patched.include_cake_wash_in_output = false;
+          migrated = true;
+        }
+        // secuencia_dosificaciones default V3
+        const seq = patched.secuencia_dosificaciones as unknown[] | undefined;
+        if (!Array.isArray(seq) || seq.length === 0) {
+          patched.secuencia_dosificaciones = [
+            { reactivo: 'Ca(OH)2', objetivo: 'Mg', factor_exceso: 1.17,
+              concentracion_solucion: 0.25, enabled: true },
+            { reactivo: 'CaCl2', objetivo: 'SO4', factor_exceso: 0.70,
+              concentracion_solucion: 0.381, enabled: false },
+          ];
+          migrated = true;
+        }
+        if (migrated) {
+          dc = {
+            ...dc,
+            encalado: {
+              ...dc.encalado,
+              config: patched as unknown as typeof dc.encalado.config,
+            },
+          };
+          autoFilled = true;
+        }
+      }
+      // v2 V4: postliming params auto-fill.
+      if (dc?.postliming?.config) {
+        const pl = dc.postliming.config as unknown as Record<string, unknown>;
+        let migrated = false;
+        const patched = { ...pl };
+        if (patched.use_pz10_seasonal_modulation === undefined) {
+          patched.use_pz10_seasonal_modulation = true;
+          migrated = true;
+        }
+        if (patched.pz10_average_outflow_t_day === undefined) {
+          patched.pz10_average_outflow_t_day = 718.8;
+          migrated = true;
+        }
+        if (patched.apply_berm_factor === undefined) {
+          patched.apply_berm_factor = false;
+          migrated = true;
+        }
+        if (migrated) {
+          dc = {
+            ...dc,
+            postliming: {
+              ...dc.postliming,
+              config: patched as unknown as typeof dc.postliming.config,
+            },
+          };
+          autoFilled = true;
+        }
       }
       setConfig(dc);
       setDraftConfig(dc);
@@ -319,7 +392,7 @@ export default function DynamicModePanel({
             }}
             onClick={() => setActiveTab('config')}
           >
-            Configuración{dirty ? ' •' : ''}
+            {t('configuration')}{dirty ? ' •' : ''}
           </button>
         )}
         <button
@@ -332,7 +405,7 @@ export default function DynamicModePanel({
           }}
           onClick={() => setActiveTab('executions')}
         >
-          Ejecuciones
+          {t('executions')}
         </button>
       </div>
 
@@ -340,7 +413,7 @@ export default function DynamicModePanel({
       {activeTab === 'config' && isAdmin && draftConfig && (
         <div>
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <h3 className="text-base font-semibold">Configuración dinámica del proyecto</h3>
+            <h3 className="text-base font-semibold">{t('dynamic_config_title')}</h3>
             <div className="flex gap-2 flex-wrap">
               <input
                 ref={fileInputRef}
@@ -350,17 +423,17 @@ export default function DynamicModePanel({
                 className="hidden"
               />
               <button className="btn btn-outline btn-sm" onClick={handleDownloadExcel}>
-                Descargar Excel
+                {t('download_excel')}
               </button>
               <button className="btn btn-outline btn-sm" onClick={handleImportClick}>
-                Cargar desde Excel
+                {t('upload_excel')}
               </button>
               <button className="btn btn-outline btn-sm" onClick={handleLoadDefaults}>
-                Cargar defaults
+                {t('load_defaults')}
               </button>
               {dirty && (
                 <button className="btn btn-outline btn-sm" onClick={handleResetDraft}>
-                  Descartar cambios
+                  {t('discard_changes')}
                 </button>
               )}
               <button
@@ -368,7 +441,7 @@ export default function DynamicModePanel({
                 onClick={handleSaveConfig}
                 disabled={!dirty || saving}
               >
-                {saving ? 'Guardando…' : 'Guardar'}
+                {saving ? t('saving') : t('save')}
               </button>
             </div>
           </div>
@@ -399,7 +472,7 @@ export default function DynamicModePanel({
         <div>
           {isAdmin && (
             <div className="card p-4 mb-4">
-              <h3 className="text-base font-semibold mb-3">Lanzar ejecución</h3>
+              <h3 className="text-base font-semibold mb-3">{t('launch_execution')}</h3>
               <div className="flex gap-2 mb-3 flex-wrap">
                 {(Object.keys(STAGE_LABEL) as StageKey[]).map((s) => (
                   <button
@@ -420,7 +493,7 @@ export default function DynamicModePanel({
                 {SOURCE_REQUIRED_FOR[activeStage] && (
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium mb-1">
-                      Fuente ({SOURCE_REQUIRED_FOR[activeStage]?.replace('modelo_dinamico_', '')} completada)
+                      {t('source')} ({SOURCE_REQUIRED_FOR[activeStage]?.replace('modelo_dinamico_', '')})
                     </label>
                     <select
                       className="input w-full"
@@ -442,7 +515,7 @@ export default function DynamicModePanel({
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs font-medium mb-1">Días simulación</label>
+                  <label className="block text-xs font-medium mb-1">{t('simulation_days')}</label>
                   <input
                     type="number"
                     className="input input-number w-full"
@@ -452,7 +525,7 @@ export default function DynamicModePanel({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1">Tag</label>
+                  <label className="block text-xs font-medium mb-1">{t('tag')}</label>
                   <input
                     type="text"
                     className="input w-full"
@@ -462,7 +535,7 @@ export default function DynamicModePanel({
                 </div>
               </div>
               <button className="btn btn-primary" onClick={handleLaunch} disabled={launching}>
-                {launching ? 'Encolando…' : `Lanzar ${STAGE_LABEL[activeStage]}`}
+                {launching ? t('launching') : `${t('launch_execution')}: ${STAGE_LABEL[activeStage]}`}
               </button>
               {saveMsg && (
                 <p
@@ -485,20 +558,30 @@ export default function DynamicModePanel({
           )}
 
           <div className="card p-4 mb-4">
-            <h3 className="text-base font-semibold mb-3">Ejecuciones dinámicas</h3>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h3 className="text-base font-semibold">{t('dynamic_executions')}</h3>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setReportOpen(true)}
+                disabled={executions.filter((e) => e.status === 'completed').length === 0}
+                title="Selecciona etapas y ejecuciones para generar un PDF"
+              >
+                Generar Reporte
+              </button>
+            </div>
             {executions.length === 0 ? (
               <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                Sin ejecuciones todavía.
+                {t('no_executions_yet')}
               </p>
             ) : (
               <table className="w-full text-sm">
                 <thead className="text-left text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                   <tr>
                     <th className="py-1">ID</th>
-                    <th>Etapa</th>
-                    <th>Estado</th>
-                    <th>Fecha</th>
-                    <th>Fuente</th>
+                    <th>{t('stage')}</th>
+                    <th>{t('status')}</th>
+                    <th>{t('date')}</th>
+                    <th>{t('source')}</th>
                     <th />
                   </tr>
                 </thead>
@@ -517,16 +600,16 @@ export default function DynamicModePanel({
                       <td className="flex gap-1">
                         {e.status === 'completed' && (
                           <button className="btn btn-outline btn-sm" onClick={() => { setSelectedExecId(e.id); setChainRootId(null); }}>
-                            Ver
+                            {t('view')}
                           </button>
                         )}
                         {e.status === 'completed' && e.source_execution_id && (
                           <button
                             className="btn btn-outline btn-sm"
                             onClick={() => { setChainRootId(e.id); setSelectedExecId(null); }}
-                            title="Ver vista agregada de toda la cadena"
+                            title={t('chain_root')}
                           >
-                            Cadena
+                            {t('chain')}
                           </button>
                         )}
                       </td>
@@ -549,6 +632,13 @@ export default function DynamicModePanel({
               onClose={() => setChainRootId(null)}
             />
           )}
+
+          <DynamicReportModal
+            open={reportOpen}
+            onClose={() => setReportOpen(false)}
+            executions={executions}
+            projectName={projectName}
+          />
         </div>
       )}
     </div>
@@ -579,6 +669,7 @@ function DynamicResultPanel({
   executionId: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const [results, setResults] = useState<DynamicResults | null>(null);
   const [files, setFiles] = useState<ExecutionFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -635,10 +726,10 @@ function DynamicResultPanel({
         </h3>
         <div className="flex gap-2">
           <button className="btn btn-outline btn-sm" onClick={() => setRefetchKey((k) => k + 1)}>
-            Refrescar
+            {t('refresh')}
           </button>
           <button className="btn btn-outline btn-sm" onClick={onClose}>
-            Cerrar
+            {t('close')}
           </button>
         </div>
       </div>

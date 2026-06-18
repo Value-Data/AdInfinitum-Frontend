@@ -14,6 +14,7 @@ import {
   updateProjectConfig,
   getProjectConfigDefaults,
 } from '../services/api';
+import { useT } from '../i18n/LanguageContext';
 import BrineEditor from '../components/BrineEditor';
 import PondEditor from '../components/PondEditor';
 import SaltFactorEditor from '../components/SaltFactorEditor';
@@ -89,6 +90,7 @@ function SectionHeader({
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { isAdmin } = useAuth();
+  const t = useT();
   const [project, setProject] = useState<Project | null>(null);
   const [config, setConfig] = useState<ProjectConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -353,7 +355,7 @@ export default function ProjectDetailPage() {
             }}
             onClick={() => setMode('static')}
           >
-            Modo Estático
+            {t('static_mode')}
           </button>
           <button
             className="px-3 py-1.5"
@@ -363,7 +365,7 @@ export default function ProjectDetailPage() {
             }}
             onClick={() => setMode('dynamic')}
           >
-            Modo Dinámico
+            {t('dynamic_mode')}
           </button>
         </div>
       </div>

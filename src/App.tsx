@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AppLayout from './layouts/AppLayout';
@@ -13,6 +14,7 @@ import UsersPage from './pages/UsersPage';
 export default function App() {
   return (
     <BrowserRouter>
+      <LanguageProvider>
       <AuthProvider>
         <ErrorBoundary>
         <Routes>
@@ -41,6 +43,7 @@ export default function App() {
         </Routes>
         </ErrorBoundary>
       </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

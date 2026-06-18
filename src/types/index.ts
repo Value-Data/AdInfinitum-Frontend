@@ -241,6 +241,18 @@ export interface DynamicClimate {
   temperature_C: number[];
 }
 
+// v2: 5 supported reactivo/objetivo combinations.
+export type DosificacionReactivo = 'Ca(OH)2' | 'CaCl2' | 'NaOH' | 'Na2SO4';
+export type DosificacionObjetivo = 'Mg' | 'SO4' | 'Ca';
+
+export interface DosificacionConfig {
+  reactivo: DosificacionReactivo;
+  objetivo: DosificacionObjetivo;
+  factor_exceso: number;
+  concentracion_solucion: number;
+  enabled: boolean;
+}
+
 export interface DynamicEncaladoParams {
   availability_days_year: number;
   temperature_C: number;
@@ -263,6 +275,12 @@ export interface DynamicEncaladoParams {
   abort_on_aqsol_fail_pct: number;
   max_iter_fn: number;
   fn_tolerance: number;
+  // v2: V3 flags (Ad-Inf convention defaults).
+  use_filtrate_as_aqsol2_base: boolean;
+  use_fn_input_subtraction: boolean;
+  include_cake_wash_in_output: boolean;
+  // v2: configurable dosing sequence (ordered).
+  secuencia_dosificaciones: DosificacionConfig[];
 }
 
 export interface SaltFactor {
@@ -274,6 +292,8 @@ export interface SaltFactor {
 export interface DynamicEncalado {
   config: DynamicEncaladoParams;
   factors: SaltFactor[];
+  // v2: informative catalog for UI dropdowns (reactivos, objetivos, params per reactivo).
+  reactivos_catalog?: Record<string, unknown> | null;
 }
 
 export interface DynamicPostlimingPondConfig {
@@ -297,6 +317,10 @@ export interface DynamicPostlimingParams {
   abort_on_aqsol_fail_pct: number;
   validation_window_days: number[];
   salts_allowed: string[];
+  // v2 V4: seasonal modulation Pz10 + apply_berm_factor.
+  use_pz10_seasonal_modulation: boolean;
+  pz10_average_outflow_t_day: number | null;
+  apply_berm_factor: boolean;
 }
 
 export interface DynamicPostliming {
@@ -482,6 +506,11 @@ export interface DynamicEncaladoResults {
   kpis: DynamicKpis;
   daily_series: DynamicEncaladoDailyRow[];
   reagents_daily: DynamicReagentsDaily[];
+  // Paridad con encalado estático: EncaladoResult promediado sobre los días válidos
+  // (mismo objeto que consume EncaladoResultPanel en el modelo estático).
+  encalado_result_averaged?: EncaladoResult | null;
+  encalado_temperature_C?: number;
+  n_days_averaged?: number;
   output_dir: string;
   feed_csv_to_postliming: string | null;
   files: ExecutionFile[];

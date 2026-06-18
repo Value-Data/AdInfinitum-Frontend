@@ -1,5 +1,9 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useT } from '../i18n/LanguageContext';
 import type {
+  DosificacionConfig,
+  DosificacionObjetivo,
+  DosificacionReactivo,
   DynamicConfig,
   DynamicEncaladoParams,
   DynamicPondConfig,
@@ -16,15 +20,34 @@ type Props = {
 };
 
 // =========================================================
+// Tooltip helper — small info icon with native title tooltip.
+// Customer-facing copy comes from DOC_PARAMETROS_UI_MODELO_DINAMICO.
+// =========================================================
+function Tip({ text }: { text: string }) {
+  return (
+    <span
+      className="ml-1 cursor-help select-none align-middle"
+      style={{ color: 'var(--color-text-secondary)', fontSize: '0.75em' }}
+      title={text}
+      aria-label={text}
+    >
+      &#9432;
+    </span>
+  );
+}
+
+// =========================================================
 // Collapsible section (same look as static project detail)
 // =========================================================
 function SectionHeader({
   title,
+  tooltip,
   isOpen,
   onToggle,
   children,
 }: {
   title: string;
+  tooltip?: string;
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -37,7 +60,10 @@ function SectionHeader({
         style={{ color: 'var(--color-text)' }}
         onClick={onToggle}
       >
-        <span>{title}</span>
+        <span>
+          {title}
+          {tooltip && <Tip text={tooltip} />}
+        </span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -72,8 +98,14 @@ function BrineSection({
       <table>
         <thead>
           <tr>
-            <th className="w-32">Aqueous components</th>
-            <th>Valor</th>
+            <th className="w-32">
+              Especies Acuosas
+              <Tip text="Nombre de la especie química (H2O, Li+, Na+, K+, Mg++, Ca++, …)." />
+            </th>
+            <th>
+              Valor
+              <Tip text="Flujo de la especie, en toneladas por día." />
+            </th>
             <th className="w-20">Unidad</th>
           </tr>
         </thead>
@@ -116,7 +148,7 @@ const DEFAULT_PRECON_POND: Omit<DynamicPondConfig, 'name' | 'number'> = {
   target_height_m: 0.20,
   max_height_m: null,
   is_terminal_buffer: false,
-  apply_berm_factor: true,
+  apply_berm_factor: false, // §A: oculto en UI, forzado a false (su default de motor diverge)
   control_mode: 'ALTURA',
   target_outflow_t_day: null,
   utilization: 1.0,
@@ -159,18 +191,46 @@ function PreconPondsSection({
           <tr>
             <th className="w-8">#</th>
             <th>Nombre</th>
-            <th>Area de proceso (m2)</th>
-            <th>Pond Factor</th>
-            <th>Entrainment (%)</th>
-            <th>Leakage (mm/d)</th>
-            <th>Dilucion (frac)</th>
-            <th>Target h (m)</th>
-            <th>Control</th>
-            <th>Berm</th>
-            <th>Buffer</th>
-            <th>FLUJO target (t/d)</th>
-            <th>Floor h (m)</th>
-            <th>h arranque (m)</th>
+            <th>
+              Área de Proceso (m²)
+              <Tip text="Área efectiva de evaporación de la poza." />
+            </th>
+            <th>
+              Factor de Pozas
+              <Tip text="Factor geométrico de Ad-Inf que ajusta la evaporación efectiva de la poza." />
+            </th>
+            <th>
+              Impregnación (%)
+              <Tip text="Porcentaje de salmuera que queda atrapada en las sales precipitadas y no se recupera." />
+            </th>
+            <th>
+              Fugas (mm/d)
+              <Tip text="Salmuera que se filtra por el fondo de la poza y se pierde, en milímetros por día." />
+            </th>
+            <th>
+              Dilución (frac)
+              <Tip text="Fracción de agua de dilución que se añade en la transferencia entre pozas. La primera poza va en 0 (recibe salmuera cruda, sin poza previa)." />
+            </th>
+            <th>
+              Target H (m)
+              <Tip text='Altura que la poza mantiene para decidir cuándo traspasa flujo. Solo aplica en modo "Por Altura".' />
+            </th>
+            <th>
+              Control
+              <Tip text="Modo de operación de la poza. Por Altura: ajusta el flujo de salida para mantener la altura objetivo. Buffer (flujo fijo): acumula hasta la altura de arranque y luego entrega un caudal fijo y constante." />
+            </th>
+            <th>
+              Flujo Target (T/D)
+              <Tip text='Caudal constante que entrega la poza en modo "Buffer (flujo fijo)".' />
+            </th>
+            <th>
+              Floor H (m)
+              <Tip text="Altura mínima de seguridad: la poza no entrega flujo que la haga caer por debajo de este nivel." />
+            </th>
+            <th>
+              H Arranque (m)
+              <Tip text="Altura que la poza buffer debe alcanzar antes de empezar a entregar flujo. Una vez alcanzada, queda operativa de forma permanente. Solo aplica a los modos Buffer." />
+            </th>
             <th className="w-20">Acciones</th>
           </tr>
         </thead>
@@ -257,6 +317,8 @@ function PreconPondsSection({
                   className="input input-number w-20"
                   min={0}
                   step={0.01}
+                  disabled={p.control_mode !== 'ALTURA'}
+                  style={p.control_mode !== 'ALTURA' ? { background: 'var(--color-bg)', color: 'var(--color-text-secondary)' } : undefined}
                   value={p.target_height_m ?? ''}
                   onChange={(e) =>
                     updatePond(i, {
@@ -267,7 +329,7 @@ function PreconPondsSection({
               </td>
               <td>
                 <select
-                  className="input w-28"
+                  className="input w-32"
                   value={p.control_mode}
                   onChange={(e) =>
                     updatePond(i, {
@@ -275,23 +337,9 @@ function PreconPondsSection({
                     })
                   }
                 >
-                  <option value="ALTURA">ALTURA</option>
-                  <option value="FLUJO_FIJO">FLUJO_FIJO</option>
+                  <option value="ALTURA">Por Altura</option>
+                  <option value="FLUJO_FIJO">Buffer (flujo fijo)</option>
                 </select>
-              </td>
-              <td className="text-center">
-                <input
-                  type="checkbox"
-                  checked={p.apply_berm_factor}
-                  onChange={(e) => updatePond(i, { apply_berm_factor: e.target.checked })}
-                />
-              </td>
-              <td className="text-center">
-                <input
-                  type="checkbox"
-                  checked={p.is_terminal_buffer}
-                  onChange={(e) => updatePond(i, { is_terminal_buffer: e.target.checked })}
-                />
               </td>
               <td>
                 <input
@@ -300,6 +348,7 @@ function PreconPondsSection({
                   step={0.01}
                   min={0}
                   disabled={p.control_mode !== 'FLUJO_FIJO'}
+                  style={p.control_mode !== 'FLUJO_FIJO' ? { background: 'var(--color-bg)', color: 'var(--color-text-secondary)' } : undefined}
                   value={p.target_outflow_t_day ?? ''}
                   onChange={(e) =>
                     updatePond(i, {
@@ -329,6 +378,7 @@ function PreconPondsSection({
                   step={0.01}
                   min={0}
                   disabled={p.control_mode !== 'FLUJO_FIJO'}
+                  style={p.control_mode !== 'FLUJO_FIJO' ? { background: 'var(--color-bg)', color: 'var(--color-text-secondary)' } : undefined}
                   value={p.h_arranque_m}
                   onChange={(e) =>
                     updatePond(i, { h_arranque_m: parseFloat(e.target.value) || 0 })
@@ -402,38 +452,50 @@ function PostlimingPondsSection({
         <thead>
           <tr>
             <th>Nombre</th>
-            <th>Designacion</th>
-            <th>Area de proceso (m2)</th>
-            <th>Control</th>
-            <th>Buffer h (m)</th>
-            <th>Target h (m)</th>
-            <th>Floor h (m)</th>
-            <th>Evap factor</th>
-            <th>Leakage (mm/d)</th>
-            <th>Entrainment (%)</th>
-            <th>Dilucion (frac)</th>
-            <th>Pond Factor</th>
+            <th>
+              Área de Proceso (m²)
+              <Tip text="Área efectiva de evaporación de la poza." />
+            </th>
+            <th>
+              Control
+              <Tip text="Modo de operación de la poza. Por Altura: ajusta el flujo de salida para mantener la altura objetivo. Buffer (estacional): acumula hasta la altura de arranque y luego entrega un caudal que sube y baja con la evaporación diaria." />
+            </th>
+            <th>
+              H Arranque (m)
+              <Tip text="Altura que la poza buffer debe alcanzar antes de empezar a entregar flujo. Una vez alcanzada, queda operativa de forma permanente. Solo aplica a los modos Buffer." />
+            </th>
+            <th>
+              Target H (m)
+              <Tip text='Altura que la poza mantiene para decidir cuándo traspasa flujo. Solo aplica en modo "Por Altura".' />
+            </th>
+            <th>
+              Floor H (m)
+              <Tip text="Altura mínima de seguridad: la poza no entrega flujo que la haga caer por debajo de este nivel." />
+            </th>
+            <th>
+              Fugas (mm/d)
+              <Tip text="Salmuera que se filtra por el fondo de la poza y se pierde, en milímetros por día." />
+            </th>
+            <th>
+              Impregnación (%)
+              <Tip text="Porcentaje de salmuera que queda atrapada en las sales precipitadas y no se recupera." />
+            </th>
+            <th>
+              Dilución (frac)
+              <Tip text="Fracción de agua de dilución que se añade en la transferencia entre pozas." />
+            </th>
+            <th>
+              Factor de Pozas
+              <Tip text="Factor geométrico de Ad-Inf que ajusta la evaporación efectiva de la poza." />
+            </th>
             <th className="w-20">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {ponds.map((p, i) => (
             <tr key={i}>
-              <td>
-                <input
-                  type="text"
-                  className="input w-20"
-                  value={p.name}
-                  onChange={(e) => updatePond(i, { name: e.target.value })}
-                />
-              </td>
-              <td>
-                <input
-                  type="text"
-                  className="input w-24"
-                  value={p.designation ?? ''}
-                  onChange={(e) => updatePond(i, { designation: e.target.value || null })}
-                />
+              <td className="font-medium" style={{ color: 'var(--color-text)' }}>
+                {p.name}
               </td>
               <td>
                 <input
@@ -447,7 +509,7 @@ function PostlimingPondsSection({
               </td>
               <td>
                 <select
-                  className="input w-28"
+                  className="input w-32"
                   value={p.control_mode}
                   onChange={(e) =>
                     updatePond(i, {
@@ -455,9 +517,9 @@ function PostlimingPondsSection({
                     })
                   }
                 >
-                  <option value="CASCADE">CASCADE</option>
-                  <option value="BUFFER">BUFFER</option>
-                  <option value="FLUJO_FIJO">FLUJO_FIJO</option>
+                  <option value="CASCADE">Por Altura</option>
+                  <option value="BUFFER">Buffer (estacional)</option>
+                  <option value="FLUJO_FIJO">Buffer (flujo fijo)</option>
                 </select>
               </td>
               <td>
@@ -466,7 +528,8 @@ function PostlimingPondsSection({
                   className="input input-number w-20"
                   step={0.01}
                   min={0}
-                  disabled={p.control_mode !== 'BUFFER'}
+                  disabled={p.control_mode === 'CASCADE'}
+                  style={p.control_mode === 'CASCADE' ? { background: 'var(--color-bg)', color: 'var(--color-text-secondary)' } : undefined}
                   value={p.buffer_height_m ?? ''}
                   onChange={(e) =>
                     updatePond(i, {
@@ -481,6 +544,8 @@ function PostlimingPondsSection({
                   className="input input-number w-20"
                   step={0.01}
                   min={0}
+                  disabled={p.control_mode !== 'CASCADE'}
+                  style={p.control_mode !== 'CASCADE' ? { background: 'var(--color-bg)', color: 'var(--color-text-secondary)' } : undefined}
                   value={p.target_height_m}
                   onChange={(e) =>
                     updatePond(i, { target_height_m: parseFloat(e.target.value) || 0 })
@@ -496,18 +561,6 @@ function PostlimingPondsSection({
                   value={p.height_floor_m}
                   onChange={(e) =>
                     updatePond(i, { height_floor_m: parseFloat(e.target.value) || 0 })
-                  }
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  className="input input-number w-20"
-                  step={0.01}
-                  min={0}
-                  value={p.evap_factor}
-                  onChange={(e) =>
-                    updatePond(i, { evap_factor: parseFloat(e.target.value) || 0 })
                   }
                 />
               </td>
@@ -592,6 +645,7 @@ interface EncFieldDef {
   min?: number;
   max?: number;
   type?: 'number' | 'toggle' | 'text';
+  tooltip?: string;
 }
 interface EncSectionDef {
   title: string;
@@ -603,7 +657,31 @@ const ENC_SECTIONS: EncSectionDef[] = [
     title: 'General',
     key: 'general',
     fields: [
-      { key: 'temperature_C', label: 'Temperatura (C)', step: 0.5, min: -10, max: 60 },
+      {
+        key: 'temperature_C',
+        label: 'Temperatura (°C)',
+        step: 0.5,
+        min: -10,
+        max: 60,
+        tooltip:
+          'Temperatura fija del proceso de encalado. A diferencia de las pozas de evaporación, el encalado son reactores químicos y no depende del clima.',
+      },
+      {
+        key: 'use_CaCl2',
+        label: 'Usar CaCl2',
+        step: 0,
+        type: 'toggle',
+        tooltip:
+          'Activa o desactiva el uso de CaCl2 para remover sulfato (SO4). A diferencia de los otros reactivos, el CaCl2 no se aplica todos los días: el modelo evalúa la razón SO4/Mg del feed de entrada al encalado y solo lo dosifica cuando esa razón supera el umbral configurado.',
+      },
+      {
+        key: 'use_CaCl2_threshold',
+        label: 'Umbral SO4/Mg',
+        step: 0.1,
+        min: 0,
+        tooltip:
+          'Razón sulfato/magnesio del feed por encima de la cual se aplica el CaCl2. Si la razón del feed es mayor a este valor, el modelo dosifica CaCl2 ese día.',
+      },
     ],
   },
   {
@@ -614,28 +692,8 @@ const ENC_SECTIONS: EncSectionDef[] = [
     ],
   },
   {
-    title: 'Paso 1 - Cal',
-    key: 'paso1',
-    fields: [
-      { key: 'lime_excess_factor', label: 'Factor de exceso de cal', step: 0.01, min: 1 },
-      { key: 'lime_slurry_conc', label: 'Conc. lechada de cal', step: 0.01, min: 0, max: 1 },
-      { key: 'lime_CaO_purity', label: 'Pureza CaO', step: 0.001, min: 0, max: 1 },
-    ],
-  },
-  {
-    title: 'Paso 2 - CaCl2',
-    key: 'paso2',
-    fields: [
-      { key: 'use_CaCl2', label: 'Usar CaCl2', step: 0, type: 'toggle' },
-      { key: 'CaCl2_SO4_factor', label: 'Factor SO4 CaCl2', step: 0.01, min: 0 },
-      { key: 'CaCl2_sol_conc', label: 'Conc. solucion CaCl2', step: 0.001, min: 0, max: 1 },
-      { key: 'CaCl2_purity', label: 'Pureza CaCl2', step: 0.0001, min: 0, max: 1 },
-      { key: 'use_CaCl2_threshold_basis', label: 'Threshold basis', step: 0, type: 'text' },
-    ],
-  },
-  {
-    title: 'Paso 3 - Torta/Lavado',
-    key: 'paso3',
+    title: 'Torta / Lavado',
+    key: 'torta',
     fields: [
       { key: 'cake_retention', label: 'Retencion de torta', step: 0.01, min: 0, max: 1 },
       { key: 'cake_wash_ratio', label: 'Ratio de lavado', step: 0.1, min: 0 },
@@ -643,6 +701,19 @@ const ENC_SECTIONS: EncSectionDef[] = [
     ],
   },
 ];
+
+// v2: catalog of 5 supported combinations.
+const REACTIVOS_OPCIONES = ['Ca(OH)2', 'CaCl2', 'NaOH', 'Na2SO4'] as const;
+const OBJETIVOS_OPCIONES = ['Mg', 'SO4', 'Ca'] as const;
+const COMBINACIONES_VALIDAS = new Set([
+  'Ca(OH)2/Mg', 'CaCl2/SO4', 'Ca(OH)2/SO4', 'NaOH/Mg', 'Na2SO4/Ca',
+]);
+const REACTIVO_DEFAULTS: Record<string, { factor: number; conc: number }> = {
+  'Ca(OH)2': { factor: 1.17, conc: 0.25 },
+  'CaCl2': { factor: 0.70, conc: 0.381 },
+  'NaOH': { factor: 1.17, conc: 0.50 },
+  'Na2SO4': { factor: 1.0, conc: 0.20 },
+};
 
 function EncaladoParamsSection({
   value,
@@ -654,15 +725,43 @@ function EncaladoParamsSection({
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     general: true,
     paso0: false,
-    paso1: false,
-    paso2: false,
-    paso3: false,
+    torta: false,
+    secuencia: true,         // open by default — main editor
+    flags_v3: false,
   });
   const toggle = (k: string) => setOpenSections((p) => ({ ...p, [k]: !p[k] }));
   const set = (patch: Partial<DynamicEncaladoParams>) => onChange({ ...value, ...patch });
 
+  // --- v2: secuencia_dosificaciones handlers ---
+  const seq = value.secuencia_dosificaciones ?? [];
+  const updateDos = (idx: number, patch: Partial<DosificacionConfig>) => {
+    const next = seq.map((d, i) => (i === idx ? { ...d, ...patch } : d));
+    set({ secuencia_dosificaciones: next });
+  };
+  const addDos = () => {
+    const newDos: DosificacionConfig = {
+      reactivo: 'Ca(OH)2',
+      objetivo: 'Mg',
+      factor_exceso: REACTIVO_DEFAULTS['Ca(OH)2'].factor,
+      concentracion_solucion: REACTIVO_DEFAULTS['Ca(OH)2'].conc,
+      enabled: true,
+    };
+    set({ secuencia_dosificaciones: [...seq, newDos] });
+  };
+  const removeDos = (idx: number) => {
+    set({ secuencia_dosificaciones: seq.filter((_, i) => i !== idx) });
+  };
+  const moveDos = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= seq.length) return;
+    const next = [...seq];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    set({ secuencia_dosificaciones: next });
+  };
+
   return (
     <div className="space-y-2">
+      {/* Static sub-sections (General, Paso 0 boro, Torta) */}
       {ENC_SECTIONS.map((section) => (
         <div
           key={section.key}
@@ -693,7 +792,10 @@ function EncaladoParamsSection({
             <div className="px-3 pb-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
               {section.fields.map((field) => (
                 <div key={field.key}>
-                  <label className="label">{field.label}</label>
+                  <label className="label">
+                    {field.label}
+                    {field.tooltip && <Tip text={field.tooltip} />}
+                  </label>
                   {field.type === 'toggle' ? (
                     <button
                       type="button"
@@ -746,6 +848,222 @@ function EncaladoParamsSection({
           )}
         </div>
       ))}
+
+      {/* v2: Secuencia de dosificaciones (reactivo / objetivo / factor / conc / enabled / orden) */}
+      <div
+        className="border"
+        style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius)' }}
+      >
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium hover:bg-gray-50"
+          onClick={() => toggle('secuencia')}
+        >
+          <span>Secuencia de dosificaciones ({seq.length})</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className={`h-4 w-4 transition-transform ${openSections.secuencia ? 'rotate-90' : ''}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+        {openSections.secuencia && (
+          <div className="px-3 pb-3">
+            <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+              El orden de la tabla es el orden de aplicacion. Combinaciones soportadas: Ca(OH)2/Mg, CaCl2/SO4, Ca(OH)2/SO4, NaOH/Mg, Na2SO4/Ca.
+            </p>
+            <div className="overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th className="w-8">#</th>
+                    <th>Reactivo</th>
+                    <th>Objetivo</th>
+                    <th>Factor exceso</th>
+                    <th>Conc. solucion</th>
+                    <th>Enabled</th>
+                    <th className="w-28">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {seq.map((d, i) => {
+                    const combo = `${d.reactivo}/${d.objetivo}`;
+                    const valid = COMBINACIONES_VALIDAS.has(combo);
+                    return (
+                      <tr
+                        key={i}
+                        style={{ background: valid ? undefined : '#fff4f4' }}
+                      >
+                        <td
+                          className="font-mono text-xs"
+                          style={{ color: 'var(--color-text-secondary)' }}
+                        >
+                          {i + 1}
+                        </td>
+                        <td>
+                          <select
+                            className="input w-32"
+                            value={d.reactivo}
+                            onChange={(e) => {
+                              const newReactivo = e.target.value as DosificacionReactivo;
+                              const defaults = REACTIVO_DEFAULTS[newReactivo];
+                              updateDos(i, {
+                                reactivo: newReactivo,
+                                factor_exceso: defaults?.factor ?? d.factor_exceso,
+                                concentracion_solucion: defaults?.conc ?? d.concentracion_solucion,
+                              });
+                            }}
+                          >
+                            {REACTIVOS_OPCIONES.map((r) => (
+                              <option key={r} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            className="input w-24"
+                            value={d.objetivo}
+                            onChange={(e) =>
+                              updateDos(i, { objetivo: e.target.value as DosificacionObjetivo })
+                            }
+                          >
+                            {OBJETIVOS_OPCIONES.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            className="input input-number w-24"
+                            step={0.01}
+                            min={0}
+                            value={d.factor_exceso}
+                            onChange={(e) =>
+                              updateDos(i, {
+                                factor_exceso: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            className="input input-number w-24"
+                            step={0.001}
+                            min={0}
+                            max={1}
+                            value={d.concentracion_solucion}
+                            onChange={(e) =>
+                              updateDos(i, {
+                                concentracion_solucion: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={d.enabled}
+                            onChange={(e) => updateDos(i, { enabled: e.target.checked })}
+                          />
+                        </td>
+                        <td>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              disabled={i === 0}
+                              onClick={() => moveDos(i, -1)}
+                              title="Subir"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              disabled={i === seq.length - 1}
+                              onClick={() => moveDos(i, 1)}
+                              title="Bajar"
+                            >
+                              ↓
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm"
+                              onClick={() => removeDos(i)}
+                            >
+                              X
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm mt-3"
+              onClick={addDos}
+            >
+              + Agregar dosificacion
+            </button>
+            {seq.some((d) => !COMBINACIONES_VALIDAS.has(`${d.reactivo}/${d.objetivo}`)) && (
+              <p className="text-xs mt-2" style={{ color: 'var(--color-danger)' }}>
+                Las filas en rojo tienen combinaciones reactivo/objetivo no soportadas. El motor lanzara NotImplementedError si las dejas asi al ejecutar.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* §A: Flags V3 (use_filtrate_as_aqsol2_base, use_fn_input_subtraction,
+          include_cake_wash_in_output) ocultos de la UI — son decisiones internas del
+          modelo validadas con Ad-Inf y el backend fuerza sus valores en cada corrida. */}
+    </div>
+  );
+}
+
+function FlagToggle({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        className="relative inline-flex h-6 w-11 items-center transition-colors"
+        style={{
+          backgroundColor: value ? 'var(--color-success)' : 'var(--color-border)',
+          borderRadius: '9999px',
+        }}
+        onClick={() => onChange(!value)}
+      >
+        <span
+          className={`inline-block h-4 w-4 bg-white transition-transform ${
+            value ? 'translate-x-6' : 'translate-x-1'
+          }`}
+          style={{ borderRadius: '9999px' }}
+        />
+      </button>
+      <span className="text-xs">{label}</span>
     </div>
   );
 }
@@ -762,77 +1080,44 @@ function PostlimingParamsSection({
 }) {
   const set = (patch: Partial<DynamicPostlimingParams>) => onChange({ ...params, ...patch });
   return (
-    <div>
+    <div className="mb-4">
+      <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
+        Parámetros Generales
+      </h4>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-3">
+        {/* §A: Temperatura postliming oculta — se toma del módulo Clima (forzada a null en backend). */}
         <div>
-          <label className="label">n_days_max</label>
-          <input
-            type="number"
-            className="input input-number"
-            step={1}
-            min={1}
-            value={params.n_days_max}
-            onChange={(e) => set({ n_days_max: parseInt(e.target.value) || 1 })}
-          />
-        </div>
-        <div>
-          <label className="label">Temperatura (C) — vacio = serie clima</label>
-          <input
-            type="number"
-            className="input input-number"
-            step={0.1}
-            value={params.temperature_C ?? ''}
-            onChange={(e) =>
-              set({
-                temperature_C: e.target.value === '' ? null : parseFloat(e.target.value),
-              })
-            }
-          />
-        </div>
-        <div>
-          <label className="label">Abort AQSOL fail (%)</label>
+          <label className="label">
+            PZ10 Average Outflow (T/D)
+            <Tip text="Caudal promedio que entrega la poza buffer (Pz10), sobre el cual se aplica la modulación estacional. Dejar vacío para que el modelo lo calcule automáticamente a partir del balance. Solo tiene efecto si la modulación estacional está activada." />
+          </label>
           <input
             type="number"
             className="input input-number"
             step={0.1}
             min={0}
-            max={100}
-            value={params.abort_on_aqsol_fail_pct}
-            onChange={(e) => set({ abort_on_aqsol_fail_pct: parseFloat(e.target.value) || 0 })}
-          />
-        </div>
-        <div>
-          <label className="label">Validation window (dias, coma)</label>
-          <input
-            type="text"
-            className="input"
-            value={params.validation_window_days.join(',')}
+            placeholder="vacío = auto-derivar"
+            value={params.pz10_average_outflow_t_day ?? ''}
             onChange={(e) =>
               set({
-                validation_window_days: e.target.value
-                  .split(',')
-                  .map((s) => parseInt(s.trim()))
-                  .filter((n) => !isNaN(n)),
+                pz10_average_outflow_t_day:
+                  e.target.value === '' ? null : parseFloat(e.target.value),
               })
             }
           />
         </div>
       </div>
-      <div>
-        <label className="label">Sales permitidas (una por linea)</label>
-        <textarea
-          className="input"
-          rows={5}
-          value={params.salts_allowed.join('\n')}
-          onChange={(e) =>
-            set({
-              salts_allowed: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean),
-            })
-          }
+      <div className="space-y-2">
+        <FlagToggle
+          label="Modulación estacional Pz10"
+          value={params.use_pz10_seasonal_modulation}
+          onChange={(v) => set({ use_pz10_seasonal_modulation: v })}
         />
-        <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          {params.salts_allowed.length} sales activadas.
+        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+          Si está activada, la poza buffer entrega un caudal que sube y baja con la evaporación
+          diaria, en vez de un caudal fijo.
         </p>
+        {/* §A: apply_berm_factor oculto — forzado a false en backend (su default de motor diverge). */}
       </div>
     </div>
   );
@@ -861,7 +1146,10 @@ function SimulationSection({
     <div>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-4">
         <div>
-          <label className="label">n_days (default ejecucion)</label>
+          <label className="label">
+            Días de Simulación
+            <Tip text="Cantidad de días que simula el modelo completo (preconcentración → encalado → postliming)." />
+          </label>
           <input
             type="number"
             className="input input-number"
@@ -872,10 +1160,14 @@ function SimulationSection({
           />
         </div>
         <div>
-          <label className="label">Start date (YYYY-MM-DD)</label>
+          <label className="label">
+            Fecha de Partida
+            <Tip text="Fecha del primer día de simulación. Las fechas de la serie de clima se calculan a partir de esta." />
+          </label>
           <input
             type="text"
             className="input"
+            placeholder="YYYY-MM-DD"
             value={simulation.start_date}
             onChange={(e) => onChange({ ...simulation, start_date: e.target.value })}
           />
@@ -883,11 +1175,14 @@ function SimulationSection({
       </div>
 
       <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
-        Modulacion de flujo (cascade)
+        Modulación de Flujo
       </h4>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
         <div>
-          <label className="label">Flujo promedio (t/d)</label>
+          <label className="label">
+            Flujo Promedio de Salmuera (T/D)
+            <Tip text="Flujo medio de salmuera que entra a la primera poza de preconcentración. El modelo lo modula con la evaporación: en días de mayor evaporación entra más salmuera, para mantener el balance de masa del sistema." />
+          </label>
           <input
             type="number"
             className="input input-number"
@@ -903,7 +1198,10 @@ function SimulationSection({
           />
         </div>
         <div>
-          <label className="label">Flujo maximo (t/d)</label>
+          <label className="label">
+            Flujo Máximo de Salmuera (T/D)
+            <Tip text="Tope del flujo de entrada. En días de muy alta evaporación, el flujo modulado no supera este límite." />
+          </label>
           <input
             type="number"
             className="input input-number"
@@ -1080,9 +1378,18 @@ function ClimateSection({
           <thead className="sticky top-0" style={{ backgroundColor: 'var(--color-surface)' }}>
             <tr>
               <th className="w-12">#</th>
-              <th>Dia (fecha calculada)</th>
-              <th>Temperatura (C)</th>
-              <th>Evaporacion (mm/dia)</th>
+              <th>
+                Día (Fecha Calculada)
+                <Tip text="Fecha de cada día, calculada a partir de la fecha de inicio de la serie." />
+              </th>
+              <th>
+                Temperatura (°C)
+                <Tip text="Temperatura del día." />
+              </th>
+              <th>
+                Evaporación (mm/día)
+                <Tip text="Evaporación del día." />
+              </th>
               <th className="w-20">Acciones</th>
             </tr>
           </thead>
@@ -1246,7 +1553,8 @@ function FactorsSection({
   const [msg, setMsg] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
 
-  const active = factors.filter((f) => f.precipitation_factor <= 1).length;
+  const favored = factors.filter((f) => f.precipitation_factor < 1).length;
+  const normal = factors.filter((f) => f.precipitation_factor === 1).length;
   const inhibited = factors.filter((f) => f.precipitation_factor > 1).length;
 
   const handleExport = () => {
@@ -1292,8 +1600,12 @@ function FactorsSection({
           <span className="font-mono">{factors.length}</span>
         </span>
         <span>
-          <span style={{ color: 'var(--color-text-secondary)' }}>Activas (F&le;1):</span>{' '}
-          <span className="font-mono">{active}</span>
+          <span style={{ color: 'var(--color-text-secondary)' }}>Favorecidas (F&lt;1):</span>{' '}
+          <span className="font-mono">{favored}</span>
+        </span>
+        <span>
+          <span style={{ color: 'var(--color-text-secondary)' }}>Normales (F=1):</span>{' '}
+          <span className="font-mono">{normal}</span>
         </span>
         <span>
           <span style={{ color: 'var(--color-text-secondary)' }}>Inhibidas (F&gt;1):</span>{' '}
@@ -1337,8 +1649,14 @@ function FactorsSection({
           <thead className="sticky top-0" style={{ background: 'var(--color-surface)' }}>
             <tr>
               <th className="w-12">#</th>
-              <th>Sal</th>
-              <th className="w-28">Factor</th>
+              <th>
+                Sal
+                <Tip text="Nombre de la sal." />
+              </th>
+              <th className="w-28">
+                Factor
+                <Tip text="Qué tan fácil precipita esta sal: 1 = normal, mayor a 1 = más difícil (inhibida), menor a 1 = más fácil (favorecida)." />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -1374,6 +1692,7 @@ function FactorsSection({
 // Main editor
 // =========================================================
 export default function DynamicConfigEditor({ value, onChange }: Props) {
+  const t = useT();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     sim: true,
     brine: false,
@@ -1392,7 +1711,7 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
   return (
     <div>
       <SectionHeader
-        title="0. Simulacion (n_days, start date, flujo cascade)"
+        title={t('section_simulation')}
         isOpen={openSections.sim}
         onToggle={() => toggle('sim')}
       >
@@ -1412,7 +1731,8 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
       </SectionHeader>
 
       <SectionHeader
-        title="1. Salmuera de Pozo"
+        title={t('section_brine')}
+        tooltip="Composición de la salmuera que sale del pozo de extracción del salar, antes de entrar a la primera poza de preconcentración. Cada fila es una especie acuosa con su flujo en toneladas por día."
         isOpen={openSections.brine}
         onToggle={() => toggle('brine')}
       >
@@ -1423,7 +1743,7 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
       </SectionHeader>
 
       <SectionHeader
-        title={`2. Pozas de Preconcentracion (${value.precon.ponds.length})`}
+        title={`${t('section_precon_ponds')} (${value.precon.ponds.length})`}
         isOpen={openSections.precon}
         onToggle={() => toggle('precon')}
       >
@@ -1434,7 +1754,8 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
       </SectionHeader>
 
       <SectionHeader
-        title={`2b. Factores de Sales Preconcentracion (${value.precon.factors?.length ?? 0})`}
+        title={`${t('section_precon_factors')} (${value.precon.factors?.length ?? 0})`}
+        tooltip="Factor de precipitación de cada sal. Controla qué tan fácil precipita cada sal en esta etapa. No son porcentajes, son multiplicadores del modelo termodinámico."
         isOpen={openSections.precon_factors}
         onToggle={() => toggle('precon_factors')}
       >
@@ -1446,7 +1767,8 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
       </SectionHeader>
 
       <SectionHeader
-        title={`3. Clima (${value.climate.evaporation_mm_day.length} dias)`}
+        title={`${t('section_climate')} (${value.climate.evaporation_mm_day.length})`}
+        tooltip="Serie diaria de temperatura y evaporación que alimenta todo el modelo. La temperatura se usa en cada cálculo de equilibrio químico; la evaporación controla la concentración en cada poza y modula el flujo de entrada de salmuera."
         isOpen={openSections.climate}
         onToggle={() => toggle('climate')}
       >
@@ -1457,7 +1779,7 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
       </SectionHeader>
 
       <SectionHeader
-        title="4. Parametros de Encalado"
+        title={t('section_encalado_params')}
         isOpen={openSections.encalado}
         onToggle={() => toggle('encalado')}
       >
@@ -1468,7 +1790,8 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
       </SectionHeader>
 
       <SectionHeader
-        title={`5. Factores de Sales Encalado (${value.encalado.factors.length})`}
+        title={`${t('section_encalado_factors')} (${value.encalado.factors.length})`}
+        tooltip="Factor de precipitación de cada sal. Controla qué tan fácil precipita cada sal en esta etapa. No son porcentajes, son multiplicadores del modelo termodinámico."
         isOpen={openSections.encalado_factors}
         onToggle={() => toggle('encalado_factors')}
       >
@@ -1480,10 +1803,16 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
       </SectionHeader>
 
       <SectionHeader
-        title={`6. Pozas de Post-liming (${value.postliming.ponds.length})`}
+        title={`${t('section_postliming')} (${value.postliming.ponds.length})`}
         isOpen={openSections.postliming}
         onToggle={() => toggle('postliming')}
       >
+        <PostlimingParamsSection
+          params={value.postliming.config}
+          onChange={(c) =>
+            onChange({ ...value, postliming: { ...value.postliming, config: c } })
+          }
+        />
         <PostlimingPondsSection
           ponds={value.postliming.ponds}
           onChange={(ponds) =>
@@ -1493,7 +1822,8 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
       </SectionHeader>
 
       <SectionHeader
-        title={`7. Factores de Sales Post-liming (${value.postliming.factors.length})`}
+        title={`${t('section_postliming_factors')} (${value.postliming.factors.length})`}
+        tooltip="Factor de precipitación de cada sal. Controla qué tan fácil precipita cada sal en esta etapa. No son porcentajes, son multiplicadores del modelo termodinámico."
         isOpen={openSections.postliming_factors}
         onToggle={() => toggle('postliming_factors')}
       >

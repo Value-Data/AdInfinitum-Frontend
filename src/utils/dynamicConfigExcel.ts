@@ -6,6 +6,9 @@
 
 import * as XLSX from 'xlsx';
 import type {
+  DosificacionConfig,
+  DosificacionObjetivo,
+  DosificacionReactivo,
   DynamicConfig,
   DynamicEncaladoParams,
   DynamicPondConfig,
@@ -23,6 +26,7 @@ const SHEET = {
   preconFactors: 'Factores Precon',
   climate: 'Clima',
   encalado: 'Encalado',
+  encaladoSequence: 'Secuencia Dosificaciones',
   encaladoFactors: 'Factores Encalado',
   postlimingPonds: 'Pozas Postliming',
   postlimingParams: 'Postliming Params',
@@ -85,6 +89,10 @@ const ENCALADO_FIELDS: (keyof DynamicEncaladoParams)[] = [
   'abort_on_aqsol_fail_pct',
   'max_iter_fn',
   'fn_tolerance',
+  // v2 V3 flags
+  'use_filtrate_as_aqsol2_base',
+  'use_fn_input_subtraction',
+  'include_cake_wash_in_output',
 ];
 
 const POSTLIMING_PARAM_FIELDS: (keyof DynamicPostlimingParams)[] = [
@@ -242,12 +250,34 @@ function encaladoSheet(cfg: DynamicEncaladoParams): XLSX.WorkSheet {
 }
 
 function postlimingParamsSheet(p: DynamicPostlimingParams): XLSX.WorkSheet {
-  const rows: (string | number | null)[][] = [['parametro', 'valor']];
+  const rows: (string | number | boolean | null)[][] = [['parametro', 'valor']];
   rows.push(['n_days_max', p.n_days_max]);
   rows.push(['temperature_C', p.temperature_C]);
   rows.push(['abort_on_aqsol_fail_pct', p.abort_on_aqsol_fail_pct]);
   rows.push(['validation_window_days', p.validation_window_days.join(',')]);
   rows.push(['salts_allowed', p.salts_allowed.join(',')]);
+  // v2 V4 fields.
+  rows.push(['use_pz10_seasonal_modulation', p.use_pz10_seasonal_modulation]);
+  rows.push(['pz10_average_outflow_t_day', p.pz10_average_outflow_t_day]);
+  rows.push(['apply_berm_factor', p.apply_berm_factor]);
+  return XLSX.utils.aoa_to_sheet(rows);
+}
+
+// v2: secuencia_dosificaciones as a dedicated sheet (ordered rows).
+function sequenceSheet(seq: DosificacionConfig[]): XLSX.WorkSheet {
+  const rows: (string | number | boolean)[][] = [
+    ['orden', 'reactivo', 'objetivo', 'factor_exceso', 'concentracion_solucion', 'enabled'],
+  ];
+  seq.forEach((d, i) => {
+    rows.push([
+      i + 1,
+      d.reactivo,
+      d.objetivo,
+      d.factor_exceso,
+      d.concentracion_solucion,
+      d.enabled,
+    ]);
+  });
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
@@ -270,6 +300,11 @@ export function buildDynamicWorkbook(cfg: DynamicConfig): XLSX.WorkBook {
   XLSX.utils.book_append_sheet(wb, factorsSheet(cfg.precon.factors ?? []), SHEET.preconFactors);
   XLSX.utils.book_append_sheet(wb, climateSheet(cfg.climate), SHEET.climate);
   XLSX.utils.book_append_sheet(wb, encaladoSheet(cfg.encalado.config), SHEET.encalado);
+  XLSX.utils.book_append_sheet(
+    wb,
+    sequenceSheet(cfg.encalado.config.secuencia_dosificaciones ?? []),
+    SHEET.encaladoSequence,
+  );
   XLSX.utils.book_append_sheet(wb, factorsSheet(cfg.encalado.factors), SHEET.encaladoFactors);
   XLSX.utils.book_append_sheet(wb, postlimingPondsSheet(cfg.postliming.ponds), SHEET.postlimingPonds);
   XLSX.utils.book_append_sheet(wb, postlimingParamsSheet(cfg.postliming.config), SHEET.postlimingParams);
@@ -294,6 +329,7 @@ interface ParsedDynamic {
   precon_factors?: SaltFactor[];
   climate?: DynamicConfig['climate'];
   encalado_config?: DynamicEncaladoParams;
+  encalado_sequence?: DosificacionConfig[];
   encalado_factors?: SaltFactor[];
   postliming_ponds?: DynamicPostlimingPondConfig[];
   postliming_config?: DynamicPostlimingParams;
@@ -425,17 +461,39 @@ function parseClimate(ws: XLSX.WorkSheet, existing: DynamicConfig['climate']): D
 function parseEncalado(ws: XLSX.WorkSheet): DynamicEncaladoParams {
   const rows = sheetToRows(ws);
   const out: Record<string, unknown> = {};
+  const v3FlagKeys = new Set([
+    'use_filtrate_as_aqsol2_base',
+    'use_fn_input_subtraction',
+    'include_cake_wash_in_output',
+  ]);
   rows.forEach((r) => {
     const key = String(r['parametro'] ?? r['Parametro'] ?? '').trim();
     if (!key) return;
     const raw = r['valor'] ?? r['Valor'];
-    if (key === 'use_CaCl2') out[key] = toBool(raw);
+    if (key === 'use_CaCl2' || v3FlagKeys.has(key)) out[key] = toBool(raw);
     else if (key === 'use_CaCl2_threshold') out[key] = toOptNum(raw);
     else if (key === 'use_CaCl2_threshold_basis') out[key] = String(raw ?? '').trim() || 'feed_raw_so4_mg';
     else if (key === 'max_iter_fn') out[key] = Math.round(toNum(raw, 10));
     else out[key] = toNum(raw);
   });
   return out as unknown as DynamicEncaladoParams;
+}
+
+function parseSequence(ws: XLSX.WorkSheet): DosificacionConfig[] {
+  const rows = sheetToRows(ws);
+  // Sort by 'orden' if present so user-edited row order in Excel is respected.
+  const sorted = [...rows].sort(
+    (a, b) => toNum(a['orden'], 0) - toNum(b['orden'], 0),
+  );
+  return sorted
+    .filter((r) => String(r['reactivo'] ?? '').trim() !== '')
+    .map((r) => ({
+      reactivo: String(r['reactivo']) as DosificacionReactivo,
+      objetivo: String(r['objetivo']) as DosificacionObjetivo,
+      factor_exceso: toNum(r['factor_exceso'], 1),
+      concentracion_solucion: toNum(r['concentracion_solucion'], 0.25),
+      enabled: toBool(r['enabled']),
+    }));
 }
 
 function parsePostlimingParams(ws: XLSX.WorkSheet): DynamicPostlimingParams {
@@ -467,6 +525,15 @@ function parsePostlimingParams(ws: XLSX.WorkSheet): DynamicPostlimingParams {
           .map((s) => s.trim())
           .filter(Boolean);
         break;
+      case 'use_pz10_seasonal_modulation':
+        out.use_pz10_seasonal_modulation = toBool(raw);
+        break;
+      case 'pz10_average_outflow_t_day':
+        out.pz10_average_outflow_t_day = toOptNum(raw);
+        break;
+      case 'apply_berm_factor':
+        out.apply_berm_factor = toBool(raw);
+        break;
     }
   });
   return {
@@ -475,6 +542,10 @@ function parsePostlimingParams(ws: XLSX.WorkSheet): DynamicPostlimingParams {
     abort_on_aqsol_fail_pct: out.abort_on_aqsol_fail_pct ?? 5.0,
     validation_window_days: out.validation_window_days ?? [1095, 1460],
     salts_allowed: out.salts_allowed ?? [],
+    // v2 V4 defaults — keep existing behavior if not in Excel.
+    use_pz10_seasonal_modulation: out.use_pz10_seasonal_modulation ?? true,
+    pz10_average_outflow_t_day: out.pz10_average_outflow_t_day ?? 718.8,
+    apply_berm_factor: out.apply_berm_factor ?? false,
   };
 }
 
@@ -512,6 +583,7 @@ export async function parseDynamicWorkbookFile(
   if (get(SHEET.preconFactors)) out.precon_factors = parseFactors(get(SHEET.preconFactors));
   if (get(SHEET.climate)) out.climate = parseClimate(get(SHEET.climate), baseConfig.climate);
   if (get(SHEET.encalado)) out.encalado_config = parseEncalado(get(SHEET.encalado));
+  if (get(SHEET.encaladoSequence)) out.encalado_sequence = parseSequence(get(SHEET.encaladoSequence));
   if (get(SHEET.encaladoFactors)) out.encalado_factors = parseFactors(get(SHEET.encaladoFactors));
   if (get(SHEET.postlimingPonds))
     out.postliming_ponds = parsePostlimingPonds(get(SHEET.postlimingPonds));
@@ -566,6 +638,16 @@ export function applyParsedToConfig(
   if (parsed.encalado_config) {
     next.encalado = { ...next.encalado, config: parsed.encalado_config };
     applied.push('encalado');
+  }
+  if (parsed.encalado_sequence) {
+    next.encalado = {
+      ...next.encalado,
+      config: {
+        ...next.encalado.config,
+        secuencia_dosificaciones: parsed.encalado_sequence,
+      },
+    };
+    applied.push('secuencia dosificaciones');
   }
   if (parsed.encalado_factors) {
     next.encalado = { ...next.encalado, factors: parsed.encalado_factors };

@@ -18,6 +18,7 @@ import type {
 import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
 import { displayPondName } from '../utils/dynamicDisplayNames';
+import EncaladoResultPanel from './EncaladoResultPanel';
 
 const CHART_COLORS = [
   '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
@@ -30,7 +31,7 @@ type Props = {
   files: ExecutionFile[];
 };
 
-type ResultTabKey = 'kpis' | 'tabla1' | 'tabla2' | 'tabla3' | 'compacta' | 'graficos' | 'archivos';
+type ResultTabKey = 'kpis' | 'tabla1' | 'tabla2' | 'tabla3' | 'compacta' | 'graficos' | 'encalado_detalle' | 'archivos';
 
 function fmt(n: number | undefined | null, digits = 2): string {
   if (n == null || !Number.isFinite(n)) return '—';
@@ -47,7 +48,7 @@ function fmtSci(n: number | undefined | null): string {
 // ============================================================
 // KPI cards
 // ============================================================
-function KpiCards({ results }: { results: DynamicResults }) {
+export function KpiCards({ results }: { results: DynamicResults }) {
   const k = results.kpis;
   return (
     <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
@@ -78,7 +79,7 @@ function Card({ title, value, sub }: { title: string; value: string; sub?: strin
 // ============================================================
 // Tabla 1 — Balance global por poza
 // ============================================================
-function Tabla1({ results }: { results: DynamicCascadeOrPostlimingResults }) {
+export function Tabla1({ results }: { results: DynamicCascadeOrPostlimingResults }) {
   const { pond_names, annual_aggregates } = results;
   return (
     <div className="overflow-x-auto">
@@ -134,8 +135,14 @@ function Tabla1({ results }: { results: DynamicCascadeOrPostlimingResults }) {
 // ============================================================
 // Tabla 2 — Composiciones %w/w (2A) y t/y (2B)
 // ============================================================
-function Tabla2({ results }: { results: DynamicCascadeOrPostlimingResults }) {
-  const [unit, setUnit] = useState<'pct' | 'ton'>('pct');
+export function Tabla2({
+  results,
+  initialUnit = 'pct',
+}: {
+  results: DynamicCascadeOrPostlimingResults;
+  initialUnit?: 'pct' | 'ton';
+}) {
+  const [unit, setUnit] = useState<'pct' | 'ton'>(initialUnit);
   const { pond_names, table_species, annual_composition_pct, annual_species_t_year } = results;
   const source = unit === 'pct' ? annual_composition_pct : annual_species_t_year;
   return (
@@ -188,8 +195,14 @@ function Tabla2({ results }: { results: DynamicCascadeOrPostlimingResults }) {
 // ============================================================
 // Tabla 3 — Sales precipitadas (3A t/y, 3B %w/w)
 // ============================================================
-function Tabla3({ results }: { results: DynamicCascadeOrPostlimingResults }) {
-  const [unit, setUnit] = useState<'ton' | 'pct'>('ton');
+export function Tabla3({
+  results,
+  initialUnit = 'ton',
+}: {
+  results: DynamicCascadeOrPostlimingResults;
+  initialUnit?: 'ton' | 'pct';
+}) {
+  const [unit, setUnit] = useState<'ton' | 'pct'>(initialUnit);
   const { pond_names, main_salts, annual_salts_t_year, annual_salts_pct } = results;
   const source = unit === 'ton' ? annual_salts_t_year : annual_salts_pct;
   return (
@@ -249,7 +262,7 @@ const COMPACT_SPECIES = [
   'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'Cl-', 'SO4--', 'H3BO3', 'B4O7--', 'BO2-',
 ];
 
-function TablaCompacta({ results }: { results: DynamicCascadeOrPostlimingResults }) {
+export function TablaCompacta({ results }: { results: DynamicCascadeOrPostlimingResults }) {
   const { pond_names, annual_composition_pct, annual_aggregates } = results;
   return (
     <div className="overflow-x-auto">
@@ -532,7 +545,7 @@ function ChartSalesPerPond({
 
 const ENC_COMPOSITION_SPECIES = ['Li+', 'Mg++', 'H2O', 'K+', 'SO4--'];
 
-function ChartsEncalado({ results }: { results: DynamicEncaladoResults }) {
+export function ChartsEncalado({ results }: { results: DynamicEncaladoResults }) {
   const data = useMemo(
     () =>
       results.reagents_daily.map((r) => ({
@@ -758,6 +771,11 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
     { key: 'tabla3', label: 'Tabla 3 · Sales', visible: !!cp },
     { key: 'compacta', label: 'Tabla compacta', visible: !!cp },
     { key: 'graficos', label: 'Gráficos', visible: true },
+    {
+      key: 'encalado_detalle',
+      label: 'Detalle Encalado',
+      visible: !!enc && !!enc.encalado_result_averaged,
+    },
     { key: 'archivos', label: `Archivos (${files.length})`, visible: true },
   ];
 
@@ -824,6 +842,20 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
       {tab === 'compacta' && cp && <TablaCompacta results={cp} />}
       {tab === 'graficos' && cp && <ChartsCascadePostliming results={cp} executionId={executionId} />}
       {tab === 'graficos' && enc && <ChartsEncalado results={enc} />}
+      {tab === 'encalado_detalle' && enc && enc.encalado_result_averaged && (
+        <div>
+          <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+            Mismo detalle que el encalado del modelo estático, promediado sobre los{' '}
+            <span className="font-mono">{enc.n_days_averaged ?? 0}</span> días con feed válido de
+            la simulación dinámica.
+          </p>
+          <EncaladoResultPanel
+            stageLabel="Encalado"
+            result={enc.encalado_result_averaged as Record<string, unknown>}
+            temperature_C={enc.encalado_temperature_C}
+          />
+        </div>
+      )}
       {tab === 'archivos' && <FilesTab executionId={executionId} files={files} />}
     </div>
   );
