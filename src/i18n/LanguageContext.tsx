@@ -47,12 +47,23 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Fallback used when a component is rendered outside a LanguageProvider
+ * (e.g. in isolated unit tests). Defaults to Spanish and makes setters no-ops,
+ * so consumers keep working instead of throwing.
+ */
+const FALLBACK_LANGUAGE: LanguageContextValue = {
+  lang: 'es',
+  setLang: () => undefined,
+  toggle: () => undefined,
+  t: (key: TranslationKey): string => {
+    const entry = TRANSLATIONS[key];
+    return entry ? entry.es ?? String(key) : String(key);
+  },
+};
+
 export function useLanguage(): LanguageContextValue {
-  const ctx = useContext(LanguageContext);
-  if (!ctx) {
-    throw new Error('useLanguage must be used within a LanguageProvider');
-  }
-  return ctx;
+  return useContext(LanguageContext) ?? FALLBACK_LANGUAGE;
 }
 
 /** Shorthand hook that returns just the translator function. */
