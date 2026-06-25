@@ -172,3 +172,21 @@
     letter-spacing: 0.025em;
   }
 }
+
+/* ===== Welcome overlay animations ===== */
+@keyframes adinf-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes adinf-pop-in {
+  0% { opacity: 0; transform: translateY(24px) scale(0.96); }
+  60% { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes adinf-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.adinf-fade-in { animation: adinf-fade-in 0.25s ease-out both; }
+.adinf-pop-in { animation: adinf-pop-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.adinf-float { animation: adinf-float 3s ease-in-out infinite; }

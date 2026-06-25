@@ -1,5 +1,7 @@
 import React from 'react';
 import type { PondConfig } from '../types';
+import { useT } from '../i18n/LanguageContext';
+import Tip from './common/Tip';
 
 interface Props {
   value: PondConfig[];
@@ -17,10 +19,11 @@ const DEFAULT_POND: Omit<PondConfig, 'name' | 'number'> = {
 };
 
 export default function PondEditor({ value, onChange, readOnly = false, label }: Props) {
+  const t = useT();
   const addPond = () => {
     const num = value.length + 1;
     const pond: PondConfig = {
-      name: `Poza ${num}`,
+      name: `${t('pond_default_name')} ${num}`,
       number: num,
       ...DEFAULT_POND,
     };
@@ -52,13 +55,13 @@ export default function PondEditor({ value, onChange, readOnly = false, label }:
           <thead>
             <tr>
               <th className="w-8">#</th>
-              <th>Nombre</th>
-              <th>Area (m2)</th>
-              <th>Pond Factor</th>
-              <th>Entrainment (%)</th>
-              <th>Leakage (mm/d)</th>
-              <th>Dilucion (frac)</th>
-              {!readOnly && <th className="w-20">Acciones</th>}
+              <th>{t('name')}</th>
+              <th>{t('pond_area_m2')}<Tip text={t('dyncfg_tip_process_area')} /></th>
+              <th>{t('pond_factor')}<Tip text={t('dyncfg_tip_pond_factor')} /></th>
+              <th>{t('pond_entrainment_pct')}<Tip text={t('dyncfg_tip_entrainment')} /></th>
+              <th>{t('pond_leakage_mm_d')}<Tip text={t('dyncfg_tip_leakage')} /></th>
+              <th>{t('pond_dilution_frac')}<Tip text={t('dyncfg_tip_dilution')} /></th>
+              {!readOnly && <th className="w-20">{t('actions')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -159,7 +162,7 @@ export default function PondEditor({ value, onChange, readOnly = false, label }:
                       className="btn btn-danger btn-sm"
                       onClick={() => removePond(i)}
                     >
-                      Eliminar
+                      {t('delete')}
                     </button>
                   </td>
                 )}
@@ -175,7 +178,7 @@ export default function PondEditor({ value, onChange, readOnly = false, label }:
           className="btn btn-outline btn-sm mt-3"
           onClick={addPond}
         >
-          + Agregar Poza
+          {t('pond_add')}
         </button>
       )}
     </div>

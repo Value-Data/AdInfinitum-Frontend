@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import { useT } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 
 export type StreamId =
   | 'P_2501'
@@ -52,21 +54,21 @@ const YEARLY_DAYS = 328.5;
 const ADDITIVE_PROPS = ['total_mass_day', 'solids', 'liquids'] as const;
 
 const STREAM_DEFS: Record<StreamId, StreamDef> = {
-  P_2501: { name: 'Preconcentrated brine', type: 'base' },
-  P_2502: { name: 'Calcium chloride', type: 'base' },
-  P_2504: { name: 'Water for CaCl2 solution', type: 'base' },
-  P_2505: { name: 'CaCl2 solution', type: 'derived', formula: { add: ['P_2502', 'P_2504'] } },
-  P_2506: { name: 'Lime', type: 'base' },
-  P_2508: { name: 'Water for Lime milk', type: 'base' },
-  P_2509: { name: 'Lime milk', type: 'derived', formula: { add: ['P_2506', 'P_2508'] } },
-  P_2511: { name: 'Treated slurry', type: 'derived', formula: { add: ['P_2501', 'P_2505', 'P_2509'] } },
-  P_2514: { name: 'Cake wash water', type: 'base' },
-  P_2515: { name: 'Water feed', type: 'derived', formula: { add: ['P_2504', 'P_2508', 'P_2514'] } },
-  P_2516: { name: 'Filtrated Solution', type: 'derived', formula: { add: ['P_2511'], sub: ['P_2518'] } },
-  P_2517: { name: 'Cake wash solution', type: 'base' },
-  P_2518: { name: 'Salts', type: 'base' },
-  P_2519: { name: 'Total treated Brine', type: 'derived', formula: { add: ['P_2516', 'P_2517'] } },
-  P_2520: { name: 'Salts to final disposition', type: 'base' },
+  P_2501: { name: 'sulf_p2501', type: 'base' },
+  P_2502: { name: 'sulf_p2502', type: 'base' },
+  P_2504: { name: 'sulf_p2504', type: 'base' },
+  P_2505: { name: 'sulf_p2505', type: 'derived', formula: { add: ['P_2502', 'P_2504'] } },
+  P_2506: { name: 'sulf_p2506', type: 'base' },
+  P_2508: { name: 'sulf_p2508', type: 'base' },
+  P_2509: { name: 'sulf_p2509', type: 'derived', formula: { add: ['P_2506', 'P_2508'] } },
+  P_2511: { name: 'sulf_p2511', type: 'derived', formula: { add: ['P_2501', 'P_2505', 'P_2509'] } },
+  P_2514: { name: 'sulf_p2514', type: 'base' },
+  P_2515: { name: 'sulf_p2515', type: 'derived', formula: { add: ['P_2504', 'P_2508', 'P_2514'] } },
+  P_2516: { name: 'sulf_p2516', type: 'derived', formula: { add: ['P_2511'], sub: ['P_2518'] } },
+  P_2517: { name: 'sulf_p2517', type: 'base' },
+  P_2518: { name: 'sulf_p2518', type: 'base' },
+  P_2519: { name: 'sulf_p2519', type: 'derived', formula: { add: ['P_2516', 'P_2517'] } },
+  P_2520: { name: 'sulf_p2520', type: 'base' },
 };
 
 // Display order (as specified)
@@ -148,34 +150,35 @@ interface RowConfig {
 }
 
 const ROWS: RowConfig[] = [
-  { label: 'Annual oper', unit: 'h/year', digits: 0, getValue: () => ANNUAL_HOURS },
-  { label: 'Daily operat', unit: 'h/day', digits: 0, getValue: () => DAILY_HOURS },
-  { label: 'Year Operati', unit: 'day/year', digits: 1, getValue: () => YEARLY_DAYS },
+  { label: 'sulf_row_annual_oper', unit: 'h/year', digits: 0, getValue: () => ANNUAL_HOURS },
+  { label: 'sulf_row_daily_oper', unit: 'h/day', digits: 0, getValue: () => DAILY_HOURS },
+  { label: 'sulf_row_year_oper', unit: 'day/year', digits: 1, getValue: () => YEARLY_DAYS },
   {
-    label: 'Total Mass',
+    label: 'sulf_row_total_mass',
     unit: 't/año',
     digits: 1,
     getValue: (s) => (s.total_mass_day != null ? s.total_mass_day * YEARLY_DAYS : undefined),
   },
   {
-    label: 'Total Mass',
+    label: 'sulf_row_total_mass',
     unit: 't/h',
     digits: 3,
     getValue: (s) => (s.total_mass_day != null ? s.total_mass_day / DAILY_HOURS : undefined),
   },
-  { label: 'Total Mass', unit: 'ton/d', digits: 3, getValue: (s) => s.total_mass_day },
-  { label: 'Solids', unit: 'ton/d', digits: 3, getValue: (s) => s.solids },
-  { label: 'Liquids', unit: 'ton/d', digits: 3, getValue: (s) => s.liquids },
-  { label: 'Density *', unit: 'kg/m³', digits: 2, getValue: (s) => s.density },
-  { label: 'Moisture', unit: '%', digits: 2, getValue: (s) => s.moisture },
-  { label: 'Temperature', unit: '°C', digits: 1, getValue: (s) => s.temperature },
-  { label: 'pH', unit: '-', digits: 2, getValue: (s) => s.ph },
+  { label: 'sulf_row_total_mass', unit: 'ton/d', digits: 3, getValue: (s) => s.total_mass_day },
+  { label: 'sulf_row_solids', unit: 'ton/d', digits: 3, getValue: (s) => s.solids },
+  { label: 'sulf_row_liquids', unit: 'ton/d', digits: 3, getValue: (s) => s.liquids },
+  { label: 'sulf_row_density', unit: 'kg/m³', digits: 2, getValue: (s) => s.density },
+  { label: 'sulf_row_moisture', unit: '%', digits: 2, getValue: (s) => s.moisture },
+  { label: 'sulf_row_temperature', unit: '°C', digits: 1, getValue: (s) => s.temperature },
+  { label: 'sulf_row_ph', unit: '-', digits: 2, getValue: (s) => s.ph },
 ];
 
 export default function SulfateRemovalTable({
   streams,
-  title = 'Remoción de sulfatos (CaCl₂ + Cal) — Streams del proceso',
+  title,
 }: SulfateRemovalTableProps) {
+  const t = useT();
   const resolved = useMemo(() => resolveStreams(streams), [streams]);
 
   return (
@@ -184,7 +187,7 @@ export default function SulfateRemovalTable({
         className="text-xs font-semibold uppercase tracking-wide px-4 pt-3 mb-2"
         style={{ color: 'var(--color-text-secondary)' }}
       >
-        {title}
+        {title ?? t('sulf_title')}
       </h5>
       <div className="overflow-x-auto">
         <table>
@@ -194,7 +197,7 @@ export default function SulfateRemovalTable({
                 className="sticky left-0 z-10"
                 style={{ backgroundColor: 'var(--color-surface)', minWidth: '10rem' }}
               >
-                Propiedad
+                {t('gbal_property')}
               </th>
               {STREAM_ORDER.map((id) => {
                 const def = STREAM_DEFS[id];
@@ -205,13 +208,13 @@ export default function SulfateRemovalTable({
                       className="text-xs font-normal"
                       style={{ color: 'var(--color-text-secondary)' }}
                     >
-                      {def.name}
+                      {t(def.name as TranslationKey)}
                     </div>
                     <div
                       className="text-xs font-normal italic"
                       style={{ color: def.type === 'derived' ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}
                     >
-                      {def.type === 'derived' ? 'derivado' : 'base'}
+                      {def.type === 'derived' ? t('sulf_derived') : t('sulf_base')}
                     </div>
                   </th>
                 );
@@ -225,7 +228,7 @@ export default function SulfateRemovalTable({
                   className="font-medium text-sm sticky left-0 z-10"
                   style={{ backgroundColor: 'var(--color-surface)' }}
                 >
-                  <div>{row.label}</div>
+                  <div>{t(row.label as TranslationKey)}</div>
                   <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                     {row.unit}
                   </div>
@@ -245,10 +248,7 @@ export default function SulfateRemovalTable({
         </table>
       </div>
       <p className="text-xs px-4 pb-3 mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-        * Propiedades no aditivas (Density, Moisture, Temperature, pH) en columnas derivadas solo se
-        muestran si el backend las entrega. Las propiedades aditivas (Total Mass, Solids, Liquids)
-        se calculan por suma element-wise siguiendo la fórmula del stream, salvo que el backend haya
-        provisto un valor explícito (en cuyo caso se respeta).
+        {t('sulf_footnote')}
       </p>
     </div>
   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SolverResult } from '../types';
+import { useT } from '../i18n/LanguageContext';
 
 interface KPI {
   label: string;
@@ -23,9 +24,10 @@ function formatNum(n: number, decimals = 2): string {
 const iconClass = 'h-5 w-5';
 
 export default function KPICards({ stageLabel, result }: Props) {
+  const t = useT();
   const kpis: KPI[] = [
     {
-      label: 'Li+ Entrada',
+      label: t('kpi_li_in'),
       value: formatNum(result.li_in, 4),
       unit: 'ton/dia',
       icon: (
@@ -35,7 +37,7 @@ export default function KPICards({ stageLabel, result }: Props) {
       ),
     },
     {
-      label: 'Li+ Salida',
+      label: t('kpi_li_out'),
       value: formatNum(result.li_out, 4),
       unit: 'ton/dia',
       icon: (
@@ -45,7 +47,7 @@ export default function KPICards({ stageLabel, result }: Props) {
       ),
     },
     {
-      label: 'Recuperacion Li+',
+      label: t('kpi_li_recovery'),
       value: formatNum(result.li_recovery_pct, 2),
       unit: '%',
       icon: (
@@ -55,7 +57,7 @@ export default function KPICards({ stageLabel, result }: Props) {
       ),
     },
     {
-      label: 'Flujo Salida',
+      label: t('kpi_outlet_flow'),
       value: formatNum(result.final_outlet_flow, 2),
       unit: 'ton/dia',
       icon: (
@@ -65,7 +67,7 @@ export default function KPICards({ stageLabel, result }: Props) {
       ),
     },
     {
-      label: 'Sales Totales',
+      label: t('kpi_total_salts'),
       value: formatNum(result.total_salt, 2),
       unit: 'ton/dia',
       icon: (
@@ -75,7 +77,7 @@ export default function KPICards({ stageLabel, result }: Props) {
       ),
     },
     {
-      label: 'Evaporacion Total',
+      label: t('kpi_total_evaporation'),
       value: formatNum(result.total_evaporation, 2),
       unit: 'ton/dia',
       icon: (

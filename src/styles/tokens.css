@@ -1,8 +1,10 @@
 :root {
-  /* Industrial-corporate theme for lithium processing */
-  --color-primary: #1e3a5f;
-  --color-primary-light: #2d5a8e;
-  --color-primary-lighter: #e8f0fe;
+  /* Ad-Infinitum brand palette */
+  --color-primary: #1a539a;          /* azul oscuro Ad-Infinitum */
+  --color-primary-light: #3581b9;    /* azul medio (hover/activo) */
+  --color-primary-lighter: #e8f1fb;  /* tinte azul claro (fondos suaves) */
+  --color-accent: #5eb8d1;           /* teal/cian (ícono del logo) */
+  --color-accent-light: #e6f5f9;     /* tinte teal claro */
   --color-danger: #dc2626;
   --color-success: #16a34a;
   --color-warning: #d97706;

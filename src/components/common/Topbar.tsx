@@ -1,7 +1,9 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
+import { useT } from '../../i18n/LanguageContext';
 
 export default function Topbar() {
+  const t = useT();
   const location = useLocation();
 
   const buildBreadcrumbs = () => {
@@ -13,9 +15,9 @@ export default function Topbar() {
       const path = '/' + parts.slice(0, i + 1).join('/');
       let label = part;
 
-      if (part === 'projects') label = 'Proyectos';
-      else if (part === 'users') label = 'Usuarios';
-      else if (part === 'executions') label = 'Ejecuciones';
+      if (part === 'projects') label = t('topbar_projects');
+      else if (part === 'users') label = t('topbar_users');
+      else if (part === 'executions') label = t('topbar_executions');
       else if (parts[i - 1] === 'projects' || parts[i - 1] === 'executions') {
         // UUID - show truncated
         label = part.length > 8 ? part.substring(0, 8) + '...' : part;

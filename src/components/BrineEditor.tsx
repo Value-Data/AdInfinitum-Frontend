@@ -1,5 +1,7 @@
 import React from 'react';
 import { BRINE_SPECIES_ORDER } from '../types';
+import { useT } from '../i18n/LanguageContext';
+import Tip from './common/Tip';
 
 interface Props {
   value: Record<string, number>;
@@ -8,6 +10,7 @@ interface Props {
 }
 
 export default function BrineEditor({ value, onChange, readOnly = false }: Props) {
+  const t = useT();
   const handleChange = (species: string, val: number) => {
     onChange({ ...value, [species]: val });
   };
@@ -17,9 +20,9 @@ export default function BrineEditor({ value, onChange, readOnly = false }: Props
       <table>
         <thead>
           <tr>
-            <th className="w-32">Aqueous components</th>
-            <th>Valor</th>
-            <th className="w-20">Unidad</th>
+            <th className="w-32">{t('brine_aqueous_components')}<Tip text={t('dyncfg_tip_brine_species')} /></th>
+            <th>{t('brine_value')}<Tip text={t('dyncfg_tip_brine_value')} /></th>
+            <th className="w-20">{t('brine_unit')}</th>
           </tr>
         </thead>
         <tbody>
@@ -47,7 +50,7 @@ export default function BrineEditor({ value, onChange, readOnly = false }: Props
                 )}
               </td>
               <td className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                ton/dia
+                {t('brine_unit_ton_day')}
               </td>
             </tr>
           ))}

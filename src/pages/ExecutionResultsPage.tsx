@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ExecutionResult, SolverResult } from '../types';
+import type { TranslationKey } from '../i18n/translations';
+import { useT } from '../i18n/LanguageContext';
 import { getExecution } from '../services/api';
 import { exportExecutionToExcel } from '../utils/exportExecutionExcel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -29,14 +31,14 @@ type ResultTab =
   | 'graficos'
   | 'parametros';
 
-const TABS_FULL: { key: ResultTab; label: string }[] = [
-  { key: 'resumen', label: 'Resumen' },
-  { key: 'global', label: 'Global' },
-  { key: 'precon', label: 'Preconcentración' },
-  { key: 'encalado', label: 'Encalado' },
-  { key: 'postliming', label: 'Post-liming' },
-  { key: 'graficos', label: 'Graficos' },
-  { key: 'parametros', label: 'Parametros' },
+const TABS_FULL: { key: ResultTab; label: TranslationKey }[] = [
+  { key: 'resumen', label: 'execres_tab_summary' },
+  { key: 'global', label: 'execres_tab_global' },
+  { key: 'precon', label: 'stage_precon' },
+  { key: 'encalado', label: 'stage_reagent_plant' },
+  { key: 'postliming', label: 'execres_tab_postliming' },
+  { key: 'graficos', label: 'charts' },
+  { key: 'parametros', label: 'execres_tab_parameters' },
 ];
 
 // A labeled stage: "Preconcentracion", "Post-liming", or "Dia 1 - Precon", etc.
@@ -66,7 +68,10 @@ function extractSingleDayTemperature(
  * 2. ProcesoCompletoResult (single day) — has "precon", "postliming"
  * 3. SimulacionDiariaResult (multi-day) — has "daily_results"
  */
-function extractStages(results: Record<string, unknown>): StageData[] {
+function extractStages(
+  results: Record<string, unknown>,
+  t: (key: TranslationKey) => string,
+): StageData[] {
   const stages: StageData[] = [];
 
   // Case 3: Multi-day simulation
@@ -82,24 +87,24 @@ function extractStages(results: Record<string, unknown>): StageData[] {
     for (const dr of dailyResults) {
       const pc = dr.result;
       if (!pc) continue;
-      const dayLabel = dr.date_label || `Dia ${dr.day + 1}`;
+      const dayLabel = dr.date_label || `${t('schedule_day')} ${dr.day + 1}`;
 
       if (pc.precon) {
         stages.push({
-          label: `${dayLabel} — Preconcentracion`,
+          label: `${dayLabel} — ${t('stage_precon')}`,
           result: pc.precon as SolverResult,
         });
       }
       if (pc.postliming) {
         stages.push({
-          label: `${dayLabel} — Post-liming`,
+          label: `${dayLabel} — ${t('execres_tab_postliming')}`,
           result: pc.postliming as SolverResult,
         });
       }
       // If the daily result itself is a direct SolverResult (precon-only multi-day)
       if (!pc.precon && !pc.postliming && (pc as Record<string, unknown>).ponds) {
         stages.push({
-          label: `${dayLabel} — Preconcentracion`,
+          label: `${dayLabel} — ${t('stage_precon')}`,
           result: pc as unknown as SolverResult,
         });
       }
@@ -110,7 +115,7 @@ function extractStages(results: Record<string, unknown>): StageData[] {
   // Case 1: Direct SolverResult (has "ponds" but no "precon")
   if ('ponds' in results && !('precon' in results)) {
     stages.push({
-      label: 'Preconcentracion',
+      label: t('stage_precon'),
       result: results as unknown as SolverResult,
     });
     return stages;
@@ -119,13 +124,13 @@ function extractStages(results: Record<string, unknown>): StageData[] {
   // Case 2: ProcesoCompletoResult (single day)
   if (results.precon) {
     stages.push({
-      label: 'Preconcentracion',
+      label: t('stage_precon'),
       result: results.precon as SolverResult,
     });
   }
   if (results.postliming) {
     stages.push({
-      label: 'Post-liming',
+      label: t('execres_tab_postliming'),
       result: results.postliming as SolverResult,
     });
   }
@@ -143,24 +148,25 @@ function DailySummaryTable({ dailyResults }: {
     result: Record<string, unknown>;
   }>;
 }) {
+  const t = useT();
   return (
     <div className="card overflow-hidden mb-6">
       <h4 className="text-sm font-semibold px-4 pt-3 mb-2" style={{ color: 'var(--color-text)' }}>
-        Resumen por dia
+        {t('execres_daily_summary')}
       </h4>
       <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
-              <th>Dia</th>
-              <th>Temp (°C)</th>
-              <th>Evap (mm/d)</th>
-              <th>Li+ entrada</th>
-              <th>Li+ salida</th>
-              <th>Recovery %</th>
-              <th>Evap total</th>
-              <th>Sales total</th>
-              <th>Estado</th>
+              <th>{t('schedule_day')}</th>
+              <th>{t('schedule_temp_short')}</th>
+              <th>{t('schedule_evap_short')}</th>
+              <th>{t('execres_li_in')}</th>
+              <th>{t('execres_li_out')}</th>
+              <th>{t('execres_recovery_pct')}</th>
+              <th>{t('execres_evap_total')}</th>
+              <th>{t('execres_salts_total')}</th>
+              <th>{t('status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -173,7 +179,7 @@ function DailySummaryTable({ dailyResults }: {
 
               return (
                 <tr key={i}>
-                  <td className="font-medium">{dr.date_label || `Dia ${dr.day + 1}`}</td>
+                  <td className="font-medium">{dr.date_label || `${t('schedule_day')} ${dr.day + 1}`}</td>
                   <td className="font-mono text-sm">{dr.temperature_C?.toFixed(1)}</td>
                   <td className="font-mono text-sm">{dr.evap_rate_mm_day?.toFixed(3)}</td>
                   <td className="font-mono text-sm">{precon?.li_in?.toFixed(4) ?? '-'}</td>
@@ -184,11 +190,11 @@ function DailySummaryTable({ dailyResults }: {
                   <td>
                     {errorStage ? (
                       <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#fee2e2', color: 'var(--color-danger)' }}>
-                        Error: {errorStage}
+                        {t('error')}: {errorStage}
                       </span>
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#dcfce7', color: 'var(--color-success)' }}>
-                        OK
+                        {t('execres_ok')}
                       </span>
                     )}
                   </td>
@@ -370,6 +376,7 @@ function buildGlobalStreams(
 }
 
 export default function ExecutionResultsPage() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const [execution, setExecution] = useState<ExecutionResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -444,7 +451,7 @@ export default function ExecutionResultsPage() {
     const start = new Date(execution.started_at).getTime();
     const end = new Date(execution.completed_at).getTime();
     const diffSec = Math.round((end - start) / 1000);
-    if (diffSec < 60) return `${diffSec} segundos`;
+    if (diffSec < 60) return `${diffSec} ${t('execres_seconds')}`;
     const min = Math.floor(diffSec / 60);
     const sec = diffSec % 60;
     return `${min}m ${sec}s`;
@@ -461,15 +468,15 @@ export default function ExecutionResultsPage() {
   if (!execution) {
     return (
       <div className="card p-8 text-center">
-        <p style={{ color: 'var(--color-danger)' }}>Ejecucion no encontrada.</p>
+        <p style={{ color: 'var(--color-danger)' }}>{t('execres_not_found')}</p>
       </div>
     );
   }
 
   const results = execution.results as Record<string, unknown> | null;
   const typeLabels: Record<string, string> = {
-    proceso_completo: 'Proceso Completo',
-    preconcentracion: 'Preconcentracion',
+    proceso_completo: t('runsim_proceso_completo'),
+    preconcentracion: t('runsim_preconcentracion'),
   };
 
   // Detect multi-day
@@ -494,7 +501,9 @@ export default function ExecutionResultsPage() {
     : [];
   const nValid = validDays.length;
   const labelSuffix =
-    isMultiDay && viewMode === 'average' ? ` (promedio de ${nValid} día${nValid === 1 ? '' : 's'})` : '';
+    isMultiDay && viewMode === 'average'
+      ? ` (${t('execres_average_of')} ${nValid} ${nValid === 1 ? t('execres_day') : t('execres_days')})`
+      : '';
 
   if (results) {
     if (isMultiDay) {
@@ -521,7 +530,7 @@ export default function ExecutionResultsPage() {
 
         if (preconArr.length > 0) {
           stagesToShow.push({
-            label: `Preconcentracion${labelSuffix}`,
+            label: `${t('stage_precon')}${labelSuffix}`,
             result: averageSolverResults(preconArr),
             temperature_C: avgTemp,
           });
@@ -531,14 +540,14 @@ export default function ExecutionResultsPage() {
         }
         if (postArr.length > 0) {
           stagesToShow.push({
-            label: `Post-liming${labelSuffix}`,
+            label: `${t('execres_tab_postliming')}${labelSuffix}`,
             result: averageSolverResults(postArr),
             temperature_C: avgTemp,
           });
         }
         if (preconArr.length === 0 && postArr.length === 0 && directPreconArr.length > 0) {
           stagesToShow.push({
-            label: `Preconcentracion${labelSuffix}`,
+            label: `${t('stage_precon')}${labelSuffix}`,
             result: averageSolverResults(directPreconArr),
             temperature_C: avgTemp,
           });
@@ -549,22 +558,22 @@ export default function ExecutionResultsPage() {
         if (dayResult) {
           const fakeSingleDay = dayResult as Record<string, unknown>;
           if (fakeSingleDay.precon) {
-            stagesToShow.push({ label: 'Preconcentracion', result: fakeSingleDay.precon as SolverResult, temperature_C: dayTemp });
+            stagesToShow.push({ label: t('stage_precon'), result: fakeSingleDay.precon as SolverResult, temperature_C: dayTemp });
           }
           if (fakeSingleDay.encalado) {
             encaladoData = fakeSingleDay.encalado as Record<string, unknown>;
           }
           if (fakeSingleDay.postliming) {
-            stagesToShow.push({ label: 'Post-liming', result: fakeSingleDay.postliming as SolverResult, temperature_C: dayTemp });
+            stagesToShow.push({ label: t('execres_tab_postliming'), result: fakeSingleDay.postliming as SolverResult, temperature_C: dayTemp });
           }
           // Direct solver result (precon-only multi-day)
           if (!fakeSingleDay.precon && !fakeSingleDay.postliming && 'ponds' in fakeSingleDay) {
-            stagesToShow.push({ label: 'Preconcentracion', result: fakeSingleDay as unknown as SolverResult, temperature_C: dayTemp });
+            stagesToShow.push({ label: t('stage_precon'), result: fakeSingleDay as unknown as SolverResult, temperature_C: dayTemp });
           }
         }
       }
     } else {
-      stagesToShow = extractStages(results);
+      stagesToShow = extractStages(results, t);
       const singleTemp = extractSingleDayTemperature(execution.parameters_snapshot);
       stagesToShow = stagesToShow.map(s => ({ ...s, temperature_C: singleTemp }));
       if (results.encalado) {
@@ -666,7 +675,7 @@ export default function ExecutionResultsPage() {
     if (stagesToShow.length === 0) {
       return (
         <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          No hay datos disponibles para esta vista.
+          {t('execres_no_data_view')}
         </p>
       );
     }
@@ -688,33 +697,33 @@ export default function ExecutionResultsPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4">
             <div>
-              <span className="label">Tipo</span>
+              <span className="label">{t('execlist_type')}</span>
               <p className="text-sm font-medium">
                 {typeLabels[execution.execution_type] || execution.execution_type}
               </p>
             </div>
             <div>
-              <span className="label">Estado</span>
+              <span className="label">{t('status')}</span>
               <div className="mt-0.5">
                 <StatusBadge status={execution.status} />
               </div>
             </div>
             {isMultiDay && (
               <div>
-                <span className="label">Dias</span>
+                <span className="label">{t('schedule_days')}</span>
                 <p className="text-sm font-mono">{numDays}</p>
               </div>
             )}
             <div>
-              <span className="label">Creado</span>
+              <span className="label">{t('projects_created')}</span>
               <p className="text-sm font-mono">{formatDate(execution.created_at)}</p>
             </div>
             <div>
-              <span className="label">Inicio</span>
+              <span className="label">{t('execres_started')}</span>
               <p className="text-sm font-mono">{formatDate(execution.started_at)}</p>
             </div>
             <div>
-              <span className="label">Duracion</span>
+              <span className="label">{t('execlist_duration')}</span>
               <p className="text-sm font-mono">{getDuration()}</p>
             </div>
           </div>
@@ -732,7 +741,7 @@ export default function ExecutionResultsPage() {
                   <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               )}
-              Descargar Excel
+              {t('download_excel')}
             </button>
           )}
         </div>
@@ -746,7 +755,7 @@ export default function ExecutionResultsPage() {
               borderRadius: 'var(--radius)',
             }}
           >
-            <strong>Error:</strong> {execution.error_message}
+            <strong>{t('error')}:</strong> {execution.error_message}
           </div>
         )}
       </div>
@@ -761,7 +770,7 @@ export default function ExecutionResultsPage() {
 
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
-                  Ver:
+                  {t('execres_view')}:
                 </span>
                 <div
                   className="inline-flex"
@@ -778,7 +787,7 @@ export default function ExecutionResultsPage() {
                     }}
                     onClick={() => setViewMode('average')}
                   >
-                    Promedio ({nValid} {nValid === 1 ? 'día' : 'días'})
+                    {t('execres_average')} ({nValid} {nValid === 1 ? t('execres_day') : t('execres_days')})
                   </button>
                   <button
                     type="button"
@@ -792,14 +801,14 @@ export default function ExecutionResultsPage() {
                     }}
                     onClick={() => setViewMode('day')}
                   >
-                    Día específico
+                    {t('execres_specific_day')}
                   </button>
                 </div>
 
                 {viewMode === 'day' && (
                   <>
                     <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                      Día:
+                      {t('execres_day')}:
                     </span>
                     <select
                       className="input"
@@ -809,7 +818,7 @@ export default function ExecutionResultsPage() {
                     >
                       {dailyResults.map((dr, i) => (
                         <option key={i} value={i}>
-                          {dr.date_label || `Dia ${dr.day + 1}`} (T={dr.temperature_C}°C)
+                          {dr.date_label || `${t('schedule_day')} ${dr.day + 1}`} (T={dr.temperature_C}°C)
                         </option>
                       ))}
                     </select>
@@ -839,7 +848,7 @@ export default function ExecutionResultsPage() {
                 }}
                 onClick={() => setActiveTab(tab.key)}
               >
-                {tab.label}
+                {t(tab.label)}
               </button>
             ))}
           </div>
@@ -876,7 +885,7 @@ export default function ExecutionResultsPage() {
             if (preconStages.length === 0) {
               return (
                 <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  No hay datos de preconcentración para esta ejecución.
+                  {t('execres_no_precon')}
                 </p>
               );
             }
@@ -902,7 +911,7 @@ export default function ExecutionResultsPage() {
             if (postStages.length === 0) {
               return (
                 <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  No hay datos de post-liming para esta ejecución.
+                  {t('execres_no_postliming')}
                 </p>
               );
             }
@@ -928,7 +937,7 @@ export default function ExecutionResultsPage() {
 
           {activeTab === 'encalado' && encaladoData && (
             <EncaladoResultPanel
-              stageLabel="Encalado"
+              stageLabel={t('stage_reagent_plant')}
               result={encaladoData}
               temperature_C={
                 ((execution.parameters_snapshot?.encalado_config as Record<string, unknown> | undefined)

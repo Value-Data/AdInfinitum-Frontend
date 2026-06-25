@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SolverResult } from '../types';
+import { useT } from '../i18n/LanguageContext';
 
 interface Props {
   stageLabel: string;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function SaltsTable({ stageLabel, result }: Props) {
+  const t = useT();
   const ponds = result.ponds || [];
 
   // Collect all unique salt names
@@ -24,7 +26,7 @@ export default function SaltsTable({ stageLabel, result }: Props) {
           {stageLabel}
         </h4>
         <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          No hay sales precipitadas registradas.
+          {t('salts_none')}
         </p>
       </div>
     );
@@ -40,7 +42,7 @@ export default function SaltsTable({ stageLabel, result }: Props) {
           <thead>
             <tr>
               <th className="sticky left-0" style={{ backgroundColor: 'var(--color-surface)' }}>
-                Sal
+                {t('salts_salt')}
               </th>
               {ponds.map((p, i) => (
                 <th key={i}>{p.config.name}</th>
@@ -77,7 +79,7 @@ export default function SaltsTable({ stageLabel, result }: Props) {
         </table>
       </div>
       <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-        Valores en ton/dia. Solo se muestran sales con precipitacion &gt; 0.
+        {t('salts_footnote')}
       </p>
     </div>
   );

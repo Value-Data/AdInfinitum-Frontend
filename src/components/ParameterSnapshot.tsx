@@ -4,12 +4,14 @@ import PondEditor from './PondEditor';
 import EncaladoConfigForm from './EncaladoConfigForm';
 import DailyScheduleEditor from './DailyScheduleEditor';
 import type { EncaladoConfig, PondConfig, DailyScheduleItem } from '../types';
+import { useT } from '../i18n/LanguageContext';
 
 interface Props {
   snapshot: Record<string, unknown>;
 }
 
 export default function ParameterSnapshot({ snapshot }: Props) {
+  const t = useT();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     brine: true,
     precon_ponds: false,
@@ -68,17 +70,17 @@ export default function ParameterSnapshot({ snapshot }: Props) {
 
   return (
     <div>
-      <Section sectionKey="brine" title="Salmuera de Pozo">
+      <Section sectionKey="brine" title={t('section_brine')}>
         <BrineEditor value={brine} onChange={() => {}} readOnly />
       </Section>
 
-      <Section sectionKey="precon_ponds" title="Pozas de Preconcentracion">
+      <Section sectionKey="precon_ponds" title={t('section_precon_ponds')}>
         <PondEditor value={preconPonds} onChange={() => {}} readOnly />
       </Section>
 
-      <Section sectionKey="precon_faktor" title="Factores de Sales Preconcentracion">
+      <Section sectionKey="precon_faktor" title={t('section_precon_factors')}>
         <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          {preconFaktor.length} factores configurados
+          {preconFaktor.length} {t('psnap_factors_configured')}
         </p>
         <div className="max-h-40 overflow-y-auto mt-1">
           <div className="flex flex-wrap gap-1">
@@ -100,22 +102,22 @@ export default function ParameterSnapshot({ snapshot }: Props) {
       </Section>
 
       {encaladoConfig && (
-        <Section sectionKey="encalado" title="Parametros de Encalado">
+        <Section sectionKey="encalado" title={t('section_encalado_params')}>
           <EncaladoConfigForm value={encaladoConfig} onChange={() => {}} readOnly />
         </Section>
       )}
 
-      <Section sectionKey="postliming_ponds" title="Pozas de Post-liming">
+      <Section sectionKey="postliming_ponds" title={t('psnap_postliming_ponds')}>
         <PondEditor value={postlimingPonds} onChange={() => {}} readOnly />
       </Section>
 
-      <Section sectionKey="postliming_faktor" title="Factores de Sales Post-liming">
+      <Section sectionKey="postliming_faktor" title={t('section_postliming_factors')}>
         <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          {postlimingFaktor.length} factores configurados
+          {postlimingFaktor.length} {t('psnap_factors_configured')}
         </p>
       </Section>
 
-      <Section sectionKey="schedule" title="Cronograma Diario">
+      <Section sectionKey="schedule" title={t('psnap_daily_schedule')}>
         <DailyScheduleEditor value={dailySchedule} onChange={() => {}} readOnly />
       </Section>
     </div>

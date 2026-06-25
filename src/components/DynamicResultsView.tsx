@@ -15,6 +15,7 @@ import type {
   DynamicResults,
   ExecutionFile,
 } from '../types';
+import { useT } from '../i18n/LanguageContext';
 import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
 import { displayPondName } from '../utils/dynamicDisplayNames';
@@ -49,13 +50,14 @@ function fmtSci(n: number | undefined | null): string {
 // KPI cards
 // ============================================================
 export function KpiCards({ results }: { results: DynamicResults }) {
+  const t = useT();
   const k = results.kpis;
   return (
     <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-      <Card title="Recovery Li" value={`${fmt(k.recovery_li_pct, 2)}%`} sub="último año" />
-      <Card title="Producción Li" value={`${fmt(k.annual_li_production_ton, 1)} t/y`} sub="último año" />
-      <Card title="Días simulados" value={String(k.n_days_simulated)} sub={`ventana anual ${results.stage !== 'encalado' ? `${(results as DynamicCascadeOrPostlimingResults).annual_window?.[0]}–${(results as DynamicCascadeOrPostlimingResults).annual_window?.[1]}` : '—'}`} />
-      <Card title="AQSOL convergencia" value={`${fmt(k.aqsol_convergence_pct, 2)}%`} sub={results.stage === 'encalado' ? `${(results as DynamicEncaladoResults).n_days_aqsol_failed} días fallaron` : 'days_ok / total'} />
+      <Card title={t('recovery_li')} value={`${fmt(k.recovery_li_pct, 2)}%`} sub={t('last_year')} />
+      <Card title={t('li_production')} value={`${fmt(k.annual_li_production_ton, 1)} t/y`} sub={t('last_year')} />
+      <Card title={t('days_simulated')} value={String(k.n_days_simulated)} sub={`${t('dynres_annual_window')} ${results.stage !== 'encalado' ? `${(results as DynamicCascadeOrPostlimingResults).annual_window?.[0]}–${(results as DynamicCascadeOrPostlimingResults).annual_window?.[1]}` : '—'}`} />
+      <Card title={t('aqsol_convergence')} value={`${fmt(k.aqsol_convergence_pct, 2)}%`} sub={results.stage === 'encalado' ? `${(results as DynamicEncaladoResults).n_days_aqsol_failed} ${t('dynres_days_failed')}` : 'days_ok / total'} />
     </div>
   );
 }
@@ -80,27 +82,28 @@ function Card({ title, value, sub }: { title: string; value: string; sub?: strin
 // Tabla 1 — Balance global por poza
 // ============================================================
 export function Tabla1({ results }: { results: DynamicCascadeOrPostlimingResults }) {
+  const t = useT();
   const { pond_names, annual_aggregates } = results;
   return (
     <div className="overflow-x-auto">
       <table>
         <thead>
           <tr>
-            <th>Poza</th>
-            <th>Área m²</th>
-            <th>Flujo in t/d</th>
-            <th>Flujo in t/y</th>
-            <th>Hold Up Δ t</th>
-            <th>Evap t/y</th>
-            <th>Evap mm/d</th>
-            <th>Flujo out t/d</th>
-            <th>Flujo out t/y</th>
-            <th>Seepage t/y</th>
-            <th>Entrain t/y</th>
-            <th>Entrain %</th>
-            <th>Sales t/y</th>
-            <th>Densidad</th>
-            <th>aw</th>
+            <th>{t('tbl_pond')}</th>
+            <th>{t('dynres_th_area')}</th>
+            <th>{t('dynres_th_flow_in_td')}</th>
+            <th>{t('dynres_th_flow_in_ty')}</th>
+            <th>{t('dynres_th_holdup')}</th>
+            <th>{t('dynres_th_evap_ty')}</th>
+            <th>{t('dynres_th_evap_mmd')}</th>
+            <th>{t('dynres_th_flow_out_td')}</th>
+            <th>{t('dynres_th_flow_out_ty')}</th>
+            <th>{t('dynres_th_seepage')}</th>
+            <th>{t('dynres_th_entrain_ty')}</th>
+            <th>{t('dynres_th_entrain_pct')}</th>
+            <th>{t('dynres_th_salts_ty')}</th>
+            <th>{t('dynres_th_density')}</th>
+            <th>{t('dynres_th_aw')}</th>
           </tr>
         </thead>
         <tbody>
@@ -142,6 +145,7 @@ export function Tabla2({
   results: DynamicCascadeOrPostlimingResults;
   initialUnit?: 'pct' | 'ton';
 }) {
+  const t = useT();
   const [unit, setUnit] = useState<'pct' | 'ton'>(initialUnit);
   const { pond_names, table_species, annual_composition_pct, annual_species_t_year } = results;
   const source = unit === 'pct' ? annual_composition_pct : annual_species_t_year;
@@ -152,20 +156,20 @@ export function Tabla2({
           className={`px-2 py-1 rounded border ${unit === 'pct' ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}
           onClick={() => setUnit('pct')}
         >
-          2A · %w/w
+          {t('dynres_tab_2a')}
         </button>
         <button
           className={`px-2 py-1 rounded border ${unit === 'ton' ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}
           onClick={() => setUnit('ton')}
         >
-          2B · t/año
+          {t('dynres_tab_2b')}
         </button>
       </div>
       <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
-              <th>Poza</th>
+              <th>{t('tbl_pond')}</th>
               {table_species.map((sp) => (
                 <th key={sp}>{sp}</th>
               ))}
@@ -202,6 +206,7 @@ export function Tabla3({
   results: DynamicCascadeOrPostlimingResults;
   initialUnit?: 'ton' | 'pct';
 }) {
+  const t = useT();
   const [unit, setUnit] = useState<'ton' | 'pct'>(initialUnit);
   const { pond_names, main_salts, annual_salts_t_year, annual_salts_pct } = results;
   const source = unit === 'ton' ? annual_salts_t_year : annual_salts_pct;
@@ -212,24 +217,24 @@ export function Tabla3({
           className={`px-2 py-1 rounded border ${unit === 'ton' ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}
           onClick={() => setUnit('ton')}
         >
-          3A · t/año
+          {t('dynres_tab_3a')}
         </button>
         <button
           className={`px-2 py-1 rounded border ${unit === 'pct' ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}
           onClick={() => setUnit('pct')}
         >
-          3B · %w/w
+          {t('dynres_tab_3b')}
         </button>
       </div>
       <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
-              <th>Poza</th>
+              <th>{t('tbl_pond')}</th>
               {main_salts.map((s) => (
                 <th key={s}>{s}</th>
               ))}
-              {unit === 'ton' && <th>Total t/y</th>}
+              {unit === 'ton' && <th>{t('dynres_th_total_ty')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -263,14 +268,15 @@ const COMPACT_SPECIES = [
 ];
 
 export function TablaCompacta({ results }: { results: DynamicCascadeOrPostlimingResults }) {
+  const t = useT();
   const { pond_names, annual_composition_pct, annual_aggregates } = results;
   return (
     <div className="overflow-x-auto">
       <table>
         <thead>
           <tr>
-            <th>Poza</th>
-            <th>Flujo salida t/d</th>
+            <th>{t('tbl_pond')}</th>
+            <th>{t('dynres_th_outflow_td')}</th>
             {COMPACT_SPECIES.map((sp) => (
               <th key={sp}>{sp}</th>
             ))}
@@ -314,6 +320,7 @@ function ChartsCascadePostliming({
   results: DynamicCascadeOrPostlimingResults;
   executionId: string;
 }) {
+  const t = useT();
   const { pond_names, daily_series, default_chart_species } = results;
   const [selectedSpecies, setSelectedSpecies] = useState<string[]>(default_chart_species);
 
@@ -348,7 +355,7 @@ function ChartsCascadePostliming({
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={pivot}>
           <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-          <XAxis dataKey="day" label={{ value: 'Día', position: 'insideBottom', offset: -2 }} />
+          <XAxis dataKey="day" label={{ value: t('dynres_axis_day'), position: 'insideBottom', offset: -2 }} />
           <YAxis label={{ value: ylabel, angle: -90, position: 'insideLeft' }} />
           <Tooltip />
           <Legend />
@@ -370,16 +377,16 @@ function ChartsCascadePostliming({
 
   return (
     <div>
-      {renderChart('inflow_ton', 't/d', 'Flujos de entrada por poza')}
-      {renderChart('height_m', 'm', 'Altura por poza')}
+      {renderChart('inflow_ton', 't/d', t('inflow_per_pond'))}
+      {renderChart('height_m', 'm', t('height_per_pond'))}
 
       {/* Fixed Li% chart — always visible */}
       <div className="card p-3 mb-4">
-        <h4 className="text-sm font-semibold mb-2">Li% por poza (por dia)</h4>
+        <h4 className="text-sm font-semibold mb-2">{t('li_per_pond_per_day')}</h4>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={pivot}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" label={{ value: 'Dia', position: 'insideBottom', offset: -2 }} />
+            <XAxis dataKey="day" label={{ value: t('dynres_axis_day'), position: 'insideBottom', offset: -2 }} />
             <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} />
             <Tooltip />
             <Legend />
@@ -400,7 +407,7 @@ function ChartsCascadePostliming({
 
       {/* Species selector for composition charts */}
       <div className="card p-3 mb-4">
-        <h4 className="text-sm font-semibold mb-2">Composiciones — elegir especies</h4>
+        <h4 className="text-sm font-semibold mb-2">{t('composition_per_pond')}</h4>
         <div className="flex flex-wrap gap-2">
           {ALL_CHART_SPECIES.map((sp) => {
             const active = selectedSpecies.includes(sp);
@@ -420,7 +427,7 @@ function ChartsCascadePostliming({
       </div>
 
       {selectedSpecies.map((sp) =>
-        renderChart(`${sp}_pct`, '%w/w', `Composición ${sp} por poza`),
+        renderChart(`${sp}_pct`, '%w/w', `${t('dynres_composition_pre')} ${sp} ${t('dynres_composition_post')}`),
       )}
       <ChartSalesPerPond results={results} executionId={executionId} />
     </div>
@@ -434,6 +441,7 @@ function ChartSalesPerPond({
   results: DynamicCascadeOrPostlimingResults;
   executionId: string;
 }) {
+  const t = useT();
   const { pond_names, run_tag, stage } = results;
   const [selectedPond, setSelectedPond] = useState<string>(pond_names[0] || '');
   const [data, setData] = useState<Record<string, number>[]>([]);
@@ -492,9 +500,9 @@ function ChartSalesPerPond({
 
   return (
     <div className="card p-3 mb-4">
-      <h4 className="text-sm font-semibold mb-2">Sales precipitadas por poza (t/d) — una línea por sal</h4>
+      <h4 className="text-sm font-semibold mb-2">{t('salts_per_pond_chart')}</h4>
       <div className="flex gap-2 mb-2 items-center text-xs">
-        <label>Poza:</label>
+        <label>{t('tbl_pond')}:</label>
         <select
           className="input"
           value={selectedPond}
@@ -507,21 +515,21 @@ function ChartSalesPerPond({
           ))}
         </select>
         <span style={{ color: 'var(--color-text-secondary)' }}>
-          ({saltNames.length} sales con valores &gt; 0 en esta poza)
+          ({saltNames.length} {t('dynres_salts_nonzero')})
         </span>
       </div>
-      {loading && <p className="text-xs">Cargando…</p>}
-      {err && <p className="text-xs" style={{ color: 'var(--color-danger)' }}>Error: {err}</p>}
+      {loading && <p className="text-xs">{t('loading')}…</p>}
+      {err && <p className="text-xs" style={{ color: 'var(--color-danger)' }}>{t('error')}: {err}</p>}
       {!loading && !err && data.length === 0 && (
         <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          Sin datos de sales para esta poza.
+          {t('dynres_no_salt_data')}
         </p>
       )}
       {!loading && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" label={{ value: 'Día', position: 'insideBottom', offset: -2 }} />
+            <XAxis dataKey="day" label={{ value: t('dynres_axis_day'), position: 'insideBottom', offset: -2 }} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
             <Tooltip />
             <Legend />
@@ -546,6 +554,7 @@ function ChartSalesPerPond({
 const ENC_COMPOSITION_SPECIES = ['Li+', 'Mg++', 'H2O', 'K+', 'SO4--'];
 
 export function ChartsEncalado({ results }: { results: DynamicEncaladoResults }) {
+  const t = useT();
   const data = useMemo(
     () =>
       results.reagents_daily.map((r) => ({
@@ -601,7 +610,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
     <div>
       {/* Li% */}
       <div className="card p-3 mb-4">
-        <h4 className="text-sm font-semibold mb-2">Li% salida encalado (por dia)</h4>
+        <h4 className="text-sm font-semibold mb-2">{t('dynres_enc_li_out')}</h4>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={liData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
@@ -615,7 +624,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
 
       {/* Composición de salida */}
       <div className="card p-3 mb-4">
-        <h4 className="text-sm font-semibold mb-2">Composicion salida encalado (%w/w por dia)</h4>
+        <h4 className="text-sm font-semibold mb-2">{t('dynres_enc_composition_out')}</h4>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={compData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
@@ -640,21 +649,21 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
 
       {/* Sales precipitadas */}
       <div className="card p-3 mb-4">
-        <h4 className="text-sm font-semibold mb-2">Sales precipitadas totales (t/d)</h4>
+        <h4 className="text-sm font-semibold mb-2">{t('dynres_enc_total_salts')}</h4>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={saltData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
             <Tooltip />
-            <Line type="monotone" dataKey="salt" name="Sales totales" stroke={CHART_COLORS[4]} dot={false} />
+            <Line type="monotone" dataKey="salt" name={t('dynres_total_salts_line')} stroke={CHART_COLORS[4]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Consumo de reactivos */}
       <div className="card p-3 mb-4">
-        <h4 className="text-sm font-semibold mb-2">Consumo de reactivos (t/d)</h4>
+        <h4 className="text-sm font-semibold mb-2">{t('reagent_consumption')}</h4>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
@@ -662,29 +671,29 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
             <Tooltip />
             <Legend />
-            <Line type="monotone" dataKey="lechada" name="Lechada de cal" stroke={CHART_COLORS[0]} dot={false} />
-            <Line type="monotone" dataKey="cacl2" name="Solucion CaCl2" stroke={CHART_COLORS[1]} dot={false} />
+            <Line type="monotone" dataKey="lechada" name={t('dynres_lime_milk')} stroke={CHART_COLORS[0]} dot={false} />
+            <Line type="monotone" dataKey="cacl2" name={t('dynres_cacl2_solution')} stroke={CHART_COLORS[1]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Flujo de salida */}
       <div className="card p-3 mb-4">
-        <h4 className="text-sm font-semibold mb-2">Flujo de salida (P2519) t/d</h4>
+        <h4 className="text-sm font-semibold mb-2">{t('flow_out')}</h4>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={flowData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
             <Tooltip />
-            <Line type="monotone" dataKey="flow" name="Flow out" stroke={CHART_COLORS[2]} dot={false} />
+            <Line type="monotone" dataKey="flow" name={t('dynres_flow_out_line')} stroke={CHART_COLORS[2]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Ratio SO4/Mg */}
       <div className="card p-3 mb-4">
-        <h4 className="text-sm font-semibold mb-2">Ratio SO4/Mg del feed</h4>
+        <h4 className="text-sm font-semibold mb-2">{t('so4_mg_ratio')}</h4>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={ratioData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
@@ -703,6 +712,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
 // Files tab
 // ============================================================
 function FilesTab({ executionId, files }: { executionId: string; files: ExecutionFile[] }) {
+  const t = useT();
   const handleDownload = async (name: string) => {
     const blob = await downloadExecutionFile(executionId, name);
     const url = URL.createObjectURL(blob);
@@ -716,8 +726,8 @@ function FilesTab({ executionId, files }: { executionId: string; files: Executio
     <table>
       <thead>
         <tr>
-          <th>Archivo</th>
-          <th>Tamaño</th>
+          <th>{t('dynres_file')}</th>
+          <th>{t('dynres_size')}</th>
           <th></th>
         </tr>
       </thead>
@@ -728,7 +738,7 @@ function FilesTab({ executionId, files }: { executionId: string; files: Executio
             <td className="font-mono text-xs">{(f.size_bytes / 1024).toFixed(1)} KB</td>
             <td>
               <button className="btn btn-outline btn-sm" onClick={() => handleDownload(f.name)}>
-                Descargar
+                {t('download')}
               </button>
             </td>
           </tr>
@@ -742,6 +752,7 @@ function FilesTab({ executionId, files }: { executionId: string; files: Executio
 // Main view with tabs
 // ============================================================
 export default function DynamicResultsView({ executionId, results, files }: Props) {
+  const t = useT();
   const [tab, setTab] = useState<ResultTabKey>('kpis');
   const [scaleFactor, setScaleFactor] = useState<number>(1);
   const [scaleInput, setScaleInput] = useState<string>('1');
@@ -765,18 +776,18 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
   };
 
   const tabs: { key: ResultTabKey; label: string; visible: boolean }[] = [
-    { key: 'kpis', label: 'KPIs', visible: true },
-    { key: 'tabla1', label: 'Tabla 1 · Balance', visible: !!cp },
-    { key: 'tabla2', label: 'Tabla 2 · Composiciones', visible: !!cp },
-    { key: 'tabla3', label: 'Tabla 3 · Sales', visible: !!cp },
-    { key: 'compacta', label: 'Tabla compacta', visible: !!cp },
-    { key: 'graficos', label: 'Gráficos', visible: true },
+    { key: 'kpis', label: t('kpis'), visible: true },
+    { key: 'tabla1', label: t('table_1_balance'), visible: !!cp },
+    { key: 'tabla2', label: t('table_2_compositions'), visible: !!cp },
+    { key: 'tabla3', label: t('table_3_salts'), visible: !!cp },
+    { key: 'compacta', label: t('compact_table'), visible: !!cp },
+    { key: 'graficos', label: t('charts'), visible: true },
     {
       key: 'encalado_detalle',
-      label: 'Detalle Encalado',
+      label: t('dynres_tab_enc_detail'),
       visible: !!enc && !!enc.encalado_result_averaged,
     },
-    { key: 'archivos', label: `Archivos (${files.length})`, visible: true },
+    { key: 'archivos', label: `${t('files')} (${files.length})`, visible: true },
   ];
 
   return (
@@ -787,7 +798,7 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
         style={{ background: scaleFactor !== 1 ? '#fff8e1' : undefined }}
       >
         <div>
-          <label className="label">Factor de escalado (post-corrida)</label>
+          <label className="label">{t('scale_factor_label')}</label>
           <input
             type="number"
             className="input input-number w-28"
@@ -801,36 +812,35 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
           />
         </div>
         <button className="btn btn-outline btn-sm" onClick={applyScale}>
-          Aplicar
+          {t('apply')}
         </button>
         {scaleFactor !== 1 && (
           <button className="btn btn-outline btn-sm" onClick={resetScale}>
-            Reset (1.0)
+            {t('reset')} (1.0)
           </button>
         )}
         <p className="text-xs flex-1" style={{ color: 'var(--color-text-secondary)' }}>
-          Multiplica flujos, masas anuales, sales y reactivos sin re-correr el motor.
-          NO afecta composiciones %w/w, alturas, densidades ni actividad de agua.
+          {t('scale_factor_hint')}
           {scaleFactor !== 1 && (
-            <span className="font-mono ml-2">Aplicado: ×{scaleFactor}</span>
+            <span className="font-mono ml-2">{t('applied')}: ×{scaleFactor}</span>
           )}
         </p>
       </div>
 
       <div className="flex gap-0 border-b mb-4" style={{ borderColor: 'var(--color-border)' }}>
-        {tabs.filter((t) => t.visible).map((t) => (
+        {tabs.filter((tb) => tb.visible).map((tb) => (
           <button
-            key={t.key}
+            key={tb.key}
             className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === t.key ? 'border-current' : 'border-transparent'
+              tab === tb.key ? 'border-current' : 'border-transparent'
             }`}
             style={{
-              color: tab === t.key ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-              borderColor: tab === t.key ? 'var(--color-primary)' : 'transparent',
+              color: tab === tb.key ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+              borderColor: tab === tb.key ? 'var(--color-primary)' : 'transparent',
             }}
-            onClick={() => setTab(t.key)}
+            onClick={() => setTab(tb.key)}
           >
-            {t.label}
+            {tb.label}
           </button>
         ))}
       </div>
@@ -845,12 +855,11 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
       {tab === 'encalado_detalle' && enc && enc.encalado_result_averaged && (
         <div>
           <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-            Mismo detalle que el encalado del modelo estático, promediado sobre los{' '}
-            <span className="font-mono">{enc.n_days_averaged ?? 0}</span> días con feed válido de
-            la simulación dinámica.
+            {t('dynres_enc_detail_pre')}{' '}
+            <span className="font-mono">{enc.n_days_averaged ?? 0}</span> {t('dynres_enc_detail_post')}
           </p>
           <EncaladoResultPanel
-            stageLabel="Encalado"
+            stageLabel={t('stage_reagent_plant')}
             result={enc.encalado_result_averaged as Record<string, unknown>}
             temperature_C={enc.encalado_temperature_C}
           />

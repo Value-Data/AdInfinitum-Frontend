@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import type { DailyScheduleItem } from '../types';
+import { useT } from '../i18n/LanguageContext';
+import Tip from './common/Tip';
 
 interface Props {
   value: DailyScheduleItem[];
@@ -8,6 +10,7 @@ interface Props {
 }
 
 export default function DailyScheduleEditor({ value, onChange, readOnly = false }: Props) {
+  const t = useT();
   const [bulkDays, setBulkDays] = useState(30);
   const [bulkTemp, setBulkTemp] = useState(20);
   const [bulkEvap, setBulkEvap] = useState(5);
@@ -17,7 +20,7 @@ export default function DailyScheduleEditor({ value, onChange, readOnly = false 
     onChange([
       ...value,
       {
-        date_label: `Dia ${num}`,
+        date_label: `${t('schedule_day')} ${num}`,
         temperature_C: 20,
         evap_rate: 5,
       },
@@ -27,7 +30,7 @@ export default function DailyScheduleEditor({ value, onChange, readOnly = false 
   const addBulk = () => {
     const start = value.length + 1;
     const newDays: DailyScheduleItem[] = Array.from({ length: bulkDays }, (_, i) => ({
-      date_label: `Dia ${start + i}`,
+      date_label: `${t('schedule_day')} ${start + i}`,
       temperature_C: bulkTemp,
       evap_rate: bulkEvap,
     }));
@@ -55,10 +58,10 @@ export default function DailyScheduleEditor({ value, onChange, readOnly = false 
           <thead className="sticky top-0" style={{ backgroundColor: 'var(--color-surface)' }}>
             <tr>
               <th className="w-12">#</th>
-              <th>Dia</th>
-              <th>Temperatura (C)</th>
-              <th>Evaporacion (mm/dia)</th>
-              {!readOnly && <th className="w-20">Acciones</th>}
+              <th>{t('schedule_day')}</th>
+              <th>{t('schedule_temperature_C')}<Tip text={t('dyncfg_tip_day_temp')} /></th>
+              <th>{t('schedule_evaporation')}<Tip text={t('dyncfg_tip_day_evap')} /></th>
+              {!readOnly && <th className="w-20">{t('actions')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -117,7 +120,7 @@ export default function DailyScheduleEditor({ value, onChange, readOnly = false 
                       className="btn btn-danger btn-sm"
                       onClick={() => removeDay(i)}
                     >
-                      Eliminar
+                      {t('delete')}
                     </button>
                   </td>
                 )}
@@ -129,19 +132,19 @@ export default function DailyScheduleEditor({ value, onChange, readOnly = false 
 
       {value.length === 0 && (
         <p className="text-sm py-4 text-center" style={{ color: 'var(--color-text-secondary)' }}>
-          No hay dias configurados. Agregue dias al cronograma.
+          {t('schedule_empty')}
         </p>
       )}
 
       {!readOnly && (
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <button type="button" className="btn btn-outline btn-sm" onClick={addDay}>
-            + Agregar Dia
+            {t('schedule_add_day')}
           </button>
 
           <div className="flex items-end gap-2 border-l pl-3" style={{ borderColor: 'var(--color-border)' }}>
             <div>
-              <label className="label">Dias</label>
+              <label className="label">{t('schedule_days')}</label>
               <input
                 type="number"
                 className="input input-number w-16"
@@ -151,7 +154,7 @@ export default function DailyScheduleEditor({ value, onChange, readOnly = false 
               />
             </div>
             <div>
-              <label className="label">Temp (C)</label>
+              <label className="label">{t('schedule_temp_short')}</label>
               <input
                 type="number"
                 className="input input-number w-16"
@@ -161,7 +164,7 @@ export default function DailyScheduleEditor({ value, onChange, readOnly = false 
               />
             </div>
             <div>
-              <label className="label">Evap (mm/d)</label>
+              <label className="label">{t('schedule_evap_short')}</label>
               <input
                 type="number"
                 className="input input-number w-16"
@@ -172,14 +175,14 @@ export default function DailyScheduleEditor({ value, onChange, readOnly = false 
               />
             </div>
             <button type="button" className="btn btn-outline btn-sm" onClick={addBulk}>
-              Agregar {bulkDays} dias
+              {t('add')} {bulkDays} {t('schedule_days_lower')}
             </button>
           </div>
         </div>
       )}
 
       <p className="text-xs mt-2" style={{ color: 'var(--color-text-secondary)' }}>
-        Total: {value.length} dias
+        {t('total')}: {value.length} {t('schedule_days_lower')}
       </p>
     </div>
   );

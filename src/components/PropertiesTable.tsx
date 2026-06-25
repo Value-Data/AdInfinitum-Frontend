@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SolverResult } from '../types';
+import { useT } from '../i18n/LanguageContext';
 
 interface Props {
   stageLabel: string;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function PropertiesTable({ stageLabel, result }: Props) {
+  const t = useT();
   const ponds = result.ponds || [];
 
   return (
@@ -18,12 +20,12 @@ export default function PropertiesTable({ stageLabel, result }: Props) {
         <table>
           <thead>
             <tr>
-              <th>Poza</th>
-              <th>Actividad Agua</th>
-              <th>Densidad (g/cm3)</th>
-              <th>pH</th>
-              <th>Fuerza Ionica</th>
-              <th>Cp (J/mol*K)</th>
+              <th>{t('tbl_pond')}</th>
+              <th>{t('props_water_activity')}</th>
+              <th>{t('props_density')}</th>
+              <th>{t('props_ph')}</th>
+              <th>{t('props_ionic_strength')}</th>
+              <th>{t('props_cp')}</th>
             </tr>
           </thead>
           <tbody>

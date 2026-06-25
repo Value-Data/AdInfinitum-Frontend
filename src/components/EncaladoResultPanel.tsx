@@ -1,5 +1,6 @@
 import React from 'react';
 import SulfateRemovalTable, { type StreamId, type StreamValues } from './SulfateRemovalTable';
+import { useT } from '../i18n/LanguageContext';
 
 interface EncaladoData {
   [key: string]: unknown;
@@ -54,6 +55,7 @@ function KeyValueTable({
   title: string;
   rows: Array<[string, unknown, string?]>;
 }) {
+  const t = useT();
   return (
     <div className="card overflow-hidden mb-4">
       <h5 className="text-xs font-semibold px-4 pt-3 mb-2" style={{ color: 'var(--color-text-secondary)' }}>
@@ -61,7 +63,7 @@ function KeyValueTable({
       </h5>
       <table>
         <thead>
-          <tr><th>Concepto</th><th>Valor</th><th>Unidad</th></tr>
+          <tr><th>{t('encpanel_concept')}</th><th>{t('brine_value')}</th><th>{t('brine_unit')}</th></tr>
         </thead>
         <tbody>
           {rows.map(([label, val, unit]) => (
@@ -84,6 +86,7 @@ function SaltsTableCard({
   title: string;
   salts: Record<string, number> | undefined;
 }) {
+  const t = useT();
   if (!salts) return null;
   const entries = Object.entries(salts)
     .filter(([, v]) => typeof v === 'number' && v > 0)
@@ -96,7 +99,7 @@ function SaltsTableCard({
         {title}
       </h5>
       <table>
-        <thead><tr><th>Sal</th><th>ton/dia</th><th>%w/w</th></tr></thead>
+        <thead><tr><th>{t('salts_salt')}</th><th>ton/dia</th><th>%w/w</th></tr></thead>
         <tbody>
           {entries.map(([salt, val]) => (
             <tr key={salt}>
@@ -114,6 +117,7 @@ function SaltsTableCard({
 }
 
 export default function EncaladoResultPanel({ stageLabel, result, temperature_C }: Props) {
+  const t = useT();
   const r = result;
 
   // Li recovery
@@ -257,13 +261,13 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
 
   // Composition flow matrix
   const compColumns: Array<{ label: string; data: Record<string, number> | undefined }> = [
-    { label: 'Entrada ajustada', data: inputComp },
+    { label: t('encpanel_adjusted_input'), data: inputComp },
     { label: 'AQSOL #0 input', data: isNumericDict(r.aqsol0_input_composition) ? r.aqsol0_input_composition : undefined },
     { label: 'AQSOL #1 input', data: isNumericDict(r.aqsol1_input_composition) ? r.aqsol1_input_composition : undefined },
-    { label: 'Filtrado #1', data: isNumericDict(r.filtrate1_composition) ? r.filtrate1_composition : undefined },
+    { label: t('encpanel_filtrate_1'), data: isNumericDict(r.filtrate1_composition) ? r.filtrate1_composition : undefined },
     { label: 'AQSOL #2 input', data: isNumericDict(r.aqsol2_input_composition) ? r.aqsol2_input_composition : undefined },
-    { label: 'Filtrado #2', data: isNumericDict(r.filtrate2_composition) ? r.filtrate2_composition : undefined },
-    { label: 'Salida ajustada', data: outputComp },
+    { label: t('encpanel_filtrate_2'), data: isNumericDict(r.filtrate2_composition) ? r.filtrate2_composition : undefined },
+    { label: t('encpanel_adjusted_output'), data: outputComp },
   ];
   const hasAnyComposition = compColumns.some((c) => c.data && Object.keys(c.data).length > 0);
   const allSpeciesSet = new Set<string>(SPECIES_ORDER);
@@ -282,13 +286,13 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
     unit?: string;
     dec?: number;
   }> = [
-    { label: 'Water activity (aw)', key: 'water_activity', dec: 5 },
-    { label: 'Densidad líquida', key: 'density_liquid', unit: 'kg/m³', dec: 2 },
-    { label: 'Densidad sólida', key: 'density_solid', unit: 'kg/m³', dec: 2 },
+    { label: t('encpanel_prop_water_activity'), key: 'water_activity', dec: 5 },
+    { label: t('encpanel_prop_liquid_density'), key: 'density_liquid', unit: 'kg/m³', dec: 2 },
+    { label: t('encpanel_prop_solid_density'), key: 'density_solid', unit: 'kg/m³', dec: 2 },
     { label: 'pH', key: 'pH', dec: 2 },
-    { label: 'Fuerza iónica', key: 'ionic_strength', dec: 4 },
-    { label: 'Cp líquido', key: 'Cp_liquid', unit: 'J/g/K', dec: 4 },
-    { label: 'Sólidos totales', key: 'total_solids_g', unit: 'ton/d', dec: 3 },
+    { label: t('encpanel_prop_ionic_strength'), key: 'ionic_strength', dec: 4 },
+    { label: t('encpanel_prop_liquid_cp'), key: 'Cp_liquid', unit: 'J/g/K', dec: 4 },
+    { label: t('encpanel_prop_total_solids'), key: 'total_solids_g', unit: 'ton/d', dec: 3 },
   ];
 
   return (
@@ -300,13 +304,13 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
       {/* Convergence warnings */}
       {(!r.converged_1 || !r.converged_2) && (
         <div className="mb-4 p-3 text-sm" style={{ backgroundColor: '#fef3c7', borderRadius: 'var(--radius)' }}>
-          <strong style={{ color: 'var(--color-warning)' }}>Advertencia de convergencia:</strong>
+          <strong style={{ color: 'var(--color-warning)' }}>{t('encpanel_convergence_warning')}</strong>
           <ul className="mt-1 ml-4 list-disc">
             {!r.converged_1 && (
-              <li>AQSOL #1 (cal) no convergió FN ({String(r.iterations_1)} iteraciones)</li>
+              <li>{t('encpanel_aqsol1_no_converge')} ({String(r.iterations_1)} {t('encpanel_iterations')})</li>
             )}
             {!r.converged_2 && (
-              <li>AQSOL #2 (CaCl₂) no convergió FN ({String(r.iterations_2)} iteraciones)</li>
+              <li>{t('encpanel_aqsol2_no_converge')} ({String(r.iterations_2)} {t('encpanel_iterations')})</li>
             )}
           </ul>
         </div>
@@ -314,18 +318,18 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
 
       {/* KPI Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <KpiCard label="Entrada (ton/d @ 328.5d)" value={fmt(r.input_flow, 1)} />
-        <KpiCard label="Salida P2519 (ton/d)" value={fmt(r.total_liquid_output, 1)} />
-        <KpiCard label="Salida ajustada (ton/d @ 365d)" value={fmt(r.output_adjusted_flow, 1)} />
-        <KpiCard label="Li+ recuperado" value={`${liPct.toFixed(1)}%`} />
-        <KpiCard label="Sólidos secos (ton/d)" value={fmt(r.total_solids_dry, 1)} />
-        <KpiCard label="Sólidos húmedos (ton/d)" value={fmt(r.total_solids_wet, 1)} />
-        <KpiCard label="Sales AQSOL #1 (ton/d)" value={fmt(r.solids_aqsol1, 1)} />
-        <KpiCard label="Sales AQSOL #2 (ton/d)" value={fmt(r.solids_aqsol2, 1)} />
-        <KpiCard label="H₃BO₃ removido (ton/d)" value={fmtCompact(r.H3BO3_removed, 4)} />
-        <KpiCard label="Recuperado lavado (ton/d)" value={fmtCompact(r.wash_recovered, 3)} />
-        <KpiCard label="Lavado queque (ton/d)" value={fmtCompact(r.cake_wash_flow, 3)} />
-        <KpiCard label="SO₄/Mg ratio" value={fmtCompact(r.SO4_Mg_ratio, 4)} />
+        <KpiCard label={`${t('encpanel_kpi_input')} (ton/d @ 328.5d)`} value={fmt(r.input_flow, 1)} />
+        <KpiCard label={`${t('encpanel_kpi_output_p2519')} (ton/d)`} value={fmt(r.total_liquid_output, 1)} />
+        <KpiCard label={`${t('encpanel_kpi_adjusted_output')} (ton/d @ 365d)`} value={fmt(r.output_adjusted_flow, 1)} />
+        <KpiCard label={t('encpanel_kpi_li_recovered')} value={`${liPct.toFixed(1)}%`} />
+        <KpiCard label={`${t('encpanel_kpi_dry_solids')} (ton/d)`} value={fmt(r.total_solids_dry, 1)} />
+        <KpiCard label={`${t('encpanel_kpi_wet_solids')} (ton/d)`} value={fmt(r.total_solids_wet, 1)} />
+        <KpiCard label={`${t('encpanel_kpi_salts_aqsol1')} (ton/d)`} value={fmt(r.solids_aqsol1, 1)} />
+        <KpiCard label={`${t('encpanel_kpi_salts_aqsol2')} (ton/d)`} value={fmt(r.solids_aqsol2, 1)} />
+        <KpiCard label={`${t('encpanel_kpi_h3bo3_removed')} (ton/d)`} value={fmtCompact(r.H3BO3_removed, 4)} />
+        <KpiCard label={`${t('encpanel_kpi_wash_recovered')} (ton/d)`} value={fmtCompact(r.wash_recovered, 3)} />
+        <KpiCard label={`${t('encpanel_kpi_cake_wash')} (ton/d)`} value={fmtCompact(r.cake_wash_flow, 3)} />
+        <KpiCard label={`${t('encpanel_kpi_so4_mg_ratio')}`} value={fmtCompact(r.SO4_Mg_ratio, 4)} />
       </div>
 
       {/* Sulfate removal process streams (P_25XX) */}
@@ -333,64 +337,64 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
 
       {/* Flows */}
       <KeyValueTable
-        title="Flujos por Paso (ton/dia)"
+        title={`${t('encpanel_flows_by_step')} (ton/dia)`}
         rows={[
-          ['Entrada P2501 (ajustada)', r.input_flow, 'ton/d'],
-          ['Paso 0: post remoción H₃BO₃', r.step0_flow, 'ton/d'],
-          ['Paso 1: mezcla + cal', r.step1_flow, 'ton/d'],
-          ['Paso 1: filtrado AQSOL #1', r.filtrate1_flow, 'ton/d'],
-          ['Paso 1: entrainment líquido cake', r.entrainment_liquid_1, 'ton/d'],
-          ['Paso 2: filtrado AQSOL #2', r.filtrate2_flow, 'ton/d'],
-          ['Paso 2: entrainment líquido cake', r.entrainment_liquid_2, 'ton/d'],
-          ['Lavado queque', r.cake_wash_flow, 'ton/d'],
-          ['Recuperado lavado', r.wash_recovered, 'ton/d'],
-          ['Salida P2519 (+ lavado queque)', r.total_liquid_output, 'ton/d'],
-          ['Salida ajustada (@ 365 d/año)', r.output_adjusted_flow, 'ton/d'],
+          [t('encpanel_row_input_p2501'), r.input_flow, 'ton/d'],
+          [t('encpanel_row_step0_h3bo3'), r.step0_flow, 'ton/d'],
+          [t('encpanel_row_step1_mix_lime'), r.step1_flow, 'ton/d'],
+          [t('encpanel_row_step1_filtrate'), r.filtrate1_flow, 'ton/d'],
+          [t('encpanel_row_step1_entrainment'), r.entrainment_liquid_1, 'ton/d'],
+          [t('encpanel_row_step2_filtrate'), r.filtrate2_flow, 'ton/d'],
+          [t('encpanel_row_step2_entrainment'), r.entrainment_liquid_2, 'ton/d'],
+          [t('encpanel_row_cake_wash'), r.cake_wash_flow, 'ton/d'],
+          [t('encpanel_row_wash_recovered'), r.wash_recovered, 'ton/d'],
+          [t('encpanel_row_output_p2519'), r.total_liquid_output, 'ton/d'],
+          [t('encpanel_row_adjusted_output'), r.output_adjusted_flow, 'ton/d'],
         ]}
       />
 
       {/* Reactivos cal (Paso 1) */}
       <KeyValueTable
-        title="Reactivos — Paso 1 (cal)"
+        title={t('encpanel_reagents_step1')}
         rows={[
-          ['H₃BO₃ removido', r.H3BO3_removed, 'ton/d'],
-          ['OH⁻ agregado (estequiométrico)', r.OH_added, 'ton/d'],
-          ['Ca²⁺ agregado', r.Ca_added, 'ton/d'],
-          ['CaO puro', r.CaO_pure, 'ton/d'],
+          [t('encpanel_row_h3bo3_removed'), r.H3BO3_removed, 'ton/d'],
+          [t('encpanel_row_oh_added'), r.OH_added, 'ton/d'],
+          [t('encpanel_row_ca_added'), r.Ca_added, 'ton/d'],
+          [t('encpanel_row_cao_pure'), r.CaO_pure, 'ton/d'],
           ['Ca(OH)₂', r.CaOH2, 'ton/d'],
-          ['Cal comercial', r.lime_commercial, 'ton/d'],
-          ['SiO₂ inerte', r.SiO2_inert, 'ton/d'],
-          ['H₂O lechada', r.H2O_slurry, 'ton/d'],
-          ['H₂O hidratación (CaO→Ca(OH)₂)', r.H2O_hydration, 'ton/d'],
+          [t('encpanel_row_lime_commercial'), r.lime_commercial, 'ton/d'],
+          [t('encpanel_row_sio2_inert'), r.SiO2_inert, 'ton/d'],
+          [t('encpanel_row_h2o_slurry'), r.H2O_slurry, 'ton/d'],
+          [t('encpanel_row_h2o_hydration'), r.H2O_hydration, 'ton/d'],
         ]}
       />
 
       {/* Reactivos CaCl2 (Paso 2) */}
       <KeyValueTable
-        title="Reactivos — Paso 2 (CaCl₂)"
+        title={t('encpanel_reagents_step2')}
         rows={[
-          ['Ca²⁺ de CaCl₂', r.Ca_CaCl2, 'ton/d'],
-          ['Cl⁻ de CaCl₂', r.Cl_CaCl2, 'ton/d'],
-          ['CaCl₂·1.4H₂O puro', r.CaCl2_14H2O_pure, 'ton/d'],
-          ['CaCl₂ comercial', r.CaCl2_commercial, 'ton/d'],
-          ['H₂O de CaCl₂', r.H2O_CaCl2, 'ton/d'],
-          ['Impurezas CaCl₂', r.impurities_CaCl2, 'ton/d'],
-          ['SO₄/Mg ratio (gate CaCl₂)', r.SO4_Mg_ratio, '-'],
+          [t('encpanel_row_ca_from_cacl2'), r.Ca_CaCl2, 'ton/d'],
+          [t('encpanel_row_cl_from_cacl2'), r.Cl_CaCl2, 'ton/d'],
+          [t('encpanel_row_cacl2_14h2o_pure'), r.CaCl2_14H2O_pure, 'ton/d'],
+          [t('encpanel_row_cacl2_commercial'), r.CaCl2_commercial, 'ton/d'],
+          [t('encpanel_row_h2o_cacl2'), r.H2O_CaCl2, 'ton/d'],
+          [t('encpanel_row_cacl2_impurities'), r.impurities_CaCl2, 'ton/d'],
+          [t('encpanel_row_so4_mg_gate'), r.SO4_Mg_ratio, '-'],
         ]}
       />
 
       {/* Convergencia FN */}
       <KeyValueTable
-        title="Convergencia FN"
+        title={t('encpanel_convergence_fn')}
         rows={[
-          ['FN₁ (factor entrainment cal)', r.FN1, '-'],
-          ['Factor₁ (valor convergido)', r.factor1, '-'],
-          ['Iteraciones AQSOL #1', r.iterations_1, 'iter'],
-          ['Convergió AQSOL #1', r.converged_1 ? 'Sí' : 'No', '-'],
-          ['FN₂ (factor entrainment CaCl₂)', r.FN2, '-'],
-          ['Factor₂ (valor convergido)', r.factor2, '-'],
-          ['Iteraciones AQSOL #2', r.iterations_2, 'iter'],
-          ['Convergió AQSOL #2', r.converged_2 ? 'Sí' : 'No', '-'],
+          [t('encpanel_row_fn1'), r.FN1, '-'],
+          [t('encpanel_row_factor1'), r.factor1, '-'],
+          [t('encpanel_row_iterations_aqsol1'), r.iterations_1, 'iter'],
+          [t('encpanel_row_converged_aqsol1'), r.converged_1 ? t('yes') : t('no'), '-'],
+          [t('encpanel_row_fn2'), r.FN2, '-'],
+          [t('encpanel_row_factor2'), r.factor2, '-'],
+          [t('encpanel_row_iterations_aqsol2'), r.iterations_2, 'iter'],
+          [t('encpanel_row_converged_aqsol2'), r.converged_2 ? t('yes') : t('no'), '-'],
         ]}
       />
 
@@ -398,17 +402,17 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
       {(aqsol0 || aqsol1 || aqsol2) && (
         <div className="card overflow-hidden mb-4">
           <h5 className="text-xs font-semibold px-4 pt-3 mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-            Propiedades termodinámicas AQSOL
+            {t('encpanel_aqsol_thermo_props')}
           </h5>
           <div className="overflow-x-auto">
             <table>
               <thead>
                 <tr>
-                  <th>Propiedad</th>
-                  <th>Unidad</th>
-                  <th>AQSOL #0 (brine)</th>
-                  <th>AQSOL #1 (cal)</th>
-                  <th>AQSOL #2 (CaCl₂)</th>
+                  <th>{t('gbal_property')}</th>
+                  <th>{t('brine_unit')}</th>
+                  <th>{t('encpanel_aqsol0_brine')}</th>
+                  <th>{t('encpanel_aqsol1_lime')}</th>
+                  <th>{t('encpanel_aqsol2_cacl2')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -433,13 +437,13 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
       {hasAnyComposition && (
         <div className="card overflow-hidden mb-4">
           <h5 className="text-xs font-semibold px-4 pt-3 mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-            Composición por etapa (ton/dia por especie)
+            {t('encpanel_comp_by_stage')} (ton/dia)
           </h5>
           <div className="overflow-x-auto">
             <table>
               <thead>
                 <tr>
-                  <th style={{ minWidth: '8rem' }}>Especie</th>
+                  <th style={{ minWidth: '8rem' }}>{t('comp_species')}</th>
                   {compColumns.map((c) => (
                     <th key={c.label}>{c.label}</th>
                   ))}
@@ -460,25 +464,25 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
             </table>
           </div>
           <p className="text-xs px-4 pb-3 mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            Recorrido de especies a lo largo del encalado: entrada → paso 0 → paso 1 (mezcla + cal) → filtrado 1 → paso 2 (+ CaCl₂) → filtrado 2 → salida ajustada.
+            {t('encpanel_comp_footnote')}
           </p>
         </div>
       )}
 
       {/* Precipitated Salts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <SaltsTableCard title="Sales precipitadas AQSOL #1 (cal)" salts={precipSalts1} />
-        <SaltsTableCard title="Sales precipitadas AQSOL #2 (CaCl₂)" salts={precipSalts2} />
+        <SaltsTableCard title={t('encpanel_precip_salts_aqsol1')} salts={precipSalts1} />
+        <SaltsTableCard title={t('encpanel_precip_salts_aqsol2')} salts={precipSalts2} />
       </div>
 
       {/* Output Composition detailed (prefer server-computed pct if present) */}
       {outputComp && (
         <div className="card overflow-hidden mb-4">
           <h5 className="text-xs font-semibold px-4 pt-3 mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-            Composición salida ajustada (ton/dia @ 365d)
+            {t('encpanel_adjusted_output_comp')} (ton/dia @ 365d)
           </h5>
           <table>
-            <thead><tr><th>Especie</th><th>ton/dia</th><th>%w/w</th></tr></thead>
+            <thead><tr><th>{t('comp_species')}</th><th>ton/dia</th><th>%w/w</th></tr></thead>
             <tbody>
               {Object.entries(outputComp)
                 .filter(([, v]) => v > 0.0001)

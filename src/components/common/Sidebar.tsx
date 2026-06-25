@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
+import logoHeader from '../../media/logo-header.png';
 
 export default function Sidebar() {
   const { user, isAdmin, logout } = useAuth();
@@ -30,13 +31,14 @@ export default function Sidebar() {
       style={{ backgroundColor: 'var(--color-primary)' }}
     >
       {/* Logo */}
-      <div className="px-4 py-5 border-b border-white/10">
-        <h1 className="text-lg font-bold text-white tracking-wide">
-          AdInfinitum
-        </h1>
-        <p className="text-xs text-blue-200 mt-0.5">
-          Simulador de Litio
-        </p>
+      <div className="px-3 py-4 border-b border-white/10">
+        <div className="bg-white rounded-md px-3 py-3 flex items-center justify-center">
+          <img
+            src={logoHeader}
+            alt="AD-INFINITUM"
+            className="w-full h-auto max-h-20 object-contain"
+          />
+        </div>
       </div>
 
       {/* Navigation */}

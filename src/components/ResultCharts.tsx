@@ -13,6 +13,7 @@ import {
   LabelList,
 } from 'recharts';
 import type { SolverResult } from '../types';
+import { useT } from '../i18n/LanguageContext';
 
 interface Props {
   stageLabel: string;
@@ -48,6 +49,7 @@ const SALT_PALETTE = [
 ];
 
 export default function ResultCharts({ stageLabel, result }: Props) {
+  const t = useT();
   const ponds = result.ponds || [];
   const [concentrationView, setConcentrationView] = useState<'abs' | 'pct'>('abs');
 
@@ -161,7 +163,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
           className="text-xs font-semibold uppercase tracking-wide"
           style={{ color: 'var(--color-text-secondary)' }}
         >
-          Li+ vs componentes — comparación por poza
+          {t('charts_li_vs_components')}
         </h5>
         <div
           className="inline-flex rounded overflow-hidden text-xs"
@@ -198,7 +200,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
         {REFERENCE_SPECIES.map((sp) => (
           <div key={sp.name} className="card p-4">
             <h5 className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-              Li+ vs {sp.name} por poza ({concUnit})
+              Li+ vs {sp.name} {t('charts_per_pond')} ({concUnit})
             </h5>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={concentrationData} style={chartStyle}>
@@ -252,7 +254,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
         {/* Li+ vs Densidad — scatter (X: densidad kg/m³, Y: Li+ en unidad activa) */}
         <div className="card p-4">
           <h5 className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-            Li+ ({concUnit}) vs Densidad (kg/m³) por poza
+            Li+ ({concUnit}) vs {t('charts_density')} (kg/m³) {t('charts_per_pond')}
           </h5>
           <ResponsiveContainer width="100%" height={280}>
             <ScatterChart
@@ -264,12 +266,12 @@ export default function ResultCharts({ stageLabel, result }: Props) {
               <XAxis
                 type="number"
                 dataKey="density"
-                name="Densidad"
+                name={t('charts_density')}
                 unit=" kg/m³"
                 domain={['auto', 'auto']}
                 tick={{ fontSize: 10 }}
                 label={{
-                  value: 'Densidad líquida (kg/m³)',
+                  value: t('charts_liquid_density_kgm3'),
                   position: 'insideBottom',
                   offset: -15,
                   style: { fontSize: 10, fill: 'var(--color-text-secondary)' },
@@ -293,7 +295,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
                 cursor={{ strokeDasharray: '3 3' }}
                 formatter={(value: number | string, _name, item) => {
                   const v = typeof value === 'number' ? value.toFixed(4) : value;
-                  if (item?.dataKey === 'density') return [`${v} kg/m³`, 'Densidad'];
+                  if (item?.dataKey === 'density') return [`${v} kg/m³`, t('charts_density')];
                   if (item?.dataKey === 'Li+')
                     return [`${v} ${concentrationView === 'abs' ? 'ton/d' : '%'}`, 'Li+'];
                   return [v, item?.dataKey ?? ''];
@@ -304,7 +306,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
                 }}
               />
               <Scatter
-                name="Pozas"
+                name={t('charts_ponds')}
                 data={liVsDensityData}
                 fill="var(--color-success)"
                 line={{ stroke: 'var(--color-success)', strokeWidth: 1.5 }}
@@ -323,7 +325,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
         {/* Chart 2: Flow and Water Activity */}
         <div className="card p-4">
           <h5 className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-            Flujo y Actividad de Agua
+            {t('charts_flow_water_activity')}
           </h5>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={flowData} style={chartStyle}>
@@ -333,8 +335,8 @@ export default function ResultCharts({ stageLabel, result }: Props) {
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
               <Tooltip />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="Flujo salida" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
-              <Line yAxisId="right" type="monotone" dataKey="Actividad agua" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
+              <Line yAxisId="left" type="monotone" dataKey="Flujo salida" name={t('charts_outlet_flow')} stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
+              <Line yAxisId="right" type="monotone" dataKey="Actividad agua" name={t('props_water_activity')} stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -342,7 +344,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
         {/* Chart 3: Density */}
         <div className="card p-4">
           <h5 className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-            Densidad por poza (g/cm3)
+            {t('charts_density_per_pond')} (g/cm3)
           </h5>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={densityData} style={chartStyle}>
@@ -351,7 +353,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
               <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="Densidad" stroke="var(--color-danger)" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="Densidad" name={t('charts_density')} stroke="var(--color-danger)" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -359,7 +361,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
         {/* Chart 4: Salt Precipitation (total por poza) */}
         <div className="card p-4">
           <h5 className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-            Sales precipitadas por poza (ton/dia)
+            {t('charts_salts_per_pond')} (ton/dia)
           </h5>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={saltData} style={chartStyle}>
@@ -368,7 +370,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="Sales precipitadas" stroke="#0891b2" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="Sales precipitadas" name={t('charts_precipitated_salts')} stroke="#0891b2" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -377,7 +379,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
         {activeSalts.length > 0 && (
           <div className="card p-4 lg:col-span-2">
             <h5 className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-              Evolución por sal precipitada (ton/dia) — {activeSalts.length} sal{activeSalts.length === 1 ? '' : 'es'}
+              {t('charts_salt_evolution')} (ton/dia) — {activeSalts.length} {activeSalts.length === 1 ? t('charts_salt_singular') : t('charts_salt_plural')}
             </h5>
             <ResponsiveContainer width="100%" height={380}>
               <LineChart data={saltEvolutionData} style={chartStyle}>

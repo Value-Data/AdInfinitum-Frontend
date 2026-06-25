@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import type { PondResult, SolverResult } from '../types';
+import { useT } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 
 interface Props {
   stageLabel: string;
@@ -23,19 +25,19 @@ function formatNum(v: number | undefined | null, digits = 4): string {
 
 type MetricExtractor = (pond: PondResult, temperature_C?: number) => string;
 
-const METRICS: Array<{ label: string; extract: MetricExtractor }> = [
-  { label: 'Sales precipitadas (ton/d)', extract: (p) => formatNum(p.salt_precipitated, 3) },
-  { label: 'Masa Líquido Impregnado (ton/d)', extract: (p) => formatNum(p.entrainment, 3) },
-  { label: 'Evaporación (ton/d)', extract: (p) => formatNum(p.evaporation, 3) },
-  { label: 'Infiltración (ton/d)', extract: (p) => formatNum(p.leakage, 5) },
-  { label: 'Densidad líquida (kg/m³)', extract: (p) => formatNum(p.aqsol_result?.density_liquid, 2) },
-  { label: 'Densidad sólida (kg/m³)', extract: (p) => formatNum(p.aqsol_result?.density_solid, 2) },
-  { label: 'Densidad in situ', extract: () => '-' },
-  { label: 'Temperatura (°C)', extract: (_p, t) => (t != null ? formatNum(t, 1) : '-') },
-  { label: 'pH', extract: (p) => formatNum(p.aqsol_result?.pH, 2) },
-  { label: 'Actividad (aw)', extract: (p) => formatNum(p.aqsol_result?.water_activity, 5) },
-  { label: 'Área de proceso (m²)', extract: (p) => formatNum(p.config.area_design_m2 / 1.08, 2) },
-  { label: 'Área de diseño (m²)', extract: (p) => formatNum(p.config.area_design_m2, 2) },
+const METRICS: Array<{ label: TranslationKey; extract: MetricExtractor }> = [
+  { label: 'ponddetail_salts_precipitated', extract: (p) => formatNum(p.salt_precipitated, 3) },
+  { label: 'ponddetail_entrained_liquid_mass', extract: (p) => formatNum(p.entrainment, 3) },
+  { label: 'ponddetail_evaporation', extract: (p) => formatNum(p.evaporation, 3) },
+  { label: 'ponddetail_infiltration', extract: (p) => formatNum(p.leakage, 5) },
+  { label: 'ponddetail_liquid_density', extract: (p) => formatNum(p.aqsol_result?.density_liquid, 2) },
+  { label: 'ponddetail_solid_density', extract: (p) => formatNum(p.aqsol_result?.density_solid, 2) },
+  { label: 'ponddetail_in_situ_density', extract: () => '-' },
+  { label: 'ponddetail_temperature', extract: (_p, t) => (t != null ? formatNum(t, 1) : '-') },
+  { label: 'props_ph', extract: (p) => formatNum(p.aqsol_result?.pH, 2) },
+  { label: 'ponddetail_activity_aw', extract: (p) => formatNum(p.aqsol_result?.water_activity, 5) },
+  { label: 'ponddetail_process_area', extract: (p) => formatNum(p.config.area_design_m2 / 1.08, 2) },
+  { label: 'ponddetail_design_area', extract: (p) => formatNum(p.config.area_design_m2, 2) },
 ];
 
 function MatrixSubTable({
@@ -57,6 +59,7 @@ function MatrixSubTable({
   titleRight?: React.ReactNode;
   valueDigits?: number;
 }) {
+  const t = useT();
   if (rowLabels.length === 0) {
     return (
       <div className="mt-6">
@@ -70,7 +73,7 @@ function MatrixSubTable({
           {titleRight}
         </div>
         <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Sin datos disponibles.
+          {t('ponddetail_no_data')}
         </p>
       </div>
     );
@@ -121,6 +124,7 @@ function MatrixSubTable({
 }
 
 export default function PondDetailBreakdown({ stageLabel, result, temperature_C }: Props) {
+  const t = useT();
   const ponds = result.ponds || [];
   const [liquidView, setLiquidView] = useState<'abs' | 'pct'>('abs');
 
@@ -131,7 +135,7 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
           {stageLabel}
         </h4>
         <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          No hay pozas para mostrar.
+          {t('ponddetail_no_ponds')}
         </p>
       </div>
     );
@@ -198,7 +202,7 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
   return (
     <div>
       <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
-        {stageLabel} — desglose por poza
+        {stageLabel} — {t('ponddetail_breakdown')}
       </h4>
 
       {/* Main metrics matrix */}
@@ -206,7 +210,7 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
         <table>
           <thead>
             <tr>
-              <th style={{ minWidth: '14rem' }}>Métrica</th>
+              <th style={{ minWidth: '14rem' }}>{t('ponddetail_metric')}</th>
               {ponds.map((p, i) => (
                 <th key={i}>{p.config.name}</th>
               ))}
@@ -215,7 +219,7 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
           <tbody>
             {METRICS.map((m) => (
               <tr key={m.label}>
-                <td className="font-medium">{m.label}</td>
+                <td className="font-medium">{t(m.label)}</td>
                 {ponds.map((p, i) => (
                   <td key={i} className="font-mono">
                     {m.extract(p, temperature_C)}
@@ -231,16 +235,16 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
       <MatrixSubTable
         title={
           liquidView === 'abs'
-            ? 'Química de flujo de traspaso por componente (ton/d)'
-            : 'Química de flujo de traspaso por componente (%)'
+            ? `${t('ponddetail_transfer_chemistry')} (ton/d)`
+            : `${t('ponddetail_transfer_chemistry')} (%)`
         }
         caption={
           liquidView === 'abs'
-            ? 'Composición del líquido a la salida de cada poza.'
-            : 'Fracción másica de cada componente sobre el total del líquido de salida de la poza.'
+            ? t('ponddetail_transfer_caption_abs')
+            : t('ponddetail_transfer_caption_pct')
         }
         rowLabels={SPECIES}
-        headerLabel="Especie"
+        headerLabel={t('comp_species')}
         ponds={ponds}
         titleRight={liquidToggle}
         valueDigits={liquidView === 'pct' ? 3 : 5}
@@ -256,20 +260,20 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
 
       {/* Precipitated salts absolute */}
       <MatrixSubTable
-        title="Composición de sales precipitadas (ton/d)"
-        caption="Sales sólidas que precipitan en cada poza."
+        title={`${t('ponddetail_precip_salts_comp')} (ton/d)`}
+        caption={t('ponddetail_precip_salts_caption')}
         rowLabels={saltNames}
-        headerLabel="Sal"
+        headerLabel={t('salts_salt')}
         ponds={ponds}
         getValue={(label, p) => p.aqsol_result?.precipitated_salts?.[label] ?? 0}
       />
 
       {/* Precipitated salts percent w/w */}
       <MatrixSubTable
-        title="Composición de sales precipitadas (%w/w)"
-        caption="Fracción másica de cada sal sobre el total de sólidos precipitados de la poza."
+        title={`${t('ponddetail_precip_salts_comp')} (%w/w)`}
+        caption={t('ponddetail_precip_salts_ww_caption')}
         rowLabels={saltNames}
-        headerLabel="Sal"
+        headerLabel={t('salts_salt')}
         ponds={ponds}
         getValue={(label, p) => {
           const idx = ponds.indexOf(p);

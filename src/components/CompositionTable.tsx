@@ -1,6 +1,7 @@
 import React from 'react';
 import type { SolverResult } from '../types';
 import { MAIN_SPECIES } from '../types';
+import { useT } from '../i18n/LanguageContext';
 
 interface Props {
   stageLabel: string;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function CompositionTable({ stageLabel, result }: Props) {
+  const t = useT();
   const ponds = result.ponds || [];
 
   // Calculate %w/w from eq_liquid: species_mass / total_mass * 100
@@ -28,13 +30,13 @@ export default function CompositionTable({ stageLabel, result }: Props) {
           <thead>
             <tr>
               <th className="sticky left-0" style={{ backgroundColor: 'var(--color-surface)' }}>
-                Especie
+                {t('comp_species')}
               </th>
               {ponds.map((p, i) => (
                 <th key={i}>
                   <div>{p.config.name}</div>
                   <div className="text-xs font-normal" style={{ color: 'var(--color-text-secondary)' }}>
-                    ton/dia | %w/w
+                    {t('comp_units')}
                   </div>
                 </th>
               ))}
@@ -64,7 +66,7 @@ export default function CompositionTable({ stageLabel, result }: Props) {
         </table>
       </div>
       <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-        Valores en ton/dia | %w/w
+        {t('comp_footnote')}
       </p>
     </div>
   );

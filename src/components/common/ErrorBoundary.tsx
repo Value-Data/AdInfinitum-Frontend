@@ -20,13 +20,17 @@ export default class ErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      // Class component can't use the useT hook; read persisted language directly.
+      const en =
+        typeof localStorage !== 'undefined' &&
+        localStorage.getItem('adinf_language') === 'en';
       return (
         <div style={{ padding: '2rem', textAlign: 'center' }}>
           <h2 style={{ color: 'var(--color-danger)', marginBottom: '1rem' }}>
-            Ocurrio un error
+            {en ? 'An error occurred' : 'Ocurrió un error'}
           </h2>
           <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-            {this.state.error?.message || 'Error desconocido'}
+            {this.state.error?.message || (en ? 'Unknown error' : 'Error desconocido')}
           </p>
           <button
             className="btn btn-primary"
@@ -35,7 +39,7 @@ export default class ErrorBoundary extends React.Component<
               window.location.href = '/projects';
             }}
           >
-            Volver a Proyectos
+            {en ? 'Back to Projects' : 'Volver a Proyectos'}
           </button>
         </div>
       );

@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
 import type { EncaladoConfig } from '../types';
+import { useT } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
+import Tip from './common/Tip';
+
+const FIELD_TIPS: Partial<Record<keyof EncaladoConfig, TranslationKey>> = {
+  temperature_C: 'dyncfg_tip_enc_temperature',
+  use_CaCl2: 'dyncfg_tip_use_cacl2',
+};
 
 interface Props {
   value: EncaladoConfig;
@@ -24,54 +32,55 @@ interface SectionDef {
 
 const SECTIONS: SectionDef[] = [
   {
-    title: 'General',
+    title: 'encfg_section_general',
     key: 'general',
     fields: [
-      { key: 'availability_days_year', label: 'Dias disponibles/ano', step: 0.5, min: 0, max: 365 },
-      { key: 'temperature_C', label: 'Temperatura (C)', step: 0.5, min: -10, max: 60 },
+      { key: 'availability_days_year', label: 'encfg_availability_days_year', step: 0.5, min: 0, max: 365 },
+      { key: 'temperature_C', label: 'encfg_temperature_C', step: 0.5, min: -10, max: 60 },
     ],
   },
   {
-    title: 'Paso 0 - Remocion de Boro',
+    title: 'encfg_section_paso0',
     key: 'paso0',
     fields: [
-      { key: 'boron_removal_fraction', label: 'Fraccion de remocion de boro', step: 0.01, min: 0, max: 1 },
+      { key: 'boron_removal_fraction', label: 'encfg_boron_removal_fraction', step: 0.01, min: 0, max: 1 },
     ],
   },
   {
-    title: 'Paso 1 - Cal',
+    title: 'encfg_section_paso1',
     key: 'paso1',
     fields: [
-      { key: 'lime_excess_factor', label: 'Factor de exceso de cal', step: 0.01, min: 1 },
-      { key: 'lime_slurry_conc', label: 'Conc. lechada de cal', step: 0.01, min: 0, max: 1 },
-      { key: 'lime_CaO_purity', label: 'Pureza CaO', step: 0.001, min: 0, max: 1 },
+      { key: 'lime_excess_factor', label: 'encfg_lime_excess_factor', step: 0.01, min: 1 },
+      { key: 'lime_slurry_conc', label: 'encfg_lime_slurry_conc', step: 0.01, min: 0, max: 1 },
+      { key: 'lime_CaO_purity', label: 'encfg_lime_CaO_purity', step: 0.001, min: 0, max: 1 },
     ],
   },
   {
-    title: 'Paso 2 - CaCl2',
+    title: 'encfg_section_paso2',
     key: 'paso2',
     fields: [
-      { key: 'use_CaCl2', label: 'Usar CaCl2', step: 0, type: 'toggle' },
-      { key: 'CaCl2_SO4_factor', label: 'Factor SO4 CaCl2', step: 0.01, min: 0 },
-      { key: 'CaCl2_sol_conc', label: 'Conc. solucion CaCl2', step: 0.001, min: 0, max: 1 },
-      { key: 'CaCl2_purity', label: 'Pureza CaCl2', step: 0.0001, min: 0, max: 1 },
-      { key: 'CaCl2_NaCl_fraction', label: 'Fraccion NaCl en CaCl2', step: 0.0001, min: 0, max: 1 },
-      { key: 'CaCl2_MgCl2_fraction', label: 'Fraccion MgCl2 en CaCl2', step: 0.0001, min: 0, max: 1 },
-      { key: 'CaCl2_CaSO4_fraction', label: 'Fraccion CaSO4 en CaCl2', step: 0.0001, min: 0, max: 1 },
+      { key: 'use_CaCl2', label: 'encfg_use_CaCl2', step: 0, type: 'toggle' },
+      { key: 'CaCl2_SO4_factor', label: 'encfg_CaCl2_SO4_factor', step: 0.01, min: 0 },
+      { key: 'CaCl2_sol_conc', label: 'encfg_CaCl2_sol_conc', step: 0.001, min: 0, max: 1 },
+      { key: 'CaCl2_purity', label: 'encfg_CaCl2_purity', step: 0.0001, min: 0, max: 1 },
+      { key: 'CaCl2_NaCl_fraction', label: 'encfg_CaCl2_NaCl_fraction', step: 0.0001, min: 0, max: 1 },
+      { key: 'CaCl2_MgCl2_fraction', label: 'encfg_CaCl2_MgCl2_fraction', step: 0.0001, min: 0, max: 1 },
+      { key: 'CaCl2_CaSO4_fraction', label: 'encfg_CaCl2_CaSO4_fraction', step: 0.0001, min: 0, max: 1 },
     ],
   },
   {
-    title: 'Paso 3 - Torta/Lavado',
+    title: 'encfg_section_paso3',
     key: 'paso3',
     fields: [
-      { key: 'cake_retention', label: 'Retencion de torta', step: 0.01, min: 0, max: 1 },
-      { key: 'cake_wash_ratio', label: 'Ratio de lavado', step: 0.1, min: 0 },
-      { key: 'cake_wash_recovery', label: 'Recuperacion de lavado', step: 0.01, min: 0, max: 1 },
+      { key: 'cake_retention', label: 'encfg_cake_retention', step: 0.01, min: 0, max: 1 },
+      { key: 'cake_wash_ratio', label: 'encfg_cake_wash_ratio', step: 0.1, min: 0 },
+      { key: 'cake_wash_recovery', label: 'encfg_cake_wash_recovery', step: 0.01, min: 0, max: 1 },
     ],
   },
 ];
 
 export default function EncaladoConfigForm({ value, onChange, readOnly = false }: Props) {
+  const t = useT();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     general: true,
     paso0: false,
@@ -102,7 +111,7 @@ export default function EncaladoConfigForm({ value, onChange, readOnly = false }
             style={{ color: 'var(--color-text)' }}
             onClick={() => toggleSection(section.key)}
           >
-            <span>{section.title}</span>
+            <span>{t(section.title as TranslationKey)}</span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className={`h-4 w-4 transition-transform ${openSections[section.key] ? 'rotate-90' : ''}`}
@@ -121,11 +130,14 @@ export default function EncaladoConfigForm({ value, onChange, readOnly = false }
             <div className="px-3 pb-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
               {section.fields.map((field) => (
                 <div key={field.key}>
-                  <label className="label">{field.label}</label>
+                  <label className="label">
+                    {t(field.label as TranslationKey)}
+                    {FIELD_TIPS[field.key] && <Tip text={t(FIELD_TIPS[field.key] as TranslationKey)} />}
+                  </label>
                   {field.type === 'toggle' ? (
                     readOnly ? (
                       <span className="text-sm font-mono">
-                        {(value[field.key] as boolean) ? 'Si' : 'No'}
+                        {(value[field.key] as boolean) ? t('yes') : t('no')}
                       </span>
                     ) : (
                       <button

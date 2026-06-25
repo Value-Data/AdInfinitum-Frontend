@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { useT } from '../i18n/LanguageContext';
 
 export default function LoginPage() {
+  const t = useT();
   const { login } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
@@ -14,16 +16,18 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setError('Ingrese usuario y contrasena');
+      setError(t('login_error_required'));
       return;
     }
     setLoading(true);
     setError(null);
     try {
       await login(username, password);
+      // Trigger the one-time welcome overlay on the projects landing.
+      sessionStorage.setItem('adinf_show_welcome', '1');
       navigate('/projects', { replace: true });
     } catch {
-      setError('Credenciales invalidas. Intente nuevamente.');
+      setError(t('login_error_invalid'));
     } finally {
       setLoading(false);
     }
@@ -47,20 +51,20 @@ export default function LoginPage() {
             className="text-sm mt-1"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Simulador de Evaporacion de Litio
+            {t('login_subtitle')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="username" className="label">
-              Usuario
+              {t('login_username')}
             </label>
             <input
               id="username"
               type="text"
               className="input"
-              placeholder="Ingrese su usuario"
+              placeholder={t('login_username_placeholder')}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
@@ -70,13 +74,13 @@ export default function LoginPage() {
 
           <div>
             <label htmlFor="password" className="label">
-              Contrasena
+              {t('login_password')}
             </label>
             <input
               id="password"
               type="password"
               className="input"
-              placeholder="Ingrese su contrasena"
+              placeholder={t('login_password_placeholder')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
@@ -97,10 +101,10 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <LoadingSpinner size="sm" />
-                Ingresando...
+                {t('login_logging_in')}
               </>
             ) : (
-              'Ingresar'
+              t('login_submit')
             )}
           </button>
         </form>

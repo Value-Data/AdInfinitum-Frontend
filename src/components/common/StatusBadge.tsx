@@ -1,6 +1,8 @@
 import React from 'react';
 import type { ExecutionStatus } from '../../types';
 import LoadingSpinner from './LoadingSpinner';
+import { useT } from '../../i18n/LanguageContext';
+import type { TranslationKey } from '../../i18n/translations';
 
 interface Props {
   status: ExecutionStatus | string;
@@ -17,16 +19,18 @@ const STATUS_STYLES: Record<string, string> = {
     'background-color: #fee2e2; color: #991b1b; border-color: #fca5a5',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  running: 'En ejecucion',
-  completed: 'Completada',
-  failed: 'Error',
+const STATUS_LABELS: Record<string, TranslationKey> = {
+  pending: 'status_pending',
+  running: 'status_running',
+  completed: 'status_completed',
+  failed: 'status_failed',
 };
 
 export default function StatusBadge({ status }: Props) {
+  const t = useT();
   const style = STATUS_STYLES[status] || STATUS_STYLES.pending;
-  const label = STATUS_LABELS[status] || status;
+  const labelKey = STATUS_LABELS[status];
+  const label = labelKey ? t(labelKey) : status;
 
   return (
     <span

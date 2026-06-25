@@ -10,12 +10,14 @@ import StatusBadge from './common/StatusBadge';
 import Modal from './common/Modal';
 import LoadingSpinner from './common/LoadingSpinner';
 import { useAuth } from '../context/AuthContext';
+import { useT } from '../i18n/LanguageContext';
 
 interface Props {
   projectId: string;
 }
 
 export default function ExecutionList({ projectId }: Props) {
+  const t = useT();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [executions, setExecutions] = useState<Execution[]>([]);
@@ -105,8 +107,8 @@ export default function ExecutionList({ projectId }: Props) {
   };
 
   const typeLabels: Record<string, string> = {
-    proceso_completo: 'Proceso Completo',
-    preconcentracion: 'Preconcentracion',
+    proceso_completo: t('runsim_proceso_completo'),
+    preconcentracion: t('runsim_preconcentracion'),
   };
 
   if (loading) {
@@ -121,18 +123,18 @@ export default function ExecutionList({ projectId }: Props) {
     <div>
       {executions.length === 0 ? (
         <p className="text-sm py-4 text-center" style={{ color: 'var(--color-text-secondary)' }}>
-          No hay ejecuciones registradas para este proyecto.
+          {t('execlist_empty')}
         </p>
       ) : (
         <div className="overflow-x-auto">
           <table>
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Estado</th>
-                <th>Duracion</th>
-                <th>Acciones</th>
+                <th>{t('date')}</th>
+                <th>{t('execlist_type')}</th>
+                <th>{t('status')}</th>
+                <th>{t('execlist_duration')}</th>
+                <th>{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -159,7 +161,7 @@ export default function ExecutionList({ projectId }: Props) {
                           className="btn btn-outline btn-sm"
                           onClick={() => navigate(`/executions/${exec.id}`)}
                         >
-                          Ver
+                          {t('view')}
                         </button>
                       )}
                       {isAdmin && (
@@ -167,7 +169,7 @@ export default function ExecutionList({ projectId }: Props) {
                           className="btn btn-danger btn-sm"
                           onClick={() => setDeleteTarget(exec.id)}
                         >
-                          Eliminar
+                          {t('delete')}
                         </button>
                       )}
                     </div>
@@ -182,17 +184,17 @@ export default function ExecutionList({ projectId }: Props) {
       <Modal
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        title="Confirmar eliminacion"
+        title={t('execlist_confirm_delete_title')}
       >
         <p className="text-sm mb-4" style={{ color: 'var(--color-text)' }}>
-          Esta seguro de que desea eliminar esta ejecucion? Esta accion no se puede deshacer.
+          {t('execlist_confirm_delete_msg')}
         </p>
         <div className="flex gap-2 justify-end">
           <button className="btn btn-outline" onClick={() => setDeleteTarget(null)}>
-            Cancelar
+            {t('cancel')}
           </button>
           <button className="btn btn-danger" onClick={handleDelete}>
-            Eliminar
+            {t('delete')}
           </button>
         </div>
       </Modal>

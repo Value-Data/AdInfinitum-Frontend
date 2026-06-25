@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { useT } from '../i18n/LanguageContext';
+import Tip from './common/Tip';
 
 interface Props {
   value: number[];
@@ -19,6 +21,7 @@ export default function SaltFactorEditor({
   saltNames = [],
   readOnly = false,
 }: Props) {
+  const t = useT();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     favored: false,
     enabled: false,
@@ -37,7 +40,7 @@ export default function SaltFactorEditor({
     for (let index = 0; index < limit; index++) {
       const factor = value[index];
       if (factor === undefined) continue;
-      const name = saltNames[index] || `Sal ${index}`;
+      const name = saltNames[index] || `${t('saltfactor_salt')} ${index}`;
       const item = { index, name, factor };
 
       if (factor < 1) favored.push(item);
@@ -46,11 +49,11 @@ export default function SaltFactorEditor({
     }
 
     return [
-      { label: 'Favorecidas (F < 1)', description: 'Precipitacion favorecida', items: favored },
-      { label: 'Habilitadas (F = 1)', description: 'Precipitacion habilitada (default)', items: enabled },
-      { label: 'Inhibidas (F > 1)', description: 'Precipitacion inhibida', items: inhibited },
+      { label: t('saltfactor_favored'), description: t('saltfactor_favored_desc'), items: favored },
+      { label: t('saltfactor_enabled'), description: t('saltfactor_enabled_desc'), items: enabled },
+      { label: t('saltfactor_inhibited'), description: t('saltfactor_inhibited_desc'), items: inhibited },
     ];
-  }, [value, saltNames]);
+  }, [value, saltNames, t]);
 
   const toggleGroup = (key: string) => {
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -77,7 +80,7 @@ export default function SaltFactorEditor({
             <span>
               {group.label}{' '}
               <span className="font-normal" style={{ color: 'var(--color-text-secondary)' }}>
-                ({group.items.length} sales)
+                ({group.items.length} {t('saltfactor_salts')})
               </span>
             </span>
             <svg
@@ -100,8 +103,8 @@ export default function SaltFactorEditor({
                 <thead>
                   <tr>
                     <th className="w-12">#</th>
-                    <th>Sal</th>
-                    <th className="w-32">Factor</th>
+                    <th>{t('saltfactor_salt')}<Tip text={t('dyncfg_tip_salt_name')} /></th>
+                    <th className="w-32">{t('saltfactor_factor')}<Tip text={t('dyncfg_tip_salt_factor')} /></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -136,14 +139,15 @@ export default function SaltFactorEditor({
 
           {openGroups[groupKeys[gi]] && group.items.length === 0 && (
             <p className="px-3 pb-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              No hay sales en esta categoria.
+              {t('saltfactor_empty')}
             </p>
           )}
         </div>
       ))}
 
       <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-        Total: {groups.reduce((acc, g) => acc + g.items.length, 0)} sales configuradas
+        {t('total')}: {groups.reduce((acc, g) => acc + g.items.length, 0)} {t('saltfactor_configured')}
+        <Tip text={t('dyncfg_section_tip_salt_factors')} />
       </p>
     </div>
   );

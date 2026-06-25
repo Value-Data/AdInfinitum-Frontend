@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useT } from '../../i18n/LanguageContext';
 
 interface Props {
   open: boolean;
@@ -15,6 +16,7 @@ export default function Modal({
   children,
   width = '480px',
 }: Props) {
+  const t = useT();
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function Modal({
             onClick={onClose}
             className="p-1 hover:opacity-70"
             style={{ color: 'var(--color-text-secondary)' }}
-            aria-label="Cerrar"
+            aria-label={t('close')}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

@@ -4,6 +4,8 @@ import { getExecution } from '../services/api';
 import Modal from './common/Modal';
 import DynamicReportDocument, { type ReportStageInput } from './DynamicReportDocument';
 import { generatePdfFromContainer } from '../utils/pdfReport';
+import { useT } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 
 type StageKey = 'cascade' | 'encalado' | 'postliming';
 
@@ -13,10 +15,10 @@ const STAGE_TO_TYPE: Record<StageKey, ExecutionType> = {
   postliming: 'modelo_dinamico_postliming',
 };
 
-const STAGE_LABEL: Record<StageKey, string> = {
-  cascade: 'Cascade (Pz1-Pz7)',
-  encalado: 'Encalado (Pz8-Pz9)',
-  postliming: 'Postliming (Pz10-Pz18)',
+const STAGE_LABEL: Record<StageKey, TranslationKey> = {
+  cascade: 'cascade_label',
+  encalado: 'encalado_label',
+  postliming: 'postliming_label',
 };
 
 const STAGE_ORDER: StageKey[] = ['cascade', 'encalado', 'postliming'];
@@ -34,6 +36,7 @@ export default function DynamicReportModal({
   executions: Execution[];
   projectName: string;
 }) {
+  const t = useT();
   const [sel, setSel] = useState<Record<StageKey, StageSel>>({
     cascade: { include: true, execId: '' },
     encalado: { include: false, execId: '' },
@@ -61,7 +64,7 @@ export default function DynamicReportModal({
     setError(null);
     const chosen = STAGE_ORDER.filter((st) => sel[st].include && sel[st].execId);
     if (chosen.length === 0) {
-      setError('Selecciona al menos una etapa y su ejecución.');
+      setError(t('dynreport_error_no_stage'));
       return;
     }
     setGenerating(true);
@@ -73,12 +76,12 @@ export default function DynamicReportModal({
           | ReportStageInput['results']
           | null;
         if (!results) {
-          throw new Error(`La ejecución ${STAGE_LABEL[st]} no tiene resultados.`);
+          throw new Error(`${t('dynreport_error_no_results_prefix')} ${t(STAGE_LABEL[st])} ${t('dynreport_error_no_results_suffix')}`);
         }
         stages.push({
           stage: st,
           executionId: sel[st].execId,
-          label: STAGE_LABEL[st],
+          label: t(STAGE_LABEL[st]),
           runTag: (results as { run_tag?: string }).run_tag,
           results,
         } as ReportStageInput);
@@ -103,7 +106,7 @@ export default function DynamicReportModal({
         await generatePdfFromContainer(reportRef.current, `reporte_dinamico_${safe}.pdf`);
         if (!cancelled) onClose();
       } catch (e) {
-        if (!cancelled) setError(`Error al generar PDF: ${String((e as Error).message || e)}`);
+        if (!cancelled) setError(`${t('dynreport_error_pdf')}: ${String((e as Error).message || e)}`);
       } finally {
         if (!cancelled) {
           setReportStages(null);
@@ -115,14 +118,13 @@ export default function DynamicReportModal({
     return () => {
       cancelled = true;
     };
-  }, [reportStages, projectName, onClose]);
+  }, [reportStages, projectName, onClose, t]);
 
   return (
     <>
-      <Modal open={open} onClose={generating ? () => undefined : onClose} title="Generar reporte PDF" width="560px">
+      <Modal open={open} onClose={generating ? () => undefined : onClose} title={t('dynreport_title')} width="560px">
         <p className="text-sm mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-          Marca las etapas a incluir y elige, por cada una, la ejecución (ID) que quieres
-          reportar. El PDF incluye KPIs, tablas, gráficos y —para encalado— el detalle completo.
+          {t('dynreport_instructions')}
         </p>
 
         <div className="space-y-3">
@@ -140,7 +142,7 @@ export default function DynamicReportModal({
                     checked={sel[st].include}
                     onChange={(e) => setStage(st, { include: e.target.checked })}
                   />
-                  {STAGE_LABEL[st]}
+                  {t(STAGE_LABEL[st])}
                 </label>
                 <select
                   className="input w-full"
@@ -148,7 +150,7 @@ export default function DynamicReportModal({
                   value={sel[st].execId}
                   onChange={(e) => setStage(st, { execId: e.target.value })}
                 >
-                  <option value="">— elegir ejecución —</option>
+                  <option value="">{t('dynreport_choose_execution')}</option>
                   {opts.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.id.slice(0, 8)} · {new Date(e.created_at).toLocaleString()}
@@ -157,7 +159,7 @@ export default function DynamicReportModal({
                 </select>
                 {sel[st].include && opts.length === 0 && (
                   <p className="text-xs mt-1" style={{ color: 'var(--color-warning)' }}>
-                    No hay ejecuciones {st} completadas.
+                    {t('dynreport_no_completed_prefix')} {t(STAGE_LABEL[st])} {t('dynreport_no_completed_suffix')}
                   </p>
                 )}
               </div>
@@ -173,10 +175,10 @@ export default function DynamicReportModal({
 
         <div className="flex justify-end gap-2 mt-4">
           <button className="btn btn-outline btn-sm" onClick={onClose} disabled={generating}>
-            Cancelar
+            {t('cancel')}
           </button>
           <button className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={generating}>
-            {generating ? 'Generando PDF…' : 'Generar PDF'}
+            {generating ? t('dynreport_generating') : t('dynreport_generate')}
           </button>
         </div>
       </Modal>

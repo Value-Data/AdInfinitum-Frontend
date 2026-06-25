@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import { useT } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 
 type Phase = 'PRECONCENTRACION' | 'ENCALADO' | 'POSTLIMING';
 
@@ -53,33 +55,33 @@ const ADDITIVE_PROPS = [
 type AdditiveProp = (typeof ADDITIVE_PROPS)[number];
 
 const STREAM_DEFS: Record<GlobalStreamId, StreamDef> = {
-  '2001': { phase: 'PRECONCENTRACION', name: 'Well Field', type: 'base' },
+  '2001': { phase: 'PRECONCENTRACION', name: 'gbal_2001', type: 'base' },
   '2002': {
     phase: 'PRECONCENTRACION',
-    name: 'Salts and entrainment from Preconcentration Pond',
+    name: 'gbal_2002',
     type: 'base',
   },
-  '2003': { phase: 'PRECONCENTRACION', name: 'Leakage in Preconcentration Pond', type: 'base' },
-  '2004': { phase: 'PRECONCENTRACION', name: 'Evaporation from Preconcentration Pond', type: 'base' },
-  '2005': { phase: 'PRECONCENTRACION', name: 'Dilution Water for preconcentration Ponds', type: 'base' },
+  '2003': { phase: 'PRECONCENTRACION', name: 'gbal_2003', type: 'base' },
+  '2004': { phase: 'PRECONCENTRACION', name: 'gbal_2004', type: 'base' },
+  '2005': { phase: 'PRECONCENTRACION', name: 'gbal_2005', type: 'base' },
   '2006': {
     phase: 'PRECONCENTRACION',
-    name: 'Brine Out from Preconcentration Pond',
+    name: 'gbal_2006',
     type: 'derived',
     formula: { add: ['2001', '2005'], sub: ['2002', '2003', '2004'] },
   },
-  '2501': { phase: 'ENCALADO', name: 'Lime', type: 'base' },
-  '2502': { phase: 'ENCALADO', name: 'Calcium Chloride', type: 'base' },
-  '2503': { phase: 'ENCALADO', name: 'Water', type: 'base' },
-  '2504': { phase: 'ENCALADO', name: 'Liming Salts', type: 'base' },
-  '3001': { phase: 'POSTLIMING', name: 'After liming Brine', type: 'base' },
-  '3002': { phase: 'POSTLIMING', name: 'Salts Harvested from Postliming Pond', type: 'base' },
-  '3003': { phase: 'POSTLIMING', name: 'Leakage in PostLiming Pond', type: 'base' },
-  '3004': { phase: 'POSTLIMING', name: 'Evaporation from Postliming Pond', type: 'base' },
-  '3005': { phase: 'POSTLIMING', name: 'Dilution Water for Postliming Ponds', type: 'base' },
+  '2501': { phase: 'ENCALADO', name: 'gbal_2501', type: 'base' },
+  '2502': { phase: 'ENCALADO', name: 'gbal_2502', type: 'base' },
+  '2503': { phase: 'ENCALADO', name: 'gbal_2503', type: 'base' },
+  '2504': { phase: 'ENCALADO', name: 'gbal_2504', type: 'base' },
+  '3001': { phase: 'POSTLIMING', name: 'gbal_3001', type: 'base' },
+  '3002': { phase: 'POSTLIMING', name: 'gbal_3002', type: 'base' },
+  '3003': { phase: 'POSTLIMING', name: 'gbal_3003', type: 'base' },
+  '3004': { phase: 'POSTLIMING', name: 'gbal_3004', type: 'base' },
+  '3005': { phase: 'POSTLIMING', name: 'gbal_3005', type: 'base' },
   '3006': {
     phase: 'POSTLIMING',
-    name: 'Brine Out from Postliming Pond',
+    name: 'gbal_3006',
     type: 'derived',
     formula: { add: ['3001', '3005'], sub: ['3002', '3003', '3004'] },
   },
@@ -94,17 +96,17 @@ const STREAM_ORDER: GlobalStreamId[] = [
 const PHASE_GROUPS: Array<{ phase: Phase; label: string; ids: GlobalStreamId[] }> = [
   {
     phase: 'PRECONCENTRACION',
-    label: 'PRECONCENTRACIÓN',
+    label: 'gbal_phase_precon',
     ids: ['2001', '2002', '2003', '2004', '2005', '2006'],
   },
   {
     phase: 'ENCALADO',
-    label: 'ENCALADO',
+    label: 'gbal_phase_encalado',
     ids: ['2501', '2502', '2503', '2504'],
   },
   {
     phase: 'POSTLIMING',
-    label: 'POSTLIMING',
+    label: 'gbal_phase_postliming',
     ids: ['3001', '3002', '3003', '3004', '3005', '3006'],
   },
 ];
@@ -183,11 +185,11 @@ interface RowConfig {
 }
 
 const ROWS: RowConfig[] = [
-  { label: 'h/year', unit: 'h/year', kind: 'constant', constant: ANNUAL_HOURS },
-  { label: 'h/day', unit: 'h/day', kind: 'constant', constant: DAILY_HOURS },
-  { label: 'day/year', unit: 'day/year', kind: 'constant', constant: ({ daysYear }) => daysYear },
+  { label: 'gbal_row_hyear', unit: 'h/year', kind: 'constant', constant: ANNUAL_HOURS },
+  { label: 'gbal_row_hday', unit: 'h/day', kind: 'constant', constant: DAILY_HOURS },
+  { label: 'gbal_row_dayyear', unit: 'day/year', kind: 'constant', constant: ({ daysYear }) => daysYear },
   {
-    label: 'Total Mass',
+    label: 'gbal_row_total_mass',
     unit: 'ton/year',
     dataKey: 'total_mass_year',
     kind: 'highlight',
@@ -196,17 +198,17 @@ const ROWS: RowConfig[] = [
       (stream.total_mass_day != null ? stream.total_mass_day * daysYear : undefined),
   },
   {
-    label: 'Total Mass',
+    label: 'gbal_row_total_mass',
     unit: 'ton/d',
     dataKey: 'total_mass_day',
     kind: 'bold',
     accessor: ({ stream }) => stream.total_mass_day,
   },
-  { label: 'Solids', unit: 'ton/d', dataKey: 'solids_day', accessor: ({ stream }) => stream.solids_day },
-  { label: 'Liquids', unit: 'ton/d', dataKey: 'liquids_day', accessor: ({ stream }) => stream.liquids_day },
-  { label: 'Density', unit: 'kg/m³', dataKey: 'density', accessor: ({ stream }) => stream.density },
-  { label: 'Moisture', unit: '%', dataKey: 'moisture', accessor: ({ stream }) => stream.moisture },
-  { label: 'Temperature', unit: '°C', dataKey: 'temperature', accessor: ({ stream }) => stream.temperature },
+  { label: 'gbal_row_solids', unit: 'ton/d', dataKey: 'solids_day', accessor: ({ stream }) => stream.solids_day },
+  { label: 'gbal_row_liquids', unit: 'ton/d', dataKey: 'liquids_day', accessor: ({ stream }) => stream.liquids_day },
+  { label: 'gbal_row_density', unit: 'kg/m³', dataKey: 'density', accessor: ({ stream }) => stream.density },
+  { label: 'gbal_row_moisture', unit: '%', dataKey: 'moisture', accessor: ({ stream }) => stream.moisture },
+  { label: 'gbal_row_temperature', unit: '°C', dataKey: 'temperature', accessor: ({ stream }) => stream.temperature },
 ];
 
 function buildFormulaTooltip(
@@ -243,11 +245,12 @@ export interface GlobalBalanceTableProps {
 
 export default function GlobalBalanceTable({
   streams,
-  title = 'Balance global del proceso',
+  title,
   preconDaysYear = DEFAULT_PONDS_DAYS_YEAR,
   encaladoDaysYear = DEFAULT_ENCALADO_DAYS_YEAR,
   postlimingDaysYear = DEFAULT_PONDS_DAYS_YEAR,
 }: GlobalBalanceTableProps) {
+  const t = useT();
   const phaseDays: PhaseDays = {
     PRECONCENTRACION: preconDaysYear,
     ENCALADO: encaladoDaysYear,
@@ -267,7 +270,7 @@ export default function GlobalBalanceTable({
         className="text-xs font-semibold uppercase tracking-wide px-4 pt-3 mb-2"
         style={{ color: 'var(--color-text-secondary)' }}
       >
-        {title}
+        {title ?? t('gbal_title')}
       </h5>
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse tabular-nums" style={{ borderColor }}>
@@ -279,7 +282,7 @@ export default function GlobalBalanceTable({
                 className={`${borderCls} sticky left-0 z-20 text-left px-3 py-2 align-bottom`}
                 style={{ backgroundColor: surfaceBg, borderColor, minWidth: '11rem' }}
               >
-                Propiedad
+                {t('gbal_property')}
               </th>
               {PHASE_GROUPS.map((g) => (
                 <th
@@ -288,7 +291,7 @@ export default function GlobalBalanceTable({
                   className={`${borderCls} text-center font-semibold px-2 py-1.5 text-xs uppercase tracking-wide`}
                   style={{ backgroundColor: groupBg, borderColor }}
                 >
-                  {g.label}
+                  {t(g.label as TranslationKey)}
                 </th>
               ))}
             </tr>
@@ -316,7 +319,7 @@ export default function GlobalBalanceTable({
                     className="block whitespace-normal break-words"
                     style={{ color: 'var(--color-text-secondary)' }}
                   >
-                    {STREAM_DEFS[id].name}
+                    {t(STREAM_DEFS[id].name as TranslationKey)}
                   </span>
                 </th>
               ))}
@@ -333,7 +336,7 @@ export default function GlobalBalanceTable({
                     className={`${borderCls} sticky left-0 z-10 px-3 py-1.5 ${rowWeight}`}
                     style={{ backgroundColor: rowBg ?? surfaceBg, borderColor }}
                   >
-                    <div>{row.label}</div>
+                    <div>{t(row.label as TranslationKey)}</div>
                     <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                       {row.unit}
                     </div>
@@ -374,11 +377,11 @@ export default function GlobalBalanceTable({
         </table>
       </div>
       <p className="text-xs px-4 pb-3 mt-2" style={{ color: 'var(--color-text-secondary)' }}>
-        Streams derivados: <strong>2006</strong> = 2001 + 2005 − 2002 − 2003 − 2004 ·{' '}
-        <strong>3006</strong> = 3001 + 3005 − 3002 − 3003 − 3004. Los demás son valores base del
-        backend. <em>day/year</em>: preconcentración = {preconDaysYear}, encalado = {encaladoDaysYear},
-        postliming = {postlimingDaysYear} (configurable por proyecto). Si el backend no trajo{' '}
-        <em>total_mass_year</em>, se calcula como <em>total_mass_day × day/year</em> según fase.
+        {t('gbal_footnote_derived')} <strong>2006</strong> = 2001 + 2005 − 2002 − 2003 − 2004 ·{' '}
+        <strong>3006</strong> = 3001 + 3005 − 3002 − 3003 − 3004. {t('gbal_footnote_base')}{' '}
+        <em>day/year</em>: {t('gbal_phase_precon')} = {preconDaysYear}, {t('gbal_phase_encalado')} = {encaladoDaysYear},
+        {' '}{t('gbal_phase_postliming')} = {postlimingDaysYear} {t('gbal_footnote_configurable')}{' '}
+        <em>total_mass_year</em>, {t('gbal_footnote_calc')} <em>total_mass_day × day/year</em> {t('gbal_footnote_byphase')}
       </p>
     </div>
   );

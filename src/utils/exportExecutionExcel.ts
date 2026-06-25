@@ -110,7 +110,7 @@ function buildResumenSheet(input: ExportInput): unknown[][] {
       const v = r[k];
       return typeof v === 'number' && Number.isFinite(v) ? v : '';
     };
-    aoa.push(['Encalado']);
+    aoa.push(['Planta de Reactivos']);
     aoa.push(['Concepto', 'Valor', 'Unidad']);
     aoa.push(['Entrada (ajustada)', n('input_flow'), 'ton/d']);
     aoa.push(['Salida P2519', n('total_liquid_output'), 'ton/d']);
@@ -708,7 +708,7 @@ export function exportExecutionToExcel(input: ExportInput): Blob {
   });
 
   if (input.encalado) {
-    addSheet(wb, 'Encalado', buildEncaladoSheet(input.encalado));
+    addSheet(wb, 'Planta de Reactivos', buildEncaladoSheet(input.encalado));
   }
 
   postStages.forEach((s, i) => {

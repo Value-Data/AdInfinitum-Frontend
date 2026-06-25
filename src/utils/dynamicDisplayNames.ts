@@ -1,3 +1,5 @@
+import type { TranslationKey } from '../i18n/translations';
+
 /* ============================================================
    Mapping engine pond names → doc convention (Pz1.x).
    Section 4 of dynamic-model implementation doc.
@@ -52,4 +54,21 @@ export function displayPondName(name: string): string {
     return `${prefixMatch[1]}/${transformBaseName(prefixMatch[2])}`;
   }
   return transformBaseName(name);
+}
+
+/**
+ * Customer-facing label for a dynamic stage. Accepts either the full execution
+ * type ("modelo_dinamico_cascade") or the bare stage key ("cascade").
+ * Renames per terminology: cascade → Preconcentración, encalado → Planta de Reactivos.
+ */
+export function displayStageName(
+  stage: string | null | undefined,
+  t: (k: TranslationKey) => string,
+): string {
+  if (!stage) return '';
+  const s = stage.replace('modelo_dinamico_', '');
+  if (s === 'cascade') return t('stage_precon');
+  if (s === 'encalado') return t('stage_reagent_plant');
+  if (s === 'postliming') return t('stage_postliming');
+  return s;
 }

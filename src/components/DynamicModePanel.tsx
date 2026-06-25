@@ -21,8 +21,10 @@ import DynamicConfigEditor from './DynamicConfigEditor';
 import DynamicResultsView from './DynamicResultsView';
 import DynamicChainView from './DynamicChainView';
 import DynamicReportModal from './DynamicReportModal';
+import { displayStageName } from '../utils/dynamicDisplayNames';
 import type { DynamicResults } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 import {
   applyParsedToConfig,
   downloadDynamicExcel,
@@ -38,10 +40,10 @@ const STAGE_TO_TYPE: Record<StageKey, ExecutionType> = {
   postliming: 'modelo_dinamico_postliming',
 };
 
-const STAGE_LABEL: Record<StageKey, string> = {
-  cascade: 'Cascade (Pz1-Pz7)',
-  encalado: 'Encalado (Pz8-Pz9)',
-  postliming: 'Postliming (Pz10-Pz18)',
+const STAGE_LABEL: Record<StageKey, TranslationKey> = {
+  cascade: 'cascade_label',
+  encalado: 'encalado_label',
+  postliming: 'postliming_label',
 };
 
 const SOURCE_REQUIRED_FOR: Record<StageKey, ExecutionType | null> = {
@@ -212,13 +214,13 @@ export default function DynamicModePanel({
       setDraftConfig(dc);
       setDirty(autoFilled);
       if (autoFilled) {
-        setSaveMsg('Config actualizado automáticamente (factores faltantes o modulación). Guardá para persistir.');
+        setSaveMsg(t('dynpanel_autofilled'));
       }
       if (dc?.simulation?.n_days) {
         setNDays(dc.simulation.n_days);
       }
     } catch {
-      setSaveMsg('Error al cargar config dinámica');
+      setSaveMsg(t('dynpanel_config_load_error'));
     } finally {
       setLoading(false);
     }
@@ -259,9 +261,9 @@ export default function DynamicModePanel({
       const defaults = await getProjectConfigDefaults(projectId);
       setDraftConfig(defaults.dynamic_config);
       setDirty(true);
-      setSaveMsg('Defaults cargados en el editor. Pulsa "Guardar" para persistir.');
+      setSaveMsg(t('dynpanel_defaults_loaded'));
     } catch {
-      setSaveMsg('Error al cargar defaults.');
+      setSaveMsg(t('dynpanel_defaults_load_error'));
     }
   };
 
@@ -274,10 +276,10 @@ export default function DynamicModePanel({
       setConfig(updated.dynamic_config);
       setDraftConfig(updated.dynamic_config);
       setDirty(false);
-      setSaveMsg('Configuración dinámica guardada.');
+      setSaveMsg(t('dynpanel_config_saved'));
     } catch (err) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail;
-      setSaveMsg(`Error: ${msg || 'No se pudo guardar'}`);
+      setSaveMsg(`${t('error')}: ${msg || t('dynpanel_save_failed')}`);
     } finally {
       setSaving(false);
     }
@@ -286,14 +288,14 @@ export default function DynamicModePanel({
   const handleResetDraft = () => {
     setDraftConfig(config);
     setDirty(false);
-    setSaveMsg('Cambios descartados.');
+    setSaveMsg(t('dynpanel_changes_discarded'));
   };
 
   const handleDownloadExcel = () => {
     if (!draftConfig) return;
     const safe = projectName.replace(/[^a-z0-9-_]+/gi, '_');
     downloadDynamicExcel(draftConfig, `config_dinamico_${safe}.xlsx`);
-    setSaveMsg('Plantilla Excel descargada.');
+    setSaveMsg(t('dynpanel_excel_downloaded'));
   };
 
   const handleImportClick = () => fileInputRef.current?.click();
@@ -306,14 +308,14 @@ export default function DynamicModePanel({
       const parsed = await parseDynamicWorkbookFile(file, draftConfig);
       const { next, applied } = applyParsedToConfig(draftConfig, parsed);
       if (applied.length === 0) {
-        setSaveMsg('Error: el archivo no contiene hojas reconocidas.');
+        setSaveMsg(`${t('error')}: ${t('dynpanel_excel_no_sheets')}`);
         return;
       }
       setDraftConfig(next);
       setDirty(true);
-      setSaveMsg(`Excel cargado (${applied.join(', ')}). Guarde para aplicar.`);
+      setSaveMsg(`${t('dynpanel_excel_loaded')} (${applied.join(', ')}). ${t('dynpanel_excel_save_to_apply')}`);
     } catch (err) {
-      setSaveMsg(`Error al leer el Excel: ${(err as Error).message}`);
+      setSaveMsg(`${t('dynpanel_excel_read_error')}: ${(err as Error).message}`);
     }
   };
 
@@ -327,13 +329,13 @@ export default function DynamicModePanel({
   const handleLaunch = async () => {
     if (!isAdmin) return;
     if (dirty) {
-      setSaveMsg('Tienes cambios sin guardar en la configuración. Guarda o descarta antes de lanzar.');
+      setSaveMsg(t('dynpanel_unsaved_changes'));
       return;
     }
     const stageType = STAGE_TO_TYPE[activeStage];
     const needsSource = SOURCE_REQUIRED_FOR[activeStage] !== null;
     if (needsSource && !sourceExecId) {
-      setSaveMsg('Selecciona una ejecución fuente.');
+      setSaveMsg(t('dynpanel_select_source'));
       return;
     }
     setLaunching(true);
@@ -347,10 +349,10 @@ export default function DynamicModePanel({
       });
       setExecutions((prev) => [exec, ...prev]);
       setSelectedExecId(exec.id);
-      setSaveMsg(`Ejecución ${stageType} encolada.`);
+      setSaveMsg(`${t('dynpanel_execution_label')} ${stageType} ${t('dynpanel_queued')}`);
     } catch (err) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail;
-      setSaveMsg(`Error: ${msg || 'No se pudo lanzar'}`);
+      setSaveMsg(`${t('error')}: ${msg || t('dynpanel_launch_failed')}`);
     } finally {
       setLaunching(false);
     }
@@ -367,10 +369,10 @@ export default function DynamicModePanel({
   if (!config) {
     return (
       <div className="card p-6 text-center">
-        <p>El proyecto no tiene configuración dinámica.</p>
+        <p>{t('dynpanel_no_dynamic_config')}</p>
         {isAdmin && (
           <button className="btn btn-primary mt-3" onClick={handleLoadDefaults}>
-            Inicializar con defaults
+            {t('dynpanel_init_with_defaults')}
           </button>
         )}
       </div>
@@ -485,7 +487,7 @@ export default function DynamicModePanel({
                       activeStage === s ? 'bg-blue-50 border-blue-300' : 'border-gray-200'
                     }`}
                   >
-                    {STAGE_LABEL[s]}
+                    {t(STAGE_LABEL[s])}
                   </button>
                 ))}
               </div>
@@ -493,14 +495,14 @@ export default function DynamicModePanel({
                 {SOURCE_REQUIRED_FOR[activeStage] && (
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium mb-1">
-                      {t('source')} ({SOURCE_REQUIRED_FOR[activeStage]?.replace('modelo_dinamico_', '')})
+                      {t('source')} ({displayStageName(SOURCE_REQUIRED_FOR[activeStage], t)})
                     </label>
                     <select
                       className="input w-full"
                       value={sourceExecId}
                       onChange={(e) => setSourceExecId(e.target.value)}
                     >
-                      <option value="">— elegir —</option>
+                      <option value="">— {t('dynpanel_choose')} —</option>
                       {sourceCandidates.map((e) => (
                         <option key={e.id} value={e.id}>
                           {e.id.slice(0, 8)} · {new Date(e.created_at).toLocaleString()}
@@ -509,7 +511,7 @@ export default function DynamicModePanel({
                     </select>
                     {sourceCandidates.length === 0 && (
                       <p className="text-xs mt-1" style={{ color: 'var(--color-warning)' }}>
-                        No hay ejecuciones {SOURCE_REQUIRED_FOR[activeStage]?.replace('modelo_dinamico_', '')} completadas.
+                        {t('dynpanel_no_completed_source_prefix')} {displayStageName(SOURCE_REQUIRED_FOR[activeStage], t)} {t('dynpanel_no_completed_source_suffix')}
                       </p>
                     )}
                   </div>
@@ -535,7 +537,7 @@ export default function DynamicModePanel({
                 </div>
               </div>
               <button className="btn btn-primary" onClick={handleLaunch} disabled={launching}>
-                {launching ? t('launching') : `${t('launch_execution')}: ${STAGE_LABEL[activeStage]}`}
+                {launching ? t('launching') : `${t('launch_execution')}: ${t(STAGE_LABEL[activeStage])}`}
               </button>
               {saveMsg && (
                 <p
@@ -551,7 +553,7 @@ export default function DynamicModePanel({
               )}
               {dirty && (
                 <p className="text-xs mt-1" style={{ color: 'var(--color-warning)' }}>
-                  Tienes cambios sin guardar en Configuración — guárdalos antes de lanzar.
+                  {t('dynpanel_unsaved_config_warning')}
                 </p>
               )}
             </div>
@@ -564,9 +566,9 @@ export default function DynamicModePanel({
                 className="btn btn-outline btn-sm"
                 onClick={() => setReportOpen(true)}
                 disabled={executions.filter((e) => e.status === 'completed').length === 0}
-                title="Selecciona etapas y ejecuciones para generar un PDF"
+                title={t('dynpanel_report_title')}
               >
-                Generar Reporte
+                {t('dynpanel_generate_report')}
               </button>
             </div>
             {executions.length === 0 ? (
@@ -577,7 +579,7 @@ export default function DynamicModePanel({
               <table className="w-full text-sm">
                 <thead className="text-left text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                   <tr>
-                    <th className="py-1">ID</th>
+                    <th className="py-1">{t('dynpanel_id')}</th>
                     <th>{t('stage')}</th>
                     <th>{t('status')}</th>
                     <th>{t('date')}</th>
@@ -589,7 +591,7 @@ export default function DynamicModePanel({
                   {executions.map((e) => (
                     <tr key={e.id} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
                       <td className="py-1.5 font-mono text-xs">{e.id.slice(0, 8)}</td>
-                      <td>{e.execution_type.replace('modelo_dinamico_', '')}</td>
+                      <td>{displayStageName(e.execution_type, t)}</td>
                       <td>
                         <StatusBadge status={e.status} />
                       </td>
@@ -717,7 +719,7 @@ function DynamicResultPanel({
     <div className="card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-semibold">
-          Resultados · <span className="font-mono text-xs">{executionId.slice(0, 8)}</span>
+          {t('dynpanel_results')} · <span className="font-mono text-xs">{executionId.slice(0, 8)}</span>
           {execStatus && execStatus !== 'completed' && (
             <span className="ml-2 text-xs font-normal" style={{ color: 'var(--color-warning)' }}>
               ({execStatus}…)
@@ -740,11 +742,11 @@ function DynamicResultPanel({
       ) : !results ? (
         <div>
           <p>
-            Sin resultados disponibles aún
+            {t('dynpanel_no_results_yet')}
             {execStatus === 'completed'
-              ? ' (la ejecución completó pero el campo results llegó vacío).'
+              ? ` ${t('dynpanel_no_results_completed')}`
               : execStatus
-              ? ` (estado: ${execStatus}, reintentando cada 2s…).`
+              ? ` (${t('dynpanel_no_results_status')}: ${execStatus}, ${t('dynpanel_no_results_retrying')}).`
               : '.'}
           </p>
         </div>

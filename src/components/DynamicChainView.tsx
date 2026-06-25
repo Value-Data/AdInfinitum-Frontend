@@ -6,6 +6,7 @@ import {
   type ChainData,
   type StageFactors,
 } from '../utils/dynamicChain';
+import { useT } from '../i18n/LanguageContext';
 import { listExecutionFiles } from '../services/api';
 import type { ExecutionFile } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export default function DynamicChainView({ rootExecutionId, onClose }: Props) {
+  const t = useT();
   const [chain, setChain] = useState<ChainData | null>(null);
   const [allFiles, setAllFiles] = useState<ExecutionFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,11 +90,11 @@ export default function DynamicChainView({ rootExecutionId, onClose }: Props) {
     <div className="card p-4">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h3 className="text-base font-semibold">
-          Vista cadena · raíz{' '}
+          {t('chain_root')}{' '}
           <span className="font-mono text-xs">{rootExecutionId.slice(0, 8)}</span>
         </h3>
         <button className="btn btn-outline btn-sm" onClick={onClose}>
-          Cerrar
+          {t('close')}
         </button>
       </div>
 
@@ -101,7 +103,7 @@ export default function DynamicChainView({ rootExecutionId, onClose }: Props) {
       ) : err ? (
         <p style={{ color: 'var(--color-danger)' }}>{err}</p>
       ) : !chain || !scaledChain ? (
-        <p>Sin datos.</p>
+        <p>{t('dynchain_no_data')}</p>
       ) : (
         <>
           {/* Chain summary banner */}
@@ -112,37 +114,37 @@ export default function DynamicChainView({ rootExecutionId, onClose }: Props) {
             className="card p-3 mb-4 flex flex-wrap items-end gap-3"
             style={{ background: factorsApplied ? '#fff8e1' : undefined }}
           >
-            <div className="text-sm font-semibold mr-2">Factores de escalado por proceso:</div>
+            <div className="text-sm font-semibold mr-2">{t('dynchain_scale_factors_by_process')}</div>
             <FactorInput
-              label="Precon"
+              label={t('stage_precon')}
               value={factorInputs.precon}
               onChange={(v) => setFactorInputs((p) => ({ ...p, precon: v }))}
               onEnter={applyFactors}
             />
             <FactorInput
-              label="Encalado"
+              label={t('stage_reagent_plant')}
               value={factorInputs.encalado}
               onChange={(v) => setFactorInputs((p) => ({ ...p, encalado: v }))}
               onEnter={applyFactors}
             />
             <FactorInput
-              label="Postliming"
+              label={t('stage_postliming')}
               value={factorInputs.postliming}
               onChange={(v) => setFactorInputs((p) => ({ ...p, postliming: v }))}
               onEnter={applyFactors}
             />
             <button className="btn btn-outline btn-sm" onClick={applyFactors}>
-              Aplicar
+              {t('apply')}
             </button>
             {factorsApplied && (
               <button className="btn btn-outline btn-sm" onClick={resetFactors}>
-                Reset
+                {t('reset')}
               </button>
             )}
             {factorsApplied && (
               <p className="text-xs flex-1" style={{ color: 'var(--color-text-secondary)' }}>
-                Aplicado: precon ×{factors.precon} · encalado ×{factors.encalado} · postliming ×{factors.postliming}.
-                El input "Factor de escalado" dentro de la vista de resultados aplica un multiplicador global ADICIONAL.
+                {t('applied')}: precon ×{factors.precon} · encalado ×{factors.encalado} · postliming ×{factors.postliming}.
+                {' '}{t('dynchain_factors_applied_note')}
               </p>
             )}
           </div>
@@ -151,20 +153,20 @@ export default function DynamicChainView({ rootExecutionId, onClose }: Props) {
           {scaledChain.encalado && (
             <div className="card p-3 mb-4" style={{ background: 'var(--color-bg)' }}>
               <h4 className="text-sm font-semibold mb-2">
-                Etapa encalado (Pta Qca → Pz8/Pz9) — datos resumidos
+                {t('dynchain_enc_stage_title')}
               </h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <Stat label="Días con feed" value={scaledChain.encalado.n_days_with_feed} />
+                <Stat label={t('dynchain_stat_days_with_feed')} value={scaledChain.encalado.n_days_with_feed} />
                 <Stat
-                  label="Flujo out promedio"
+                  label={t('dynchain_stat_avg_outflow')}
                   value={`${scaledChain.encalado.kpis.flow_out_t_d_avg?.toFixed(2) ?? '—'} t/d`}
                 />
                 <Stat
-                  label="AQSOL conv"
+                  label={t('dynchain_stat_aqsol_conv')}
                   value={`${scaledChain.encalado.kpis.aqsol_convergence_pct.toFixed(2)}%`}
                 />
                 <Stat
-                  label="Li out anual"
+                  label={t('dynchain_stat_li_out_annual')}
                   value={`${scaledChain.encalado.kpis.li_out_t_year?.toFixed(2) ?? '—'} t/y`}
                 />
               </div>
@@ -172,8 +174,7 @@ export default function DynamicChainView({ rootExecutionId, onClose }: Props) {
                 className="text-xs mt-2"
                 style={{ color: 'var(--color-text-secondary)' }}
               >
-                Detalle por día (reactivos, ratio SO₄/Mg, etc.) en la vista individual
-                de esa ejecución.
+                {t('dynchain_enc_detail_note')}
               </p>
             </div>
           )}
@@ -187,7 +188,7 @@ export default function DynamicChainView({ rootExecutionId, onClose }: Props) {
             />
           ) : (
             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              La cadena no contiene etapas tipo cascade/postliming.
+              {t('dynchain_no_cascade_stages')}
             </p>
           )}
         </>
@@ -237,8 +238,9 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 }
 
 function ChainBanner({ chain }: { chain: ChainData }) {
+  const t = useT();
   const stageLabels = chain.stages.map((s, i) => {
-    const tag = s.stage === 'cascade' ? 'Cascade' : s.stage === 'encalado' ? 'Encalado' : 'Postliming';
+    const tag = s.stage === 'cascade' ? t('stage_precon') : s.stage === 'encalado' ? t('stage_reagent_plant') : t('stage_postliming');
     return `${tag} (${chain.executionIds[i].slice(0, 8)})`;
   });
   return (
@@ -246,7 +248,7 @@ function ChainBanner({ chain }: { chain: ChainData }) {
       className="rounded p-2 mb-4 text-xs"
       style={{ background: 'var(--color-bg)', color: 'var(--color-text-secondary)' }}
     >
-      Cadena: {stageLabels.join(' → ') || '—'}
+      {t('chain')}: {stageLabels.join(' → ') || '—'}
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from './DynamicResultsView';
 import EncaladoResultPanel from './EncaladoResultPanel';
 import { displayPondName } from '../utils/dynamicDisplayNames';
+import { useT } from '../i18n/LanguageContext';
 
 // Width of the offscreen report container (px). Charts use a fixed size so they
 // render synchronously (no ResponsiveContainer measurement) and html2canvas can
@@ -97,11 +98,12 @@ function PondChart({
   title: string;
   ylabel: string;
 }) {
+  const t = useT();
   return (
     <Block title={title}>
       <LineChart width={CHART_W} height={CHART_H} data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-        <XAxis dataKey="day" label={{ value: 'Día', position: 'insideBottom', offset: -2 }} />
+        <XAxis dataKey="day" label={{ value: t('dynreport_axis_day'), position: 'insideBottom', offset: -2 }} />
         <YAxis label={{ value: ylabel, angle: -90, position: 'insideLeft' }} />
         <Legend />
         {pondNames.map((name, i) => (
@@ -126,6 +128,7 @@ function CascadeOrPostlimingReport({
 }: {
   results: DynamicCascadeOrPostlimingResults;
 }) {
+  const t = useT();
   const { pond_names, daily_series, default_chart_species } = results;
 
   const pivot = useMemo(() => {
@@ -148,37 +151,37 @@ function CascadeOrPostlimingReport({
 
   return (
     <div>
-      <Block title="KPIs">
+      <Block title={t('kpis')}>
         <KpiCards results={results} />
       </Block>
-      <Block title="Tabla 1 · Balance global por poza">
+      <Block title={t('dynreport_table1_balance')}>
         <Tabla1 results={results} />
       </Block>
-      <Block title="Tabla 2A · Composición %w/w">
+      <Block title={t('dynreport_table2a_comp_pct')}>
         <Tabla2 results={results} initialUnit="pct" />
       </Block>
-      <Block title="Tabla 2B · Composición t/año">
+      <Block title={t('dynreport_table2b_comp_ton')}>
         <Tabla2 results={results} initialUnit="ton" />
       </Block>
-      <Block title="Tabla 3A · Sales t/año">
+      <Block title={t('dynreport_table3a_salts_ton')}>
         <Tabla3 results={results} initialUnit="ton" />
       </Block>
-      <Block title="Tabla 3B · Sales %w/w">
+      <Block title={t('dynreport_table3b_salts_pct')}>
         <Tabla3 results={results} initialUnit="pct" />
       </Block>
-      <Block title="Tabla compacta">
+      <Block title={t('compact_table')}>
         <TablaCompacta results={results} />
       </Block>
-      <PondChart data={pivot} pondNames={pond_names} metric="inflow_ton" title="Flujos de entrada por poza" ylabel="t/d" />
-      <PondChart data={pivot} pondNames={pond_names} metric="height_m" title="Altura por poza" ylabel="m" />
-      <PondChart data={pivot} pondNames={pond_names} metric="Li+_pct" title="Li% por poza (por día)" ylabel="%" />
+      <PondChart data={pivot} pondNames={pond_names} metric="inflow_ton" title={t('inflow_per_pond')} ylabel="t/d" />
+      <PondChart data={pivot} pondNames={pond_names} metric="height_m" title={t('height_per_pond')} ylabel="m" />
+      <PondChart data={pivot} pondNames={pond_names} metric="Li+_pct" title={t('li_per_pond_per_day')} ylabel="%" />
       {default_chart_species.map((sp) => (
         <PondChart
           key={sp}
           data={pivot}
           pondNames={pond_names}
           metric={`${sp}_pct`}
-          title={`Composición ${sp} por poza`}
+          title={`${t('dynreport_composition_prefix')} ${sp} ${t('dynreport_composition_suffix')}`}
           ylabel="%w/w"
         />
       ))}
@@ -187,18 +190,19 @@ function CascadeOrPostlimingReport({
 }
 
 function EncaladoReport({ results }: { results: DynamicEncaladoResults }) {
+  const t = useT();
   return (
     <div>
-      <Block title="KPIs">
+      <Block title={t('kpis')}>
         <KpiCards results={results} />
       </Block>
-      <Block title="Gráficos encalado">
+      <Block title={t('dynreport_reagent_charts')}>
         <ChartsEncalado results={results} />
       </Block>
       {results.encalado_result_averaged && (
-        <Block title={`Detalle encalado (promedio de ${results.n_days_averaged ?? 0} días con feed)`}>
+        <Block title={`${t('dynreport_reagent_detail_prefix')} ${results.n_days_averaged ?? 0} ${t('dynreport_reagent_detail_suffix')}`}>
           <EncaladoResultPanel
-            stageLabel="Encalado"
+            stageLabel={t('stage_reagent_plant')}
             result={results.encalado_result_averaged as Record<string, unknown>}
             temperature_C={results.encalado_temperature_C}
           />
@@ -217,6 +221,7 @@ export default function DynamicReportDocument({
   generatedAt,
   stages,
 }: Props) {
+  const t = useT();
   return (
     <div
       style={{
@@ -229,20 +234,20 @@ export default function DynamicReportDocument({
     >
       <div className="pdf-block" style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>
-          Reporte Modelo Dinámico
+          {t('dynreport_cover_title')}
         </h1>
         <p style={{ margin: '0 0 2px', color: 'var(--color-text-secondary)' }}>
-          Proyecto: <strong>{projectName}</strong>
+          {t('dynreport_cover_project')} <strong>{projectName}</strong>
         </p>
         <p style={{ margin: '0 0 12px', color: 'var(--color-text-secondary)' }}>
-          Generado: {generatedAt}
+          {t('dynreport_cover_generated')} {generatedAt}
         </p>
         <table style={{ width: '100%', fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={{ textAlign: 'left' }}>Etapa</th>
-              <th style={{ textAlign: 'left' }}>Ejecución (ID)</th>
-              <th style={{ textAlign: 'left' }}>Tag</th>
+              <th style={{ textAlign: 'left' }}>{t('stage')}</th>
+              <th style={{ textAlign: 'left' }}>{t('dynreport_cover_execution_id')}</th>
+              <th style={{ textAlign: 'left' }}>{t('tag')}</th>
             </tr>
           </thead>
           <tbody>

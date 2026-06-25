@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SolverResult } from '../types';
+import { useT } from '../i18n/LanguageContext';
 
 interface Props {
   stageLabel: string;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function BalanceTable({ stageLabel, result }: Props) {
+  const t = useT();
   const ponds = result.ponds || [];
 
   return (
@@ -18,15 +20,15 @@ export default function BalanceTable({ stageLabel, result }: Props) {
         <table>
           <thead>
             <tr>
-              <th>Poza</th>
-              <th>Evaporacion (ton/d)</th>
-              <th>Sales (ton/d)</th>
-              <th>Entrainment (ton/d)</th>
-              <th>Fugas (ton/d)</th>
-              <th>Dilucion (ton/d)</th>
-              <th>Flujo Salida (ton/d)</th>
-              <th>Iteraciones</th>
-              <th>Convergencia</th>
+              <th>{t('tbl_pond')}</th>
+              <th>{t('balance_evaporation')}</th>
+              <th>{t('balance_salts')}</th>
+              <th>{t('balance_entrainment')}</th>
+              <th>{t('balance_leakage')}</th>
+              <th>{t('balance_dilution')}</th>
+              <th>{t('balance_outlet_flow')}</th>
+              <th>{t('balance_iterations')}</th>
+              <th>{t('balance_convergence')}</th>
             </tr>
           </thead>
           <tbody>
@@ -45,14 +47,14 @@ export default function BalanceTable({ stageLabel, result }: Props) {
                     className="text-xs font-medium"
                     style={{ color: p.converged ? 'var(--color-success)' : 'var(--color-danger)' }}
                   >
-                    {p.converged ? 'Si' : 'No'}
+                    {p.converged ? t('balance_yes') : t('balance_no')}
                   </span>
                 </td>
               </tr>
             ))}
             {/* Totals row */}
             <tr style={{ backgroundColor: 'var(--color-primary-lighter)', fontWeight: 600 }}>
-              <td>TOTAL</td>
+              <td>{t('total')}</td>
               <td className="font-mono">{result.total_evaporation.toFixed(2)}</td>
               <td className="font-mono">{result.total_salt.toFixed(2)}</td>
               <td className="font-mono">{result.total_entrainment.toFixed(2)}</td>

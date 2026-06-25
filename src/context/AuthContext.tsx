@@ -56,6 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    // Reset the welcome flag so the overlay shows again on next login.
+    sessionStorage.removeItem('adinf_welcomed');
     setUser(null);
   }, []);
 

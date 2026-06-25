@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 import type {
   DosificacionConfig,
   DosificacionObjetivo,
@@ -92,6 +93,7 @@ function BrineSection({
   value: Record<string, number>;
   onChange: (v: Record<string, number>) => void;
 }) {
+  const t = useT();
   const handleChange = (sp: string, v: number) => onChange({ ...value, [sp]: v });
   return (
     <div>
@@ -99,14 +101,14 @@ function BrineSection({
         <thead>
           <tr>
             <th className="w-32">
-              Especies Acuosas
-              <Tip text="Nombre de la especie química (H2O, Li+, Na+, K+, Mg++, Ca++, …)." />
+              {t('brine_aqueous_components')}
+              <Tip text={t('dyncfg_tip_brine_species')} />
             </th>
             <th>
-              Valor
-              <Tip text="Flujo de la especie, en toneladas por día." />
+              {t('brine_value')}
+              <Tip text={t('dyncfg_tip_brine_value')} />
             </th>
-            <th className="w-20">Unidad</th>
+            <th className="w-20">{t('brine_unit')}</th>
           </tr>
         </thead>
         <tbody>
@@ -126,7 +128,7 @@ function BrineSection({
                 />
               </td>
               <td className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                ton/dia
+                {t('brine_unit_ton_day')}
               </td>
             </tr>
           ))}
@@ -163,6 +165,7 @@ function PreconPondsSection({
   ponds: DynamicPondConfig[];
   onChange: (next: DynamicPondConfig[]) => void;
 }) {
+  const t = useT();
   const updatePond = (idx: number, patch: Partial<DynamicPondConfig>) => {
     onChange(ponds.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
   };
@@ -190,48 +193,48 @@ function PreconPondsSection({
         <thead>
           <tr>
             <th className="w-8">#</th>
-            <th>Nombre</th>
+            <th>{t('name')}</th>
             <th>
-              Área de Proceso (m²)
-              <Tip text="Área efectiva de evaporación de la poza." />
+              {t('dyncfg_th_process_area')}
+              <Tip text={t('dyncfg_tip_process_area')} />
             </th>
             <th>
-              Factor de Pozas
-              <Tip text="Factor geométrico de Ad-Inf que ajusta la evaporación efectiva de la poza." />
+              {t('pond_factor')}
+              <Tip text={t('dyncfg_tip_pond_factor')} />
             </th>
             <th>
-              Impregnación (%)
-              <Tip text="Porcentaje de salmuera que queda atrapada en las sales precipitadas y no se recupera." />
+              {t('pond_entrainment_pct')}
+              <Tip text={t('dyncfg_tip_entrainment')} />
             </th>
             <th>
-              Fugas (mm/d)
-              <Tip text="Salmuera que se filtra por el fondo de la poza y se pierde, en milímetros por día." />
+              {t('pond_leakage_mm_d')}
+              <Tip text={t('dyncfg_tip_leakage')} />
             </th>
             <th>
-              Dilución (frac)
-              <Tip text="Fracción de agua de dilución que se añade en la transferencia entre pozas. La primera poza va en 0 (recibe salmuera cruda, sin poza previa)." />
+              {t('dilution_frac')}
+              <Tip text={t('dyncfg_tip_dilution_precon')} />
             </th>
             <th>
-              Target H (m)
-              <Tip text='Altura que la poza mantiene para decidir cuándo traspasa flujo. Solo aplica en modo "Por Altura".' />
+              {t('dyncfg_th_target_h')}
+              <Tip text={t('dyncfg_tip_target_h')} />
             </th>
             <th>
-              Control
-              <Tip text="Modo de operación de la poza. Por Altura: ajusta el flujo de salida para mantener la altura objetivo. Buffer (flujo fijo): acumula hasta la altura de arranque y luego entrega un caudal fijo y constante." />
+              {t('control_mode')}
+              <Tip text={t('dyncfg_tip_control_precon')} />
             </th>
             <th>
-              Flujo Target (T/D)
-              <Tip text='Caudal constante que entrega la poza en modo "Buffer (flujo fijo)".' />
+              {t('dyncfg_th_flow_target')}
+              <Tip text={t('dyncfg_tip_flow_target')} />
             </th>
             <th>
-              Floor H (m)
-              <Tip text="Altura mínima de seguridad: la poza no entrega flujo que la haga caer por debajo de este nivel." />
+              {t('dyncfg_th_floor_h')}
+              <Tip text={t('dyncfg_tip_floor_h')} />
             </th>
             <th>
-              H Arranque (m)
-              <Tip text="Altura que la poza buffer debe alcanzar antes de empezar a entregar flujo. Una vez alcanzada, queda operativa de forma permanente. Solo aplica a los modos Buffer." />
+              {t('dyncfg_th_startup_h')}
+              <Tip text={t('dyncfg_tip_startup_h')} />
             </th>
-            <th className="w-20">Acciones</th>
+            <th className="w-20">{t('actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -337,8 +340,8 @@ function PreconPondsSection({
                     })
                   }
                 >
-                  <option value="ALTURA">Por Altura</option>
-                  <option value="FLUJO_FIJO">Buffer (flujo fijo)</option>
+                  <option value="ALTURA">{t('dyncfg_opt_by_height')}</option>
+                  <option value="FLUJO_FIJO">{t('dyncfg_opt_buffer_fixed_flow')}</option>
                 </select>
               </td>
               <td>
@@ -391,7 +394,7 @@ function PreconPondsSection({
                   className="btn btn-danger btn-sm"
                   onClick={() => removePond(i)}
                 >
-                  Eliminar
+                  {t('delete')}
                 </button>
               </td>
             </tr>
@@ -399,7 +402,7 @@ function PreconPondsSection({
         </tbody>
       </table>
       <button type="button" className="btn btn-outline btn-sm mt-3" onClick={addPond}>
-        + Agregar Poza
+        {t('pond_add')}
       </button>
     </div>
   );
@@ -429,6 +432,7 @@ function PostlimingPondsSection({
   ponds: DynamicPostlimingPondConfig[];
   onChange: (next: DynamicPostlimingPondConfig[]) => void;
 }) {
+  const t = useT();
   const updatePond = (idx: number, patch: Partial<DynamicPostlimingPondConfig>) => {
     onChange(ponds.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
   };
@@ -451,44 +455,44 @@ function PostlimingPondsSection({
       <table>
         <thead>
           <tr>
-            <th>Nombre</th>
+            <th>{t('name')}</th>
             <th>
-              Área de Proceso (m²)
-              <Tip text="Área efectiva de evaporación de la poza." />
+              {t('dyncfg_th_process_area')}
+              <Tip text={t('dyncfg_tip_process_area')} />
             </th>
             <th>
-              Control
-              <Tip text="Modo de operación de la poza. Por Altura: ajusta el flujo de salida para mantener la altura objetivo. Buffer (estacional): acumula hasta la altura de arranque y luego entrega un caudal que sube y baja con la evaporación diaria." />
+              {t('control_mode')}
+              <Tip text={t('dyncfg_tip_control_postliming')} />
             </th>
             <th>
-              H Arranque (m)
-              <Tip text="Altura que la poza buffer debe alcanzar antes de empezar a entregar flujo. Una vez alcanzada, queda operativa de forma permanente. Solo aplica a los modos Buffer." />
+              {t('dyncfg_th_startup_h')}
+              <Tip text={t('dyncfg_tip_startup_h')} />
             </th>
             <th>
-              Target H (m)
-              <Tip text='Altura que la poza mantiene para decidir cuándo traspasa flujo. Solo aplica en modo "Por Altura".' />
+              {t('dyncfg_th_target_h')}
+              <Tip text={t('dyncfg_tip_target_h')} />
             </th>
             <th>
-              Floor H (m)
-              <Tip text="Altura mínima de seguridad: la poza no entrega flujo que la haga caer por debajo de este nivel." />
+              {t('dyncfg_th_floor_h')}
+              <Tip text={t('dyncfg_tip_floor_h')} />
             </th>
             <th>
-              Fugas (mm/d)
-              <Tip text="Salmuera que se filtra por el fondo de la poza y se pierde, en milímetros por día." />
+              {t('pond_leakage_mm_d')}
+              <Tip text={t('dyncfg_tip_leakage')} />
             </th>
             <th>
-              Impregnación (%)
-              <Tip text="Porcentaje de salmuera que queda atrapada en las sales precipitadas y no se recupera." />
+              {t('pond_entrainment_pct')}
+              <Tip text={t('dyncfg_tip_entrainment')} />
             </th>
             <th>
-              Dilución (frac)
-              <Tip text="Fracción de agua de dilución que se añade en la transferencia entre pozas." />
+              {t('dilution_frac')}
+              <Tip text={t('dyncfg_tip_dilution')} />
             </th>
             <th>
-              Factor de Pozas
-              <Tip text="Factor geométrico de Ad-Inf que ajusta la evaporación efectiva de la poza." />
+              {t('pond_factor')}
+              <Tip text={t('dyncfg_tip_pond_factor')} />
             </th>
-            <th className="w-20">Acciones</th>
+            <th className="w-20">{t('actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -517,9 +521,9 @@ function PostlimingPondsSection({
                     })
                   }
                 >
-                  <option value="CASCADE">Por Altura</option>
-                  <option value="BUFFER">Buffer (estacional)</option>
-                  <option value="FLUJO_FIJO">Buffer (flujo fijo)</option>
+                  <option value="CASCADE">{t('dyncfg_opt_by_height')}</option>
+                  <option value="BUFFER">{t('dyncfg_opt_buffer_seasonal')}</option>
+                  <option value="FLUJO_FIJO">{t('dyncfg_opt_buffer_fixed_flow')}</option>
                 </select>
               </td>
               <td>
@@ -621,7 +625,7 @@ function PostlimingPondsSection({
                   className="btn btn-danger btn-sm"
                   onClick={() => removePond(i)}
                 >
-                  Eliminar
+                  {t('delete')}
                 </button>
               </td>
             </tr>
@@ -629,7 +633,7 @@ function PostlimingPondsSection({
         </tbody>
       </table>
       <button type="button" className="btn btn-outline btn-sm mt-3" onClick={addPond}>
-        + Agregar Poza
+        {t('pond_add')}
       </button>
     </div>
   );
@@ -640,64 +644,61 @@ function PostlimingPondsSection({
 // =========================================================
 interface EncFieldDef {
   key: keyof DynamicEncaladoParams;
-  label: string;
+  label: TranslationKey;
   step: number;
   min?: number;
   max?: number;
   type?: 'number' | 'toggle' | 'text';
-  tooltip?: string;
+  tooltip?: TranslationKey;
 }
 interface EncSectionDef {
-  title: string;
+  title: TranslationKey;
   key: string;
   fields: EncFieldDef[];
 }
 const ENC_SECTIONS: EncSectionDef[] = [
   {
-    title: 'General',
+    title: 'encfg_section_general',
     key: 'general',
     fields: [
       {
         key: 'temperature_C',
-        label: 'Temperatura (°C)',
+        label: 'dyncfg_enc_temperature',
         step: 0.5,
         min: -10,
         max: 60,
-        tooltip:
-          'Temperatura fija del proceso de encalado. A diferencia de las pozas de evaporación, el encalado son reactores químicos y no depende del clima.',
+        tooltip: 'dyncfg_tip_enc_temperature',
       },
       {
         key: 'use_CaCl2',
-        label: 'Usar CaCl2',
+        label: 'encfg_use_CaCl2',
         step: 0,
         type: 'toggle',
-        tooltip:
-          'Activa o desactiva el uso de CaCl2 para remover sulfato (SO4). A diferencia de los otros reactivos, el CaCl2 no se aplica todos los días: el modelo evalúa la razón SO4/Mg del feed de entrada al encalado y solo lo dosifica cuando esa razón supera el umbral configurado.',
+        tooltip: 'dyncfg_tip_use_cacl2',
       },
       {
         key: 'use_CaCl2_threshold',
-        label: 'Umbral SO4/Mg',
+        label: 'dyncfg_so4_mg_threshold',
         step: 0.1,
         min: 0,
-        tooltip:
-          'Razón sulfato/magnesio del feed por encima de la cual se aplica el CaCl2. Si la razón del feed es mayor a este valor, el modelo dosifica CaCl2 ese día.',
+        tooltip: 'dyncfg_tip_so4_mg_threshold',
       },
     ],
   },
   {
-    title: 'Paso 0 - Remocion de Boro',
+    title: 'encfg_section_paso0',
     key: 'paso0',
     fields: [
-      { key: 'boron_removal_fraction', label: 'Fraccion de remocion de boro', step: 0.01, min: 0, max: 1 },
+      { key: 'boron_removal_fraction', label: 'encfg_boron_removal_fraction', step: 0.01, min: 0, max: 1 },
     ],
   },
   {
-    title: 'Torta / Lavado',
+    title: 'torta_lavado',
     key: 'torta',
     fields: [
-      { key: 'cake_retention', label: 'Retencion de torta', step: 0.01, min: 0, max: 1 },
-      { key: 'cake_wash_ratio', label: 'Ratio de lavado', step: 0.1, min: 0 },
-      { key: 'cake_wash_recovery', label: 'Recuperacion de lavado', step: 0.01, min: 0, max: 1 },
+      { key: 'cake_retention', label: 'encfg_cake_retention', step: 0.01, min: 0, max: 1 },
+      { key: 'cake_wash_ratio', label: 'encfg_cake_wash_ratio', step: 0.1, min: 0 },
+      { key: 'cake_wash_recovery', label: 'encfg_cake_wash_recovery', step: 0.01, min: 0, max: 1 },
     ],
   },
 ];
@@ -722,6 +723,7 @@ function EncaladoParamsSection({
   value: DynamicEncaladoParams;
   onChange: (v: DynamicEncaladoParams) => void;
 }) {
+  const t = useT();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     general: true,
     paso0: false,
@@ -774,7 +776,7 @@ function EncaladoParamsSection({
             style={{ color: 'var(--color-text)' }}
             onClick={() => toggle(section.key)}
           >
-            <span>{section.title}</span>
+            <span>{t(section.title)}</span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className={`h-4 w-4 transition-transform ${openSections[section.key] ? 'rotate-90' : ''}`}
@@ -793,8 +795,8 @@ function EncaladoParamsSection({
               {section.fields.map((field) => (
                 <div key={field.key}>
                   <label className="label">
-                    {field.label}
-                    {field.tooltip && <Tip text={field.tooltip} />}
+                    {t(field.label)}
+                    {field.tooltip && <Tip text={t(field.tooltip)} />}
                   </label>
                   {field.type === 'toggle' ? (
                     <button
@@ -859,7 +861,7 @@ function EncaladoParamsSection({
           className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium hover:bg-gray-50"
           onClick={() => toggle('secuencia')}
         >
-          <span>Secuencia de dosificaciones ({seq.length})</span>
+          <span>{t('secuencia_dosificaciones')} ({seq.length})</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className={`h-4 w-4 transition-transform ${openSections.secuencia ? 'rotate-90' : ''}`}
@@ -876,19 +878,19 @@ function EncaladoParamsSection({
         {openSections.secuencia && (
           <div className="px-3 pb-3">
             <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-              El orden de la tabla es el orden de aplicacion. Combinaciones soportadas: Ca(OH)2/Mg, CaCl2/SO4, Ca(OH)2/SO4, NaOH/Mg, Na2SO4/Ca.
+              {t('dosing_order_note')}
             </p>
             <div className="overflow-x-auto">
               <table>
                 <thead>
                   <tr>
                     <th className="w-8">#</th>
-                    <th>Reactivo</th>
-                    <th>Objetivo</th>
-                    <th>Factor exceso</th>
-                    <th>Conc. solucion</th>
-                    <th>Enabled</th>
-                    <th className="w-28">Acciones</th>
+                    <th>{t('reactivo')}</th>
+                    <th>{t('objetivo')}</th>
+                    <th>{t('factor_exceso')}</th>
+                    <th>{t('conc_solucion')}</th>
+                    <th>{t('enabled')}</th>
+                    <th className="w-28">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -985,7 +987,7 @@ function EncaladoParamsSection({
                               className="btn btn-outline btn-sm"
                               disabled={i === 0}
                               onClick={() => moveDos(i, -1)}
-                              title="Subir"
+                              title={t('dyncfg_move_up')}
                             >
                               ↑
                             </button>
@@ -994,7 +996,7 @@ function EncaladoParamsSection({
                               className="btn btn-outline btn-sm"
                               disabled={i === seq.length - 1}
                               onClick={() => moveDos(i, 1)}
-                              title="Bajar"
+                              title={t('dyncfg_move_down')}
                             >
                               ↓
                             </button>
@@ -1018,11 +1020,11 @@ function EncaladoParamsSection({
               className="btn btn-outline btn-sm mt-3"
               onClick={addDos}
             >
-              + Agregar dosificacion
+              {t('add_dosificacion')}
             </button>
             {seq.some((d) => !COMBINACIONES_VALIDAS.has(`${d.reactivo}/${d.objetivo}`)) && (
               <p className="text-xs mt-2" style={{ color: 'var(--color-danger)' }}>
-                Las filas en rojo tienen combinaciones reactivo/objetivo no soportadas. El motor lanzara NotImplementedError si las dejas asi al ejecutar.
+                {t('invalid_combos_warning')}
               </p>
             )}
           </div>
@@ -1078,25 +1080,26 @@ function PostlimingParamsSection({
   params: DynamicPostlimingParams;
   onChange: (v: DynamicPostlimingParams) => void;
 }) {
+  const t = useT();
   const set = (patch: Partial<DynamicPostlimingParams>) => onChange({ ...params, ...patch });
   return (
     <div className="mb-4">
       <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
-        Parámetros Generales
+        {t('dyncfg_general_params')}
       </h4>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-3">
         {/* §A: Temperatura postliming oculta — se toma del módulo Clima (forzada a null en backend). */}
         <div>
           <label className="label">
-            PZ10 Average Outflow (T/D)
-            <Tip text="Caudal promedio que entrega la poza buffer (Pz10), sobre el cual se aplica la modulación estacional. Dejar vacío para que el modelo lo calcule automáticamente a partir del balance. Solo tiene efecto si la modulación estacional está activada." />
+            {t('dyncfg_pz10_avg_outflow')}
+            <Tip text={t('dyncfg_tip_pz10_avg_outflow')} />
           </label>
           <input
             type="number"
             className="input input-number"
             step={0.1}
             min={0}
-            placeholder="vacío = auto-derivar"
+            placeholder={t('dyncfg_ph_auto_derive')}
             value={params.pz10_average_outflow_t_day ?? ''}
             onChange={(e) =>
               set({
@@ -1109,13 +1112,12 @@ function PostlimingParamsSection({
       </div>
       <div className="space-y-2">
         <FlagToggle
-          label="Modulación estacional Pz10"
+          label={t('dyncfg_pz10_seasonal_mod')}
           value={params.use_pz10_seasonal_modulation}
           onChange={(v) => set({ use_pz10_seasonal_modulation: v })}
         />
         <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          Si está activada, la poza buffer entrega un caudal que sube y baja con la evaporación
-          diaria, en vez de un caudal fijo.
+          {t('dyncfg_pz10_seasonal_note')}
         </p>
         {/* §A: apply_berm_factor oculto — forzado a false en backend (su default de motor diverge). */}
       </div>
@@ -1142,13 +1144,14 @@ function SimulationSection({
   };
   onChangePreconMeta: (v: typeof preconMeta) => void;
 }) {
+  const t = useT();
   return (
     <div>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-4">
         <div>
           <label className="label">
-            Días de Simulación
-            <Tip text="Cantidad de días que simula el modelo completo (preconcentración → encalado → postliming)." />
+            {t('dyncfg_sim_days')}
+            <Tip text={t('dyncfg_tip_sim_days')} />
           </label>
           <input
             type="number"
@@ -1161,8 +1164,8 @@ function SimulationSection({
         </div>
         <div>
           <label className="label">
-            Fecha de Partida
-            <Tip text="Fecha del primer día de simulación. Las fechas de la serie de clima se calculan a partir de esta." />
+            {t('dyncfg_start_date')}
+            <Tip text={t('dyncfg_tip_start_date')} />
           </label>
           <input
             type="text"
@@ -1175,13 +1178,13 @@ function SimulationSection({
       </div>
 
       <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
-        Modulación de Flujo
+        {t('dyncfg_flow_modulation')}
       </h4>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
         <div>
           <label className="label">
-            Flujo Promedio de Salmuera (T/D)
-            <Tip text="Flujo medio de salmuera que entra a la primera poza de preconcentración. El modelo lo modula con la evaporación: en días de mayor evaporación entra más salmuera, para mantener el balance de masa del sistema." />
+            {t('dyncfg_avg_brine_flow')}
+            <Tip text={t('dyncfg_tip_avg_brine_flow')} />
           </label>
           <input
             type="number"
@@ -1199,8 +1202,8 @@ function SimulationSection({
         </div>
         <div>
           <label className="label">
-            Flujo Máximo de Salmuera (T/D)
-            <Tip text="Tope del flujo de entrada. En días de muy alta evaporación, el flujo modulado no supera este límite." />
+            {t('dyncfg_max_brine_flow')}
+            <Tip text={t('dyncfg_tip_max_brine_flow')} />
           </label>
           <input
             type="number"
@@ -1218,8 +1221,9 @@ function SimulationSection({
         </div>
       </div>
       <p className="text-xs mt-2" style={{ color: 'var(--color-text-secondary)' }}>
-        Modulacion fijada a <span className="font-mono">seasonal</span> (flujo escala con la
-        serie de evaporacion diaria).
+        {t('dyncfg_modulation_fixed_pre')}{' '}
+        <span className="font-mono">seasonal</span>{' '}
+        {t('dyncfg_modulation_fixed_post')}
       </p>
     </div>
   );
@@ -1235,6 +1239,7 @@ function ClimateSection({
   climate: DynamicConfig['climate'];
   onChange: (v: DynamicConfig['climate']) => void;
 }) {
+  const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [bulkDays, setBulkDays] = useState(30);
@@ -1261,7 +1266,7 @@ function ClimateSection({
     }
   }, [climate.series_start_date]);
   const dateLabel = (i: number): string => {
-    if (!startDate || isNaN(startDate.getTime())) return `Dia ${i + 1}`;
+    if (!startDate || isNaN(startDate.getTime())) return `${t('schedule_day')} ${i + 1}`;
     const d = new Date(startDate.getTime() + i * 24 * 3600 * 1000);
     return d.toISOString().slice(0, 10);
   };
@@ -1301,7 +1306,7 @@ function ClimateSection({
   };
 
   const clearAll = () => {
-    if (!confirm(`Eliminar los ${n} dias de la serie climatica?`)) return;
+    if (!confirm(`${t('dyncfg_climate_clear_confirm_pre')} ${n} ${t('dyncfg_climate_clear_confirm_post')}`)) return;
     onChange({ ...climate, evaporation_mm_day: [], temperature_C: [] });
   };
 
@@ -1312,11 +1317,11 @@ function ClimateSection({
     try {
       const text = await file.text();
       const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      if (lines.length < 2) throw new Error('CSV vacio');
+      if (lines.length < 2) throw new Error(t('dyncfg_csv_empty'));
       const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
       const evapIdx = header.findIndex((h) => h.startsWith('evap'));
       const tempIdx = header.findIndex((h) => h.startsWith('temp'));
-      if (evapIdx < 0 || tempIdx < 0) throw new Error('Faltan columnas evap*/temp*');
+      if (evapIdx < 0 || tempIdx < 0) throw new Error(t('dyncfg_csv_missing_cols'));
       const newEvap: number[] = [];
       const newTemp: number[] = [];
       for (let i = 1; i < lines.length; i++) {
@@ -1325,9 +1330,9 @@ function ClimateSection({
         newTemp.push(parseFloat(cols[tempIdx]));
       }
       onChange({ ...climate, evaporation_mm_day: newEvap, temperature_C: newTemp });
-      setMsg(`Cargados ${newEvap.length} dias.`);
+      setMsg(`${t('dyncfg_loaded_pre')} ${newEvap.length} ${t('schedule_days_lower')}.`);
     } catch (err) {
-      setMsg(`Error: ${(err as Error).message}`);
+      setMsg(`${t('error')}: ${(err as Error).message}`);
     }
   };
 
@@ -1349,7 +1354,7 @@ function ClimateSection({
     <div>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-3">
         <div>
-          <label className="label">Fecha inicio serie (YYYY-MM-DD)</label>
+          <label className="label">{t('dyncfg_series_start_date')}</label>
           <input
             type="text"
             className="input"
@@ -1359,11 +1364,11 @@ function ClimateSection({
           />
         </div>
         <div className="text-sm pt-6" style={{ color: 'var(--color-text-secondary)' }}>
-          {n} dias cargados
+          {n} {t('dyncfg_days_loaded')}
           {n > 0 && (
             <>
               {' · '}
-              promedios: evap{' '}
+              {t('dyncfg_averages')}: evap{' '}
               <span className="font-mono">{avgEvap.toFixed(3)}</span> mm/d (min{' '}
               {minEvap.toFixed(3)}, max {maxEvap.toFixed(3)}) · temp{' '}
               <span className="font-mono">{avgTemp.toFixed(2)}</span> °C (min{' '}
@@ -1379,18 +1384,18 @@ function ClimateSection({
             <tr>
               <th className="w-12">#</th>
               <th>
-                Día (Fecha Calculada)
-                <Tip text="Fecha de cada día, calculada a partir de la fecha de inicio de la serie." />
+                {t('dyncfg_th_day_calc_date')}
+                <Tip text={t('dyncfg_tip_day_calc_date')} />
               </th>
               <th>
-                Temperatura (°C)
-                <Tip text="Temperatura del día." />
+                {t('dyncfg_enc_temperature')}
+                <Tip text={t('dyncfg_tip_day_temp')} />
               </th>
               <th>
-                Evaporación (mm/día)
-                <Tip text="Evaporación del día." />
+                {t('dyncfg_th_evaporation')}
+                <Tip text={t('dyncfg_tip_day_evap')} />
               </th>
-              <th className="w-20">Acciones</th>
+              <th className="w-20">{t('actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1431,7 +1436,7 @@ function ClimateSection({
                     className="btn btn-danger btn-sm"
                     onClick={() => removeDay(i)}
                   >
-                    Eliminar
+                    {t('delete')}
                   </button>
                 </td>
               </tr>
@@ -1442,13 +1447,13 @@ function ClimateSection({
 
       {n === 0 && (
         <p className="text-sm py-4 text-center" style={{ color: 'var(--color-text-secondary)' }}>
-          No hay dias en la serie climatica. Agregue dias o cargue un CSV.
+          {t('dyncfg_climate_empty')}
         </p>
       )}
 
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <button type="button" className="btn btn-outline btn-sm" onClick={addDay}>
-          + Agregar Dia
+          {t('schedule_add_day')}
         </button>
 
         <div
@@ -1456,7 +1461,7 @@ function ClimateSection({
           style={{ borderColor: 'var(--color-border)' }}
         >
           <div>
-            <label className="label">Dias</label>
+            <label className="label">{t('schedule_days')}</label>
             <input
               type="number"
               className="input input-number w-16"
@@ -1466,7 +1471,7 @@ function ClimateSection({
             />
           </div>
           <div>
-            <label className="label">Temp (C)</label>
+            <label className="label">{t('schedule_temp_short')}</label>
             <input
               type="number"
               className="input input-number w-16"
@@ -1476,7 +1481,7 @@ function ClimateSection({
             />
           </div>
           <div>
-            <label className="label">Evap (mm/d)</label>
+            <label className="label">{t('schedule_evap_short')}</label>
             <input
               type="number"
               className="input input-number w-16"
@@ -1487,7 +1492,7 @@ function ClimateSection({
             />
           </div>
           <button type="button" className="btn btn-outline btn-sm" onClick={addBulk}>
-            Agregar {bulkDays} dias
+            {t('add')} {bulkDays} {t('schedule_days_lower')}
           </button>
         </div>
 
@@ -1507,21 +1512,21 @@ function ClimateSection({
             className="btn btn-outline btn-sm"
             onClick={() => fileRef.current?.click()}
           >
-            Reemplazar por CSV
+            {t('dyncfg_replace_with_csv')}
           </button>
           <button type="button" className="btn btn-outline btn-sm" onClick={handleExport}>
-            Descargar CSV
+            {t('dyncfg_download_csv')}
           </button>
           {n > 0 && (
             <button type="button" className="btn btn-danger btn-sm" onClick={clearAll}>
-              Vaciar serie
+              {t('dyncfg_clear_series')}
             </button>
           )}
         </div>
       </div>
 
       <p className="text-xs mt-2" style={{ color: 'var(--color-text-secondary)' }}>
-        Total: {n} dias. La fecha de cada dia se calcula desde la fecha de inicio (read-only).
+        {t('total')}: {n} {t('schedule_days_lower')}. {t('dyncfg_climate_footnote')}
       </p>
       {msg && (
         <p
@@ -1549,6 +1554,7 @@ function FactorsSection({
   factors: SaltFactor[];
   onChange: (v: SaltFactor[]) => void;
 }) {
+  const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
@@ -1574,11 +1580,11 @@ function FactorsSection({
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) throw new Error('JSON debe ser un array');
+      if (!Array.isArray(parsed)) throw new Error(t('dyncfg_json_must_be_array'));
       onChange(parsed);
-      setMsg(`Cargadas ${parsed.length} sales.`);
+      setMsg(`${t('dyncfg_loaded_pre')} ${parsed.length} ${t('saltfactor_salts')}.`);
     } catch (err) {
-      setMsg(`Error: ${(err as Error).message}`);
+      setMsg(`${t('error')}: ${(err as Error).message}`);
     }
   };
 
@@ -1596,19 +1602,19 @@ function FactorsSection({
     <div>
       <div className="flex gap-4 items-center mb-3 text-sm">
         <span>
-          <span style={{ color: 'var(--color-text-secondary)' }}>Total:</span>{' '}
+          <span style={{ color: 'var(--color-text-secondary)' }}>{t('total')}:</span>{' '}
           <span className="font-mono">{factors.length}</span>
         </span>
         <span>
-          <span style={{ color: 'var(--color-text-secondary)' }}>Favorecidas (F&lt;1):</span>{' '}
+          <span style={{ color: 'var(--color-text-secondary)' }}>{t('dyncfg_band_favored')}</span>{' '}
           <span className="font-mono">{favored}</span>
         </span>
         <span>
-          <span style={{ color: 'var(--color-text-secondary)' }}>Normales (F=1):</span>{' '}
+          <span style={{ color: 'var(--color-text-secondary)' }}>{t('dyncfg_band_normal')}</span>{' '}
           <span className="font-mono">{normal}</span>
         </span>
         <span>
-          <span style={{ color: 'var(--color-text-secondary)' }}>Inhibidas (F&gt;1):</span>{' '}
+          <span style={{ color: 'var(--color-text-secondary)' }}>{t('dyncfg_band_inhibited')}</span>{' '}
           <span className="font-mono">{inhibited}</span>
         </span>
       </div>
@@ -1617,16 +1623,16 @@ function FactorsSection({
         <input
           type="text"
           className="input flex-1"
-          placeholder="Filtrar por nombre..."
+          placeholder={t('dyncfg_filter_by_name')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
         <input ref={fileRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
         <button className="btn btn-outline btn-sm" onClick={() => fileRef.current?.click()}>
-          Cargar JSON
+          {t('dyncfg_load_json')}
         </button>
         <button className="btn btn-outline btn-sm" onClick={handleExport}>
-          Descargar JSON
+          {t('dyncfg_download_json')}
         </button>
       </div>
 
@@ -1650,12 +1656,12 @@ function FactorsSection({
             <tr>
               <th className="w-12">#</th>
               <th>
-                Sal
-                <Tip text="Nombre de la sal." />
+                {t('saltfactor_salt')}
+                <Tip text={t('dyncfg_tip_salt_name')} />
               </th>
               <th className="w-28">
-                Factor
-                <Tip text="Qué tan fácil precipita esta sal: 1 = normal, mayor a 1 = más difícil (inhibida), menor a 1 = más fácil (favorecida)." />
+                {t('saltfactor_factor')}
+                <Tip text={t('dyncfg_tip_salt_factor')} />
               </th>
             </tr>
           </thead>
@@ -1732,7 +1738,7 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
 
       <SectionHeader
         title={t('section_brine')}
-        tooltip="Composición de la salmuera que sale del pozo de extracción del salar, antes de entrar a la primera poza de preconcentración. Cada fila es una especie acuosa con su flujo en toneladas por día."
+        tooltip={t('dyncfg_section_tip_brine')}
         isOpen={openSections.brine}
         onToggle={() => toggle('brine')}
       >
@@ -1755,7 +1761,7 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
 
       <SectionHeader
         title={`${t('section_precon_factors')} (${value.precon.factors?.length ?? 0})`}
-        tooltip="Factor de precipitación de cada sal. Controla qué tan fácil precipita cada sal en esta etapa. No son porcentajes, son multiplicadores del modelo termodinámico."
+        tooltip={t('dyncfg_section_tip_salt_factors')}
         isOpen={openSections.precon_factors}
         onToggle={() => toggle('precon_factors')}
       >
@@ -1768,7 +1774,7 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
 
       <SectionHeader
         title={`${t('section_climate')} (${value.climate.evaporation_mm_day.length})`}
-        tooltip="Serie diaria de temperatura y evaporación que alimenta todo el modelo. La temperatura se usa en cada cálculo de equilibrio químico; la evaporación controla la concentración en cada poza y modula el flujo de entrada de salmuera."
+        tooltip={t('dyncfg_section_tip_climate')}
         isOpen={openSections.climate}
         onToggle={() => toggle('climate')}
       >
@@ -1791,7 +1797,7 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
 
       <SectionHeader
         title={`${t('section_encalado_factors')} (${value.encalado.factors.length})`}
-        tooltip="Factor de precipitación de cada sal. Controla qué tan fácil precipita cada sal en esta etapa. No son porcentajes, son multiplicadores del modelo termodinámico."
+        tooltip={t('dyncfg_section_tip_salt_factors')}
         isOpen={openSections.encalado_factors}
         onToggle={() => toggle('encalado_factors')}
       >
@@ -1823,7 +1829,7 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
 
       <SectionHeader
         title={`${t('section_postliming_factors')} (${value.postliming.factors.length})`}
-        tooltip="Factor de precipitación de cada sal. Controla qué tan fácil precipita cada sal en esta etapa. No son porcentajes, son multiplicadores del modelo termodinámico."
+        tooltip={t('dyncfg_section_tip_salt_factors')}
         isOpen={openSections.postliming_factors}
         onToggle={() => toggle('postliming_factors')}
       >

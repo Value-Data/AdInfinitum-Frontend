@@ -194,7 +194,7 @@ export default function ProjectDetailPage() {
       },
       `config_${safeName}.xlsx`,
     );
-    setSaveMsg('Plantilla Excel descargada.');
+    setSaveMsg(t('projdetail_excel_downloaded'));
   };
 
   const handleImportClick = () => {
@@ -210,35 +210,35 @@ export default function ProjectDetailPage() {
       const applied: string[] = [];
       if (parsed.brine) {
         setBrine(parsed.brine);
-        applied.push('salmuera');
+        applied.push(t('projdetail_applied_brine'));
       }
       if (parsed.precon_ponds) {
         setPreconPonds(parsed.precon_ponds);
-        applied.push('pozas precon');
+        applied.push(t('projdetail_applied_precon_ponds'));
       }
       if (parsed.precon_faktor) {
         setPreconFaktor(parsed.precon_faktor);
-        applied.push('factores precon');
+        applied.push(t('projdetail_applied_precon_factors'));
       }
       if (parsed.encalado_config) {
         setEncaladoConfig({ ...encaladoConfig, ...parsed.encalado_config });
-        applied.push('encalado');
+        applied.push(t('projdetail_applied_reagent_plant'));
       }
       if (parsed.encalado_faktor) {
         setEncaladoFaktor(parsed.encalado_faktor);
-        applied.push('factores encalado');
+        applied.push(t('projdetail_applied_reagent_factors'));
       }
       if (parsed.postliming_ponds) {
         setPostlimingPonds(parsed.postliming_ponds);
-        applied.push('pozas post-liming');
+        applied.push(t('projdetail_applied_postliming_ponds'));
       }
       if (parsed.postliming_faktor) {
         setPostlimingFaktor(parsed.postliming_faktor);
-        applied.push('factores post-liming');
+        applied.push(t('projdetail_applied_postliming_factors'));
       }
       if (parsed.daily_schedule) {
         setDailySchedule(parsed.daily_schedule);
-        applied.push('cronograma');
+        applied.push(t('projdetail_applied_schedule'));
       }
       if (parsed.precon_days_year != null) setPreconDaysYear(parsed.precon_days_year);
       if (parsed.encalado_days_year != null) setEncaladoDaysYear(parsed.encalado_days_year);
@@ -248,15 +248,15 @@ export default function ProjectDetailPage() {
         parsed.encalado_days_year != null ||
         parsed.postliming_days_year != null
       ) {
-        applied.push('calendario');
+        applied.push(t('projdetail_applied_calendar'));
       }
       if (applied.length === 0) {
-        setSaveMsg('Error: el archivo no contiene hojas reconocidas.');
+        setSaveMsg(t('projdetail_excel_no_sheets'));
       } else {
-        setSaveMsg(`Excel cargado (${applied.join(', ')}). Guarde para aplicar.`);
+        setSaveMsg(`${t('projdetail_excel_loaded')} (${applied.join(', ')}). ${t('projdetail_save_to_apply')}`);
       }
     } catch (err) {
-      setSaveMsg(`Error al leer el Excel: ${(err as Error).message}`);
+      setSaveMsg(`${t('projdetail_excel_read_error')}: ${(err as Error).message}`);
     }
   };
 
@@ -275,9 +275,9 @@ export default function ProjectDetailPage() {
       setPreconDaysYear(defaults.precon_days_year);
       setEncaladoDaysYear(defaults.encalado_days_year);
       setPostlimingDaysYear(defaults.postliming_days_year);
-      setSaveMsg('Valores por defecto cargados. Guarde para aplicar.');
+      setSaveMsg(t('projdetail_defaults_loaded'));
     } catch {
-      setSaveMsg('Error al cargar valores por defecto');
+      setSaveMsg(t('projdetail_defaults_error'));
     }
   };
 
@@ -303,9 +303,9 @@ export default function ProjectDetailPage() {
         postliming_days_year: postlimingDaysYear,
       });
       setConfig(updated);
-      setSaveMsg('Configuracion guardada exitosamente.');
+      setSaveMsg(t('projdetail_config_saved'));
     } catch {
-      setSaveMsg('Error al guardar la configuracion.');
+      setSaveMsg(t('projdetail_config_save_error'));
     } finally {
       setSaving(false);
     }
@@ -322,7 +322,7 @@ export default function ProjectDetailPage() {
   if (!project) {
     return (
       <div className="card p-8 text-center">
-        <p style={{ color: 'var(--color-danger)' }}>Proyecto no encontrado.</p>
+        <p style={{ color: 'var(--color-danger)' }}>{t('projdetail_not_found')}</p>
       </div>
     );
   }
@@ -394,7 +394,7 @@ export default function ProjectDetailPage() {
             }}
             onClick={() => setActiveTab('config')}
           >
-            Configuracion
+            {t('configuration')}
           </button>
         )}
         <button
@@ -407,7 +407,7 @@ export default function ProjectDetailPage() {
           }}
           onClick={() => setActiveTab('executions')}
         >
-          Ejecuciones
+          {t('executions')}
         </button>
       </div>
 
@@ -424,26 +424,26 @@ export default function ProjectDetailPage() {
               className="hidden"
             />
             <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate}>
-              Descargar Excel
+              {t('download_excel')}
             </button>
             <button className="btn btn-outline btn-sm" onClick={handleImportClick}>
-              Cargar desde Excel
+              {t('upload_excel')}
             </button>
             <button className="btn btn-outline btn-sm" onClick={handleLoadDefaults}>
-              Cargar valores por defecto
+              {t('load_defaults')}
             </button>
           </div>
 
           <SectionHeader
-            title="0. Calendario Operativo (dias/ano)"
+            title={t('projdetail_section_calendar')}
             isOpen={openSections.calendar}
             onToggle={() => toggleSection('calendar')}
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
-                { label: 'Preconcentracion', value: preconDaysYear, set: setPreconDaysYear, hint: 'Pozas operan continuo (default 365).' },
-                { label: 'Encalado', value: encaladoDaysYear, set: setEncaladoDaysYear, hint: 'Disponibilidad de planta (default 328.5).' },
-                { label: 'Postliming', value: postlimingDaysYear, set: setPostlimingDaysYear, hint: 'Pozas operan continuo (default 365).' },
+                { label: t('stage_precon'), value: preconDaysYear, set: setPreconDaysYear, hint: t('projdetail_calendar_hint_precon') },
+                { label: t('stage_reagent_plant'), value: encaladoDaysYear, set: setEncaladoDaysYear, hint: t('projdetail_calendar_hint_reagent') },
+                { label: t('stage_postliming'), value: postlimingDaysYear, set: setPostlimingDaysYear, hint: t('projdetail_calendar_hint_postliming') },
               ].map((f) => (
                 <div key={f.label}>
                   <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text)' }}>
@@ -467,7 +467,7 @@ export default function ProjectDetailPage() {
           </SectionHeader>
 
           <SectionHeader
-            title="1. Salmuera de Pozo"
+            title={t('projdetail_section_brine')}
             isOpen={openSections.brine}
             onToggle={() => toggleSection('brine')}
           >
@@ -475,15 +475,15 @@ export default function ProjectDetailPage() {
           </SectionHeader>
 
           <SectionHeader
-            title="2. Pozas de Preconcentracion"
+            title={t('projdetail_section_precon_ponds')}
             isOpen={openSections.precon_ponds}
             onToggle={() => toggleSection('precon_ponds')}
           >
-            <PondEditor value={preconPonds} onChange={setPreconPonds} label="Pozas preconcentracion" />
+            <PondEditor value={preconPonds} onChange={setPreconPonds} label={t('projdetail_label_precon_ponds')} />
           </SectionHeader>
 
           <SectionHeader
-            title="3. Factores de Sales Preconcentracion"
+            title={t('projdetail_section_precon_factors')}
             isOpen={openSections.precon_faktor}
             onToggle={() => toggleSection('precon_faktor')}
           >
@@ -491,7 +491,7 @@ export default function ProjectDetailPage() {
           </SectionHeader>
 
           <SectionHeader
-            title="4. Parametros de Encalado"
+            title={t('projdetail_section_reagent_params')}
             isOpen={openSections.encalado}
             onToggle={() => toggleSection('encalado')}
           >
@@ -499,7 +499,7 @@ export default function ProjectDetailPage() {
           </SectionHeader>
 
           <SectionHeader
-            title="5. Factores de Sales Encalado"
+            title={t('projdetail_section_reagent_factors')}
             isOpen={openSections.encalado_faktor}
             onToggle={() => toggleSection('encalado_faktor')}
           >
@@ -507,15 +507,15 @@ export default function ProjectDetailPage() {
           </SectionHeader>
 
           <SectionHeader
-            title="6. Pozas de Post-liming"
+            title={t('projdetail_section_postliming_ponds')}
             isOpen={openSections.postliming_ponds}
             onToggle={() => toggleSection('postliming_ponds')}
           >
-            <PondEditor value={postlimingPonds} onChange={setPostlimingPonds} label="Pozas post-liming" />
+            <PondEditor value={postlimingPonds} onChange={setPostlimingPonds} label={t('projdetail_label_postliming_ponds')} />
           </SectionHeader>
 
           <SectionHeader
-            title="7. Factores de Sales Post-liming"
+            title={t('projdetail_section_postliming_factors')}
             isOpen={openSections.postliming_faktor}
             onToggle={() => toggleSection('postliming_faktor')}
           >
@@ -523,7 +523,7 @@ export default function ProjectDetailPage() {
           </SectionHeader>
 
           <SectionHeader
-            title="8. Cronograma Diario"
+            title={t('projdetail_section_schedule')}
             isOpen={openSections.schedule}
             onToggle={() => toggleSection('schedule')}
           >
@@ -540,10 +540,10 @@ export default function ProjectDetailPage() {
               {saving ? (
                 <>
                   <LoadingSpinner size="sm" />
-                  Guardando...
+                  {t('saving')}
                 </>
               ) : (
-                'Guardar Configuracion'
+                t('projdetail_save_config')
               )}
             </button>
             {saveMsg && (
