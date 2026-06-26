@@ -1,6 +1,8 @@
 import React from 'react';
 import SulfateRemovalTable, { type StreamId, type StreamValues } from './SulfateRemovalTable';
 import { useT } from '../i18n/LanguageContext';
+import { fmtNum, getDecimalsOverride } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 interface EncaladoData {
   [key: string]: unknown;
@@ -23,6 +25,8 @@ function fmt(v: unknown, dec = 2): string {
   if (v == null) return '-';
   const n = Number(v);
   if (isNaN(n)) return '-';
+  const _ov = getDecimalsOverride();
+  if (_ov != null) return n.toFixed(_ov);
   return n.toLocaleString('es-CL', { maximumFractionDigits: dec, minimumFractionDigits: dec });
 }
 
@@ -30,6 +34,8 @@ function fmtCompact(v: unknown, dec = 4): string {
   if (v == null) return '-';
   const n = Number(v);
   if (isNaN(n)) return '-';
+  const _ov = getDecimalsOverride();
+  if (_ov != null) return n.toFixed(_ov);
   if (n === 0) return '0';
   if (Math.abs(n) < 1e-4) return n.toExponential(3);
   return n.toFixed(dec);
@@ -56,6 +62,7 @@ function KeyValueTable({
   rows: Array<[string, unknown, string?]>;
 }) {
   const t = useT();
+  useDecimals();
   return (
     <div className="card overflow-hidden mb-4">
       <h5 className="text-xs font-semibold px-4 pt-3 mb-2" style={{ color: 'var(--color-text-secondary)' }}>
@@ -87,6 +94,7 @@ function SaltsTableCard({
   salts: Record<string, number> | undefined;
 }) {
   const t = useT();
+  useDecimals();
   if (!salts) return null;
   const entries = Object.entries(salts)
     .filter(([, v]) => typeof v === 'number' && v > 0)
@@ -106,7 +114,7 @@ function SaltsTableCard({
               <td className="text-xs">{salt}</td>
               <td className="font-mono text-xs">{fmtCompact(val, 4)}</td>
               <td className="font-mono text-xs">
-                {total > 0 ? ((val / total) * 100).toFixed(2) + '%' : '-'}
+                {total > 0 ? (fmtNum((val / total) * 100, 2) || '-') + '%' : '-'}
               </td>
             </tr>
           ))}
@@ -118,6 +126,7 @@ function SaltsTableCard({
 
 export default function EncaladoResultPanel({ stageLabel, result, temperature_C }: Props) {
   const t = useT();
+  useDecimals();
   const r = result;
 
   // Li recovery
@@ -321,7 +330,7 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
         <KpiCard label={`${t('encpanel_kpi_input')} (ton/d @ 328.5d)`} value={fmt(r.input_flow, 1)} />
         <KpiCard label={`${t('encpanel_kpi_output_p2519')} (ton/d)`} value={fmt(r.total_liquid_output, 1)} />
         <KpiCard label={`${t('encpanel_kpi_adjusted_output')} (ton/d @ 365d)`} value={fmt(r.output_adjusted_flow, 1)} />
-        <KpiCard label={t('encpanel_kpi_li_recovered')} value={`${liPct.toFixed(1)}%`} />
+        <KpiCard label={t('encpanel_kpi_li_recovered')} value={`${fmtNum(liPct, 1) || '0'}%`} />
         <KpiCard label={`${t('encpanel_kpi_dry_solids')} (ton/d)`} value={fmt(r.total_solids_dry, 1)} />
         <KpiCard label={`${t('encpanel_kpi_wet_solids')} (ton/d)`} value={fmt(r.total_solids_wet, 1)} />
         <KpiCard label={`${t('encpanel_kpi_salts_aqsol1')} (ton/d)`} value={fmt(r.solids_aqsol1, 1)} />
@@ -498,7 +507,7 @@ export default function EncaladoResultPanel({ stageLabel, result, temperature_C 
                     <tr key={species}>
                       <td className="font-medium text-sm">{species}</td>
                       <td className="font-mono text-sm">{fmtCompact(val, 4)}</td>
-                      <td className="font-mono text-sm">{ww.toFixed(2)}%</td>
+                      <td className="font-mono text-sm">{fmtNum(ww, 2) || '0'}%</td>
                     </tr>
                   );
                 })}

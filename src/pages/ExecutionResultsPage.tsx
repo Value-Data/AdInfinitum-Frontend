@@ -3,10 +3,13 @@ import { useParams } from 'react-router-dom';
 import type { ExecutionResult, SolverResult } from '../types';
 import type { TranslationKey } from '../i18n/translations';
 import { useT } from '../i18n/LanguageContext';
+import { fmtNum } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 import { getExecution } from '../services/api';
 import { exportExecutionToExcel } from '../utils/exportExecutionExcel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import StatusBadge from '../components/common/StatusBadge';
+import DecimalsSelect from '../components/common/DecimalsSelect';
 import KPICards from '../components/KPICards';
 import ResultCharts from '../components/ResultCharts';
 import ParameterSnapshot from '../components/ParameterSnapshot';
@@ -149,6 +152,7 @@ function DailySummaryTable({ dailyResults }: {
   }>;
 }) {
   const t = useT();
+  useDecimals();
   return (
     <div className="card overflow-hidden mb-6">
       <h4 className="text-sm font-semibold px-4 pt-3 mb-2" style={{ color: 'var(--color-text)' }}>
@@ -180,13 +184,13 @@ function DailySummaryTable({ dailyResults }: {
               return (
                 <tr key={i}>
                   <td className="font-medium">{dr.date_label || `${t('schedule_day')} ${dr.day + 1}`}</td>
-                  <td className="font-mono text-sm">{dr.temperature_C?.toFixed(1)}</td>
-                  <td className="font-mono text-sm">{dr.evap_rate_mm_day?.toFixed(3)}</td>
-                  <td className="font-mono text-sm">{precon?.li_in?.toFixed(4) ?? '-'}</td>
-                  <td className="font-mono text-sm">{lastStage?.li_out?.toFixed(4) ?? '-'}</td>
-                  <td className="font-mono text-sm">{lastStage?.li_recovery_pct?.toFixed(2) ?? '-'}%</td>
-                  <td className="font-mono text-sm">{lastStage?.total_evaporation?.toFixed(1) ?? '-'}</td>
-                  <td className="font-mono text-sm">{lastStage?.total_salt?.toFixed(1) ?? '-'}</td>
+                  <td className="font-mono text-sm">{fmtNum(dr.temperature_C, 1)}</td>
+                  <td className="font-mono text-sm">{fmtNum(dr.evap_rate_mm_day, 3)}</td>
+                  <td className="font-mono text-sm">{fmtNum(precon?.li_in, 4) || '-'}</td>
+                  <td className="font-mono text-sm">{fmtNum(lastStage?.li_out, 4) || '-'}</td>
+                  <td className="font-mono text-sm">{(fmtNum(lastStage?.li_recovery_pct, 2) || '-')}%</td>
+                  <td className="font-mono text-sm">{fmtNum(lastStage?.total_evaporation, 1) || '-'}</td>
+                  <td className="font-mono text-sm">{fmtNum(lastStage?.total_salt, 1) || '-'}</td>
                   <td>
                     {errorStage ? (
                       <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#fee2e2', color: 'var(--color-danger)' }}>
@@ -377,6 +381,7 @@ function buildGlobalStreams(
 
 export default function ExecutionResultsPage() {
   const t = useT();
+  useDecimals();
   const { id } = useParams<{ id: string }>();
   const [execution, setExecution] = useState<ExecutionResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -729,20 +734,23 @@ export default function ExecutionResultsPage() {
           </div>
 
           {execution.status === 'completed' && (
-            <button
-              className="btn btn-outline"
-              onClick={handleExport}
-              disabled={exporting}
-            >
-              {exporting ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              )}
-              {t('download_excel')}
-            </button>
+            <div className="flex items-center gap-3">
+              <DecimalsSelect />
+              <button
+                className="btn btn-outline"
+                onClick={handleExport}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {t('download_excel')}
+              </button>
+            </div>
           )}
         </div>
 

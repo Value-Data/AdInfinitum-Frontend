@@ -2,6 +2,8 @@ import React from 'react';
 import type { SolverResult } from '../types';
 import { MAIN_SPECIES } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import { fmtNum } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 interface Props {
   stageLabel: string;
@@ -10,6 +12,7 @@ interface Props {
 
 export default function CompositionTable({ stageLabel, result }: Props) {
   const t = useT();
+  useDecimals();
   const ponds = result.ponds || [];
 
   // Calculate %w/w from eq_liquid: species_mass / total_mass * 100
@@ -56,7 +59,7 @@ export default function CompositionTable({ stageLabel, result }: Props) {
                   const ww = getWW(p.aqsol_result?.eq_liquid, species);
                   return (
                     <td key={i} className="font-mono text-xs">
-                      {eqLiq.toFixed(4)} | {ww.toFixed(2)}%
+                      {fmtNum(eqLiq, 4)} | {fmtNum(ww, 2)}%
                     </td>
                   );
                 })}

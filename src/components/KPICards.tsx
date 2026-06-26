@@ -1,6 +1,8 @@
 import React from 'react';
 import type { SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import { fmtNum, getDecimalsOverride } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 interface KPI {
   label: string;
@@ -15,6 +17,8 @@ interface Props {
 }
 
 function formatNum(n: number, decimals = 2): string {
+  const _ov = getDecimalsOverride();
+  if (_ov != null) return fmtNum(n, decimals);
   if (Math.abs(n) >= 1000) {
     return n.toLocaleString('es-CL', { maximumFractionDigits: decimals });
   }
@@ -25,6 +29,7 @@ const iconClass = 'h-5 w-5';
 
 export default function KPICards({ stageLabel, result }: Props) {
   const t = useT();
+  useDecimals();
   const kpis: KPI[] = [
     {
       label: t('kpi_li_in'),

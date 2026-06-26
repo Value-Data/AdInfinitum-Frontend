@@ -1,6 +1,8 @@
 import React from 'react';
 import type { SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import { fmtNum } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 interface Props {
   stageLabel: string;
@@ -9,6 +11,7 @@ interface Props {
 
 export default function PropertiesTable({ stageLabel, result }: Props) {
   const t = useT();
+  useDecimals();
   const ponds = result.ponds || [];
 
   return (
@@ -32,11 +35,11 @@ export default function PropertiesTable({ stageLabel, result }: Props) {
             {ponds.map((p, i) => (
               <tr key={i}>
                 <td className="font-medium">{p.config.name}</td>
-                <td className="font-mono">{(p.aqsol_result?.water_activity ?? 0).toFixed(6)}</td>
-                <td className="font-mono">{(p.aqsol_result?.density_liquid ?? 0).toFixed(4)}</td>
-                <td className="font-mono">{(p.aqsol_result?.pH ?? 0).toFixed(4)}</td>
-                <td className="font-mono">{(p.aqsol_result?.ionic_strength ?? 0).toFixed(4)}</td>
-                <td className="font-mono">{(p.aqsol_result?.Cp_liquid ?? 0).toFixed(4)}</td>
+                <td className="font-mono">{fmtNum(p.aqsol_result?.water_activity ?? 0, 6)}</td>
+                <td className="font-mono">{fmtNum(p.aqsol_result?.density_liquid ?? 0, 4)}</td>
+                <td className="font-mono">{fmtNum(p.aqsol_result?.pH ?? 0, 4)}</td>
+                <td className="font-mono">{fmtNum(p.aqsol_result?.ionic_strength ?? 0, 4)}</td>
+                <td className="font-mono">{fmtNum(p.aqsol_result?.Cp_liquid ?? 0, 4)}</td>
               </tr>
             ))}
           </tbody>

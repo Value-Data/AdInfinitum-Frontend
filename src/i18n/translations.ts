@@ -798,22 +798,40 @@ export const TRANSLATIONS = {
   dynpanel_no_results_retrying: { es: 'reintentando cada 2s…', en: 'retrying every 2s…' },
 
   // ===== Welcome overlay =====
-  welcome_title: { es: '¡Bienvenido!', en: 'Welcome!' },
+  welcome_title: { es: 'Bienvenido', en: 'Welcome' },
   welcome_message: {
-    es: 'Bienvenido a la aplicación de simulación de pozas. Aquí podrás simular tus procesos estáticos y dinámicos de extracción de litio.',
-    en: 'Welcome to the pond simulation application. Here you can simulate your static and dynamic lithium-extraction processes.',
+    es: 'Acceso a plataforma de simulación avanzada de procesos químicos.',
+    en: 'Access to an advanced chemical-process simulation platform.',
   },
   welcome_static_title: { es: 'Procesos Estáticos', en: 'Static Processes' },
-  welcome_static_desc: {
-    es: 'Simula un escenario puntual: preconcentración, planta de reactivos y postliming.',
-    en: 'Simulate a single scenario: preconcentration, reagent plant and postliming.',
+  welcome_static_b1: {
+    es: 'Balances de masa y energía en estado estacionario (Steady-state).',
+    en: 'Mass and energy balances in steady state.',
+  },
+  welcome_static_b2: {
+    es: 'Modela un escenario de diseño puntual: Preconcentración – Planta de Reactivos – Concentración.',
+    en: 'Models a single design scenario: Preconcentration – Reagent Plant – Concentration.',
   },
   welcome_dynamic_title: { es: 'Procesos Dinámicos', en: 'Dynamic Processes' },
-  welcome_dynamic_desc: {
-    es: 'Simula día a día con clima real y las tres etapas encadenadas.',
-    en: 'Simulate day by day with real climate and the three chained stages.',
+  welcome_dynamic_b1: {
+    es: 'Balances de masa y energía, comportamiento dinámico, variabilidad de flujos estacionales y condiciones meteorológicas.',
+    en: 'Mass and energy balances, dynamic behavior, seasonal flow variability and weather conditions.',
+  },
+  welcome_dynamic_b2: {
+    es: 'Modela un escenario transitorio y secuencial entre los diferentes procesos.',
+    en: 'Models a transient, sequential scenario across the different processes.',
   },
   welcome_cta: { es: 'Comenzar', en: 'Get started' },
+
+  // ===== Decimals control =====
+  decimals_label: { es: 'Decimales', en: 'Decimals' },
+  decimals_auto: { es: 'Auto', en: 'Auto' },
+
+  // ===== Excel export =====
+  export_excel_hint: {
+    es: 'Descarga tablas y series de tiempo (eje X/Y) listas para graficar.',
+    en: 'Downloads tables and time series (X/Y axes) ready to graph.',
+  },
 } as const;
 
 export type TranslationKey = keyof typeof TRANSLATIONS;

@@ -28,7 +28,9 @@ export default function ExecutionList({ projectId }: Props) {
   const fetchExecutions = useCallback(async () => {
     try {
       const data = await getExecutions(projectId);
-      setExecutions(data);
+      // Static mode list: show only static executions (exclude dynamic-model ones,
+      // which have their own list inside the Dynamic mode panel).
+      setExecutions(data.filter((e) => !e.execution_type.startsWith('modelo_dinamico_')));
     } catch {
       // handled by interceptor
     } finally {

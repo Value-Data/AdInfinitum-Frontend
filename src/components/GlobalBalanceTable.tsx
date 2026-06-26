@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { useT } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
+import { getDecimalsOverride } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 type Phase = 'PRECONCENTRACION' | 'ENCALADO' | 'POSTLIMING';
 
@@ -164,6 +166,8 @@ function resolveStreams(
 
 function formatValue(v: number | undefined | null): string {
   if (v === undefined || v === null || Number.isNaN(v)) return '';
+  const _ov = getDecimalsOverride();
+  if (_ov != null) return v.toFixed(_ov);
   if (v === 0) return '0';
   if (Math.abs(v) < 0.01) return v.toExponential(2);
   return v.toLocaleString('es-CL', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
@@ -251,6 +255,7 @@ export default function GlobalBalanceTable({
   postlimingDaysYear = DEFAULT_PONDS_DAYS_YEAR,
 }: GlobalBalanceTableProps) {
   const t = useT();
+  useDecimals();
   const phaseDays: PhaseDays = {
     PRECONCENTRACION: preconDaysYear,
     ENCALADO: encaladoDaysYear,

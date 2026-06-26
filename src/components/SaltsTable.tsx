@@ -1,6 +1,8 @@
 import React from 'react';
 import type { SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import { fmtNum } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 interface Props {
   stageLabel: string;
@@ -9,6 +11,7 @@ interface Props {
 
 export default function SaltsTable({ stageLabel, result }: Props) {
   const t = useT();
+  useDecimals();
   const ponds = result.ponds || [];
 
   // Collect all unique salt names
@@ -68,7 +71,7 @@ export default function SaltsTable({ stageLabel, result }: Props) {
                     const val = p.aqsol_result?.precipitated_salts?.[salt] ?? 0;
                     return (
                       <td key={i} className="font-mono text-xs">
-                        {val > 0 ? val.toFixed(4) : '-'}
+                        {val > 0 ? fmtNum(val, 4) : '-'}
                       </td>
                     );
                   })}

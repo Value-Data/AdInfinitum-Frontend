@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { PondResult, SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
+import { getDecimalsOverride } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 interface Props {
   stageLabel: string;
@@ -18,6 +20,8 @@ const SPECIES = [
 
 function formatNum(v: number | undefined | null, digits = 4): string {
   if (v === undefined || v === null || Number.isNaN(v)) return '-';
+  const _ov = getDecimalsOverride();
+  if (_ov != null) return v.toFixed(_ov);
   if (v === 0) return '0';
   if (Math.abs(v) < 1e-4) return v.toExponential(3);
   return v.toFixed(digits);
@@ -60,6 +64,7 @@ function MatrixSubTable({
   valueDigits?: number;
 }) {
   const t = useT();
+  useDecimals();
   if (rowLabels.length === 0) {
     return (
       <div className="mt-6">
@@ -125,6 +130,7 @@ function MatrixSubTable({
 
 export default function PondDetailBreakdown({ stageLabel, result, temperature_C }: Props) {
   const t = useT();
+  useDecimals();
   const ponds = result.ponds || [];
   const [liquidView, setLiquidView] = useState<'abs' | 'pct'>('abs');
 

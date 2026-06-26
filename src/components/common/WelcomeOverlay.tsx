@@ -60,11 +60,11 @@ export default function WelcomeOverlay({ onClose }: { onClose: () => void }) {
             {t('welcome_message')}
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+          <div className="grid grid-cols-1 gap-3 mt-6">
             <FeatureCard
               accent="var(--color-primary)"
               title={t('welcome_static_title')}
-              desc={t('welcome_static_desc')}
+              bullets={[t('welcome_static_b1'), t('welcome_static_b2')]}
               icon={
                 <path d="M4 5a1 1 0 011-1h10a1 1 0 011 1v2H4V5zm0 4h12v6a1 1 0 01-1 1H5a1 1 0 01-1-1V9z" />
               }
@@ -72,7 +72,7 @@ export default function WelcomeOverlay({ onClose }: { onClose: () => void }) {
             <FeatureCard
               accent="var(--color-accent)"
               title={t('welcome_dynamic_title')}
-              desc={t('welcome_dynamic_desc')}
+              bullets={[t('welcome_dynamic_b1'), t('welcome_dynamic_b2')]}
               icon={
                 <path
                   fillRule="evenodd"
@@ -100,12 +100,12 @@ export default function WelcomeOverlay({ onClose }: { onClose: () => void }) {
 function FeatureCard({
   accent,
   title,
-  desc,
+  bullets,
   icon,
 }: {
   accent: string;
   title: string;
-  desc: string;
+  bullets: string[];
   icon: React.ReactNode;
 }) {
   return (
@@ -113,7 +113,7 @@ function FeatureCard({
       className="rounded-lg p-4"
       style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
     >
-      <div className="flex items-center gap-2 mb-1.5">
+      <div className="flex items-center gap-2 mb-2">
         <span
           className="inline-flex items-center justify-center rounded-md"
           style={{ width: '28px', height: '28px', background: accent }}
@@ -131,9 +131,18 @@ function FeatureCard({
           {title}
         </span>
       </div>
-      <p className="text-xs leading-snug" style={{ color: 'var(--color-text-secondary)' }}>
-        {desc}
-      </p>
+      <ul className="space-y-1 pl-1">
+        {bullets.map((b, i) => (
+          <li
+            key={i}
+            className="text-xs leading-snug flex gap-1.5"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            <span style={{ color: accent }}>•</span>
+            <span>{b}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

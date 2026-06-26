@@ -20,6 +20,10 @@ import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
 import { displayPondName } from '../utils/dynamicDisplayNames';
 import EncaladoResultPanel from './EncaladoResultPanel';
+import DecimalsSelect from './common/DecimalsSelect';
+import { downloadDynamicResultsExcel } from '../utils/dynamicResultsExcel';
+import { getDecimalsOverride } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 const CHART_COLORS = [
   '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
@@ -36,13 +40,16 @@ type ResultTabKey = 'kpis' | 'tabla1' | 'tabla2' | 'tabla3' | 'compacta' | 'graf
 
 function fmt(n: number | undefined | null, digits = 2): string {
   if (n == null || !Number.isFinite(n)) return '—';
-  if (Math.abs(n) >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: digits });
-  return n.toFixed(digits);
+  const ov = getDecimalsOverride();
+  const d = ov == null ? digits : ov;
+  if (Math.abs(n) >= 1000)
+    return n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  return n.toFixed(d);
 }
 
 function fmtSci(n: number | undefined | null): string {
   if (n == null || !Number.isFinite(n)) return '—';
-  if (Math.abs(n) < 1e-4 && n !== 0) return n.toExponential(3);
+  if (getDecimalsOverride() == null && Math.abs(n) < 1e-4 && n !== 0) return n.toExponential(3);
   return fmt(n, 4);
 }
 
@@ -753,6 +760,7 @@ function FilesTab({ executionId, files }: { executionId: string; files: Executio
 // ============================================================
 export default function DynamicResultsView({ executionId, results, files }: Props) {
   const t = useT();
+  useDecimals(); // subscribe so tables re-render when the global decimals change
   const [tab, setTab] = useState<ResultTabKey>('kpis');
   const [scaleFactor, setScaleFactor] = useState<number>(1);
   const [scaleInput, setScaleInput] = useState<string>('1');
@@ -825,6 +833,19 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
             <span className="font-mono ml-2">{t('applied')}: ×{scaleFactor}</span>
           )}
         </p>
+        <DecimalsSelect />
+        <button
+          className="btn btn-primary btn-sm"
+          onClick={() =>
+            downloadDynamicResultsExcel(
+              scaledResults,
+              `resultados_${scaledResults.stage}_${scaledResults.run_tag || 'run'}.xlsx`,
+            )
+          }
+          title={t('export_excel_hint')}
+        >
+          {t('download_excel')}
+        </button>
       </div>
 
       <div className="flex gap-0 border-b mb-4" style={{ borderColor: 'var(--color-border)' }}>

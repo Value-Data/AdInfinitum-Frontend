@@ -414,7 +414,7 @@ function buildPondDetailSheet(s: StageData): unknown[][] {
 }
 
 // -------- Encalado sheet --------
-function buildEncaladoSheet(enc: Record<string, unknown>): unknown[][] {
+export function buildEncaladoSheet(enc: Record<string, unknown>): unknown[][] {
   const aoa: unknown[][] = [];
   const num = (k: string): number | '' => {
     const v = enc[k];

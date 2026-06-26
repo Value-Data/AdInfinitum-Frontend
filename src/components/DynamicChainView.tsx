@@ -11,6 +11,8 @@ import { listExecutionFiles } from '../services/api';
 import type { ExecutionFile } from '../types';
 import LoadingSpinner from './common/LoadingSpinner';
 import DynamicResultsView from './DynamicResultsView';
+import { fmtNum } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 type Props = {
   rootExecutionId: string;
@@ -19,6 +21,7 @@ type Props = {
 
 export default function DynamicChainView({ rootExecutionId, onClose }: Props) {
   const t = useT();
+  useDecimals();
   const [chain, setChain] = useState<ChainData | null>(null);
   const [allFiles, setAllFiles] = useState<ExecutionFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,15 +162,15 @@ export default function DynamicChainView({ rootExecutionId, onClose }: Props) {
                 <Stat label={t('dynchain_stat_days_with_feed')} value={scaledChain.encalado.n_days_with_feed} />
                 <Stat
                   label={t('dynchain_stat_avg_outflow')}
-                  value={`${scaledChain.encalado.kpis.flow_out_t_d_avg?.toFixed(2) ?? '—'} t/d`}
+                  value={`${fmtNum(scaledChain.encalado.kpis.flow_out_t_d_avg, 2) || '—'} t/d`}
                 />
                 <Stat
                   label={t('dynchain_stat_aqsol_conv')}
-                  value={`${scaledChain.encalado.kpis.aqsol_convergence_pct.toFixed(2)}%`}
+                  value={`${fmtNum(scaledChain.encalado.kpis.aqsol_convergence_pct, 2) || '0'}%`}
                 />
                 <Stat
                   label={t('dynchain_stat_li_out_annual')}
-                  value={`${scaledChain.encalado.kpis.li_out_t_year?.toFixed(2) ?? '—'} t/y`}
+                  value={`${fmtNum(scaledChain.encalado.kpis.li_out_t_year, 2) || '—'} t/y`}
                 />
               </div>
               <p

@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { useT } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
+import { getDecimalsOverride } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 export type StreamId =
   | 'P_2501'
@@ -134,6 +136,8 @@ function resolveStreams(
 
 function formatNum(v: number | undefined, digits = 2): string {
   if (v === undefined || v === null || Number.isNaN(v)) return '';
+  const _ov = getDecimalsOverride();
+  if (_ov != null) return v.toFixed(_ov);
   if (v === 0) return '0';
   if (Math.abs(v) >= 1000) {
     return v.toLocaleString('es-CL', { maximumFractionDigits: digits, minimumFractionDigits: digits });
@@ -179,6 +183,7 @@ export default function SulfateRemovalTable({
   title,
 }: SulfateRemovalTableProps) {
   const t = useT();
+  useDecimals();
   const resolved = useMemo(() => resolveStreams(streams), [streams]);
 
   return (

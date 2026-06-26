@@ -1,6 +1,8 @@
 import React from 'react';
 import type { SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import { fmtNum } from '../utils/numberFormat';
+import { useDecimals } from '../context/DecimalsContext';
 
 interface Props {
   stageLabel: string;
@@ -9,6 +11,7 @@ interface Props {
 
 export default function BalanceTable({ stageLabel, result }: Props) {
   const t = useT();
+  useDecimals();
   const ponds = result.ponds || [];
 
   return (
@@ -35,12 +38,12 @@ export default function BalanceTable({ stageLabel, result }: Props) {
             {ponds.map((p, i) => (
               <tr key={i}>
                 <td className="font-medium">{p.config.name}</td>
-                <td className="font-mono">{p.evaporation.toFixed(2)}</td>
-                <td className="font-mono">{p.salt_precipitated.toFixed(2)}</td>
-                <td className="font-mono">{p.entrainment.toFixed(2)}</td>
-                <td className="font-mono">{p.leakage.toFixed(4)}</td>
-                <td className="font-mono">{p.dilution.toFixed(4)}</td>
-                <td className="font-mono">{p.outlet_flow.toFixed(2)}</td>
+                <td className="font-mono">{fmtNum(p.evaporation, 2)}</td>
+                <td className="font-mono">{fmtNum(p.salt_precipitated, 2)}</td>
+                <td className="font-mono">{fmtNum(p.entrainment, 2)}</td>
+                <td className="font-mono">{fmtNum(p.leakage, 4)}</td>
+                <td className="font-mono">{fmtNum(p.dilution, 4)}</td>
+                <td className="font-mono">{fmtNum(p.outlet_flow, 2)}</td>
                 <td className="font-mono text-center">{p.iterations}</td>
                 <td>
                   <span
@@ -55,12 +58,12 @@ export default function BalanceTable({ stageLabel, result }: Props) {
             {/* Totals row */}
             <tr style={{ backgroundColor: 'var(--color-primary-lighter)', fontWeight: 600 }}>
               <td>{t('total')}</td>
-              <td className="font-mono">{result.total_evaporation.toFixed(2)}</td>
-              <td className="font-mono">{result.total_salt.toFixed(2)}</td>
-              <td className="font-mono">{result.total_entrainment.toFixed(2)}</td>
-              <td className="font-mono">{result.total_leakage.toFixed(4)}</td>
+              <td className="font-mono">{fmtNum(result.total_evaporation, 2)}</td>
+              <td className="font-mono">{fmtNum(result.total_salt, 2)}</td>
+              <td className="font-mono">{fmtNum(result.total_entrainment, 2)}</td>
+              <td className="font-mono">{fmtNum(result.total_leakage, 4)}</td>
               <td className="font-mono">-</td>
-              <td className="font-mono">{result.final_outlet_flow.toFixed(2)}</td>
+              <td className="font-mono">{fmtNum(result.final_outlet_flow, 2)}</td>
               <td>-</td>
               <td>-</td>
             </tr>
