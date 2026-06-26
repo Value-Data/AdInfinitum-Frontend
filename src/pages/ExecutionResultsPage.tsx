@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import type { ExecutionResult, SolverResult } from '../types';
 import type { TranslationKey } from '../i18n/translations';
 import { useT } from '../i18n/LanguageContext';
@@ -382,6 +382,7 @@ function buildGlobalStreams(
 export default function ExecutionResultsPage() {
   const t = useT();
   useDecimals();
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [execution, setExecution] = useState<ExecutionResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -697,6 +698,22 @@ export default function ExecutionResultsPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() =>
+          execution.project_id
+            ? navigate(`/projects/${execution.project_id}`)
+            : navigate(-1)
+        }
+        className="inline-flex items-center gap-1 text-sm mb-3 hover:underline"
+        style={{ color: 'var(--color-primary-light)' }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+        </svg>
+        {t('back')}
+      </button>
+
       {/* Header */}
       <div className="card p-4 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4">

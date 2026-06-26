@@ -52,6 +52,19 @@ const SOURCE_REQUIRED_FOR: Record<StageKey, ExecutionType | null> = {
   postliming: 'modelo_dinamico_encalado',
 };
 
+/** Wall-clock duration of an execution (started → completed), compact form. */
+function formatDuration(exec: Execution): string {
+  if (!exec.started_at || !exec.completed_at) return '-';
+  const diffSec = Math.round(
+    (new Date(exec.completed_at).getTime() - new Date(exec.started_at).getTime()) / 1000,
+  );
+  if (!Number.isFinite(diffSec) || diffSec < 0) return '-';
+  if (diffSec < 60) return `${diffSec}s`;
+  const min = Math.floor(diffSec / 60);
+  const sec = diffSec % 60;
+  return `${min}m ${sec}s`;
+}
+
 export default function DynamicModePanel({
   projectId,
   isAdmin,
@@ -319,6 +332,20 @@ export default function DynamicModePanel({
     }
   };
 
+  // Stage label with the actual pond count from the current config (not hardcoded).
+  const stageLabel = (s: StageKey): string => {
+    const name =
+      s === 'cascade'
+        ? t('stage_precon')
+        : s === 'encalado'
+          ? t('stage_reagent_plant')
+          : t('stage_postliming');
+    if (s === 'encalado') return name; // reactor plant — not ponds
+    const n =
+      s === 'cascade' ? config?.precon?.ponds?.length : config?.postliming?.ponds?.length;
+    return n ? `${name} (${n} ${t('ponds_lower')})` : name;
+  };
+
   const completedSources = executions.filter((e) => e.status === 'completed');
   const sourceCandidates = (() => {
     const expected = SOURCE_REQUIRED_FOR[activeStage];
@@ -487,7 +514,7 @@ export default function DynamicModePanel({
                       activeStage === s ? 'bg-blue-50 border-blue-300' : 'border-gray-200'
                     }`}
                   >
-                    {t(STAGE_LABEL[s])}
+                    {stageLabel(s)}
                   </button>
                 ))}
               </div>
@@ -537,7 +564,7 @@ export default function DynamicModePanel({
                 </div>
               </div>
               <button className="btn btn-primary" onClick={handleLaunch} disabled={launching}>
-                {launching ? t('launching') : `${t('launch_execution')}: ${t(STAGE_LABEL[activeStage])}`}
+                {launching ? t('launching') : `${t('launch_execution')}: ${stageLabel(activeStage)}`}
               </button>
               {saveMsg && (
                 <p
@@ -583,6 +610,7 @@ export default function DynamicModePanel({
                     <th>{t('stage')}</th>
                     <th>{t('status')}</th>
                     <th>{t('date')}</th>
+                    <th>{t('execlist_duration')}</th>
                     <th>{t('source')}</th>
                     <th />
                   </tr>
@@ -596,6 +624,7 @@ export default function DynamicModePanel({
                         <StatusBadge status={e.status} />
                       </td>
                       <td className="text-xs">{new Date(e.created_at).toLocaleString()}</td>
+                      <td className="text-xs font-mono">{formatDuration(e)}</td>
                       <td className="text-xs font-mono">
                         {e.source_execution_id ? e.source_execution_id.slice(0, 8) : '-'}
                       </td>
