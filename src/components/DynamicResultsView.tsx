@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CartesianGrid,
   Legend,
@@ -19,6 +19,7 @@ import { useT } from '../i18n/LanguageContext';
 import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
 import { boronFrom } from '../utils/boron';
+import { downloadChartsPng } from '../utils/downloadCharts';
 import { useDayDateAxis, DayDateToggle, XAxisModeProvider } from '../utils/chartDateAxis';
 
 // Ticks del eje Y con coma decimal (preserva los ticks "lindos" de recharts).
@@ -803,6 +804,7 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
   const t = useT();
   useDecimals(); // subscribe so tables re-render when the global decimals change
   const [tab, setTab] = useState<ResultTabKey>('kpis');
+  const chartsRef = useRef<HTMLDivElement>(null);
   const [scaleFactor, setScaleFactor] = useState<number>(1);
   const [scaleInput, setScaleInput] = useState<string>('1');
 
@@ -914,12 +916,27 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
       {tab === 'tabla3' && cp && <Tabla3 results={cp} />}
       {tab === 'compacta' && cp && <TablaCompacta results={cp} />}
       {tab === 'graficos' && (
-        <div className="flex justify-end mb-3">
-          <DayDateToggle labels={{ day: t('chart_view_days'), date: t('chart_view_dates') }} />
-        </div>
+        <>
+          <div className="flex justify-between items-center mb-3">
+            <DayDateToggle labels={{ day: t('chart_view_days'), date: t('chart_view_dates') }} />
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() =>
+                downloadChartsPng(
+                  chartsRef.current,
+                  `graficos_${(results as { run_tag?: string }).run_tag ?? 'run'}`,
+                )
+              }
+            >
+              {t('download_charts')}
+            </button>
+          </div>
+          <div ref={chartsRef}>
+            {cp && <ChartsCascadePostliming results={cp} executionId={executionId} />}
+            {enc && <ChartsEncalado results={enc} />}
+          </div>
+        </>
       )}
-      {tab === 'graficos' && cp && <ChartsCascadePostliming results={cp} executionId={executionId} />}
-      {tab === 'graficos' && enc && <ChartsEncalado results={enc} />}
       {tab === 'encalado_detalle' && enc && enc.encalado_result_averaged && (
         <div>
           <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>

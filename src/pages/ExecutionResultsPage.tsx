@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { ExecutionResult, SolverResult } from '../types';
 import type { TranslationKey } from '../i18n/translations';
@@ -16,6 +16,7 @@ import ParameterSnapshot from '../components/ParameterSnapshot';
 import EncaladoResultPanel from '../components/EncaladoResultPanel';
 import PondDetailBreakdown from '../components/PondDetailBreakdown';
 import StaticReportModal from '../components/StaticReportModal';
+import { downloadChartsPng } from '../utils/downloadCharts';
 import GlobalBalanceTable, {
   type GlobalStreamId,
   type GlobalStreamValues,
@@ -393,6 +394,7 @@ export default function ExecutionResultsPage() {
   const [viewMode, setViewMode] = useState<'day' | 'average'>('average');
   const [reportOpen, setReportOpen] = useState(false);
   const [reportErr, setReportErr] = useState<string | null>(null);
+  const staticChartsRef = useRef<HTMLDivElement>(null);
 
   const fetchExecution = useCallback(async () => {
     if (!id) return;
@@ -969,10 +971,25 @@ export default function ExecutionResultsPage() {
             );
           })()}
 
-          {activeTab === 'graficos' &&
-            renderStageResults((label, result) => (
-              <ResultCharts stageLabel={label} result={result} />
-            ))}
+          {activeTab === 'graficos' && (
+            <>
+              <div className="flex justify-end mb-3">
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() =>
+                    downloadChartsPng(staticChartsRef.current, `graficos_${execution.execution_type}`)
+                  }
+                >
+                  {t('download_charts')}
+                </button>
+              </div>
+              <div ref={staticChartsRef}>
+                {renderStageResults((label, result) => (
+                  <ResultCharts stageLabel={label} result={result} />
+                ))}
+              </div>
+            </>
+          )}
 
           {activeTab === 'encalado' && encaladoData && (
             <EncaladoResultPanel
