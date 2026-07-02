@@ -235,7 +235,9 @@ function parsePonds(ws: XLSX.WorkSheet): PondConfig[] {
       pond_factor: toNum(r['pond_factor'], 0.7),
       entrainment_pct: toNum(r['entrainment_pct'], 10),
       leakage_mm_day: toNum(r['leakage_mm_day'], 0.03),
-      dilution_frac: toNum(r['dilution_frac'], 0.005),
+      // H-12: default 0.0 (alineado con la UI), antes 0.005. Evita que una celda
+      // vacía en round-trip Excel cambie la dilución en silencio vs la validación.
+      dilution_frac: toNum(r['dilution_frac'], 0.0),
     }));
 }
 

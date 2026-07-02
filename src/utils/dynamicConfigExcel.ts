@@ -89,10 +89,10 @@ const ENCALADO_FIELDS: (keyof DynamicEncaladoParams)[] = [
   'abort_on_aqsol_fail_pct',
   'max_iter_fn',
   'fn_tolerance',
-  // v2 V3 flags
-  'use_filtrate_as_aqsol2_base',
-  'use_fn_input_subtraction',
-  'include_cake_wash_in_output',
+  // H-20: los 3 flags V3 (use_filtrate_as_aqsol2_base, use_fn_input_subtraction,
+  // include_cake_wash_in_output) NO se exportan al Excel: el backend los fuerza a
+  // los valores validados con Ad-Inf e ignora cualquier valor del payload. Exponerlos
+  // como editables era engañoso (el usuario los editaba sin efecto). Ver H-03.
 ];
 
 const POSTLIMING_PARAM_FIELDS: (keyof DynamicPostlimingParams)[] = [
@@ -399,7 +399,10 @@ function parsePreconPonds(ws: XLSX.WorkSheet): DynamicPondConfig[] {
         pond_factor: toNum(r['pond_factor'], 0.7),
         entrainment_pct: toNum(r['entrainment_pct'], 10),
         leakage_mm_day: toNum(r['leakage_mm_day'], 0.03),
-        dilution_frac: toNum(r['dilution_frac'], 0.005),
+        // H-12: default 0.0 (alineado con la UI: parseFloat('')||0 = 0.0). Antes era
+        // 0.005, lo que en un round-trip Excel con celda vacía cambiaba Pz1-1 (0.0→0.005)
+        // en silencio, divergiendo de la validación. Default unificado por ruta de entrada.
+        dilution_frac: toNum(r['dilution_frac'], 0.0),
         target_height_m: toOptNum(r['target_height_m']),
         max_height_m: toOptNum(r['max_height_m']),
         is_terminal_buffer: toBool(r['is_terminal_buffer']),
@@ -432,7 +435,10 @@ function parsePostlimingPonds(ws: XLSX.WorkSheet): DynamicPostlimingPondConfig[]
         evap_factor: toNum(r['evap_factor'], 1.0),
         leakage_mm_d: toNum(r['leakage_mm_d'], 0.03),
         entrainment_pct: toNum(r['entrainment_pct'], 20.0),
-        dilution_frac: toNum(r['dilution_frac'], 0.005),
+        // H-12: default 0.0 (alineado con la UI: parseFloat('')||0 = 0.0). Antes era
+        // 0.005, lo que en un round-trip Excel con celda vacía cambiaba Pz1-1 (0.0→0.005)
+        // en silencio, divergiendo de la validación. Default unificado por ruta de entrada.
+        dilution_frac: toNum(r['dilution_frac'], 0.0),
         pond_factor: toNum(r['pond_factor'], 0.7),
       };
     });
@@ -461,7 +467,10 @@ function parseClimate(ws: XLSX.WorkSheet, existing: DynamicConfig['climate']): D
 function parseEncalado(ws: XLSX.WorkSheet): DynamicEncaladoParams {
   const rows = sheetToRows(ws);
   const out: Record<string, unknown> = {};
-  const v3FlagKeys = new Set([
+  // H-20: los 3 flags V3 se IGNORAN al importar (el backend los fuerza a los
+  // valores validados). Si un Excel viejo los trae como filas, se descartan para
+  // no engañar con una configurabilidad inexistente. Ver H-03.
+  const v3FlagKeysIgnored = new Set([
     'use_filtrate_as_aqsol2_base',
     'use_fn_input_subtraction',
     'include_cake_wash_in_output',
@@ -469,8 +478,9 @@ function parseEncalado(ws: XLSX.WorkSheet): DynamicEncaladoParams {
   rows.forEach((r) => {
     const key = String(r['parametro'] ?? r['Parametro'] ?? '').trim();
     if (!key) return;
+    if (v3FlagKeysIgnored.has(key)) return;  // H-20: forzados server-side, se ignoran
     const raw = r['valor'] ?? r['Valor'];
-    if (key === 'use_CaCl2' || v3FlagKeys.has(key)) out[key] = toBool(raw);
+    if (key === 'use_CaCl2') out[key] = toBool(raw);
     else if (key === 'use_CaCl2_threshold') out[key] = toOptNum(raw);
     else if (key === 'use_CaCl2_threshold_basis') out[key] = String(raw ?? '').trim() || 'feed_raw_so4_mg';
     else if (key === 'max_iter_fn') out[key] = Math.round(toNum(raw, 10));

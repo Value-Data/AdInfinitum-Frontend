@@ -434,6 +434,7 @@ export interface DynamicAnnualAggregates {
 
 export interface DynamicDailyState {
   day: number;
+  date?: string;
   height_m: number;
   mass_liquid_ton: number;
   density_kg_m3: number;

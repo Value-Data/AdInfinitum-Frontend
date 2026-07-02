@@ -15,6 +15,7 @@ import ResultCharts from '../components/ResultCharts';
 import ParameterSnapshot from '../components/ParameterSnapshot';
 import EncaladoResultPanel from '../components/EncaladoResultPanel';
 import PondDetailBreakdown from '../components/PondDetailBreakdown';
+import StaticReportModal from '../components/StaticReportModal';
 import GlobalBalanceTable, {
   type GlobalStreamId,
   type GlobalStreamValues,
@@ -390,6 +391,8 @@ export default function ExecutionResultsPage() {
   const [exporting, setExporting] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
   const [viewMode, setViewMode] = useState<'day' | 'average'>('average');
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportErr, setReportErr] = useState<string | null>(null);
 
   const fetchExecution = useCallback(async () => {
     if (!id) return;
@@ -767,9 +770,20 @@ export default function ExecutionResultsPage() {
                 )}
                 {t('download_excel')}
               </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => { setReportErr(null); setReportOpen(true); }}
+                disabled={reportOpen || stagesToShow.length === 0}
+                title={t('execres_generate_report')}
+              >
+                {reportOpen ? <LoadingSpinner size="sm" /> : t('execres_generate_report')}
+              </button>
             </div>
           )}
         </div>
+        {reportErr && (
+          <p className="text-sm mt-2" style={{ color: 'var(--color-danger)' }}>{reportErr}</p>
+        )}
 
         {execution.error_message && (
           <div
@@ -974,6 +988,33 @@ export default function ExecutionResultsPage() {
           {activeTab === 'parametros' && execution.parameters_snapshot && (
             <ParameterSnapshot snapshot={execution.parameters_snapshot} />
           )}
+
+          <StaticReportModal
+            open={reportOpen}
+            onClose={() => setReportOpen(false)}
+            onError={(m) => setReportErr(m)}
+            data={(() => {
+              const snap = (execution.parameters_snapshot ?? {}) as Record<string, unknown>;
+              const encCfg = snap.encalado_config as Record<string, unknown> | undefined;
+              const label = typeLabels[execution.execution_type] || execution.execution_type;
+              return {
+                projectName: label,
+                executionLabel: label,
+                executionId: execution.id,
+                generatedAt: new Date().toLocaleString(),
+                stages: stagesToShow,
+                streams: streamsForExport,
+                preconDaysYear: (snap.precon_days_year as number | undefined) ?? 365,
+                encaladoDaysYear:
+                  (snap.encalado_days_year as number | undefined) ??
+                  (encCfg?.availability_days_year as number | undefined) ??
+                  328.5,
+                postlimingDaysYear: (snap.postliming_days_year as number | undefined) ?? 365,
+                encaladoData: encaladoData ?? undefined,
+                snapshot: execution.parameters_snapshot as Record<string, unknown> | null,
+              };
+            })()}
+          />
         </>
       )}
     </div>

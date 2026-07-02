@@ -1834,7 +1834,7 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
         onToggle={() => toggle('postliming_factors')}
       >
         <FactorsSection
-          label="Postliming"
+          label="Concentración"
           factors={value.postliming.factors}
           onChange={(f) => onChange({ ...value, postliming: { ...value.postliming, factors: f } })}
         />

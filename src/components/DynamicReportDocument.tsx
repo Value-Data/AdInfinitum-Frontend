@@ -175,7 +175,10 @@ function CascadeOrPostlimingReport({
       <PondChart data={pivot} pondNames={pond_names} metric="inflow_ton" title={t('inflow_per_pond')} ylabel="t/d" />
       <PondChart data={pivot} pondNames={pond_names} metric="height_m" title={t('height_per_pond')} ylabel="m" />
       <PondChart data={pivot} pondNames={pond_names} metric="Li+_pct" title={t('li_per_pond_per_day')} ylabel="%" />
-      {default_chart_species.map((sp) => (
+      {/* Se excluye 'Li+' del loop de composición: ya se muestra arriba en su
+          propio gráfico dedicado. Antes aparecía duplicado (Li+ está en
+          default_chart_species). */}
+      {default_chart_species.filter((sp) => sp !== 'Li+').map((sp) => (
         <PondChart
           key={sp}
           data={pivot}
@@ -224,14 +227,32 @@ export default function DynamicReportDocument({
   const t = useT();
   return (
     <div
+      className="dynreport-root"
       style={{
-        width: 1000,
+        // max-content: el contenedor CRECE al ancho de la tabla más ancha, para que
+        // html2canvas no la recorte. Los bloques de texto quedan fijos en 1000 (abajo).
+        width: 'max-content',
+        minWidth: 1000,
         padding: 24,
         background: '#ffffff',
         color: 'var(--color-text)',
         fontFamily: 'var(--font-body, sans-serif)',
       }}
     >
+      {/* Tablas anchas se recortaban en el PDF. Causa: el contenedor tenía ancho
+          fijo (1000px) y los wrappers `overflow-x-auto` recortaban la tabla, así
+          html2canvas solo capturaba la porción visible. Fix:
+          1) overflow visible en los wrappers (no recortan).
+          2) el contenedor crece a max-content (no recorta bloques anchos).
+          3) SOLO los bloques que contienen una tabla toman su ancho natural (:has);
+             los bloques de texto/título siguen en 1000px para no encogerse.
+          pdfReport captura cada bloque a su ancho real y lo escala al ancho A4,
+          así la tabla entra COMPLETA (texto más pequeño si es muy ancha). */}
+      <style>{`
+        .dynreport-root .overflow-x-auto { overflow: visible !important; }
+        .dynreport-root .pdf-block { width: 1000px; }
+        .dynreport-root .pdf-block:has(.overflow-x-auto) { width: max-content; max-width: none; }
+      `}</style>
       <div className="pdf-block" style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>
           {t('dynreport_cover_title')}

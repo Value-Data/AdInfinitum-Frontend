@@ -18,6 +18,7 @@ import type {
 import { useT } from '../i18n/LanguageContext';
 import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
+import { useDayDateAxis, DayDateToggle, XAxisModeProvider } from '../utils/chartDateAxis';
 import { displayPondName } from '../utils/dynamicDisplayNames';
 import EncaladoResultPanel from './EncaladoResultPanel';
 import DecimalsSelect from './common/DecimalsSelect';
@@ -217,6 +218,13 @@ export function Tabla3({
   const [unit, setUnit] = useState<'ton' | 'pct'>(initialUnit);
   const { pond_names, main_salts, annual_salts_t_year, annual_salts_pct } = results;
   const source = unit === 'ton' ? annual_salts_t_year : annual_salts_pct;
+  // Mostrar solo las sales que precipitan (algún valor > 0 en alguna poza), igual
+  // que los gráficos — se ocultan las columnas de sales que dan cero en todas las
+  // pozas. Se usa la masa (t/año) como base de "precipita" y se aplica a ambas
+  // vistas (t/año y %w/w) para consistencia.
+  const visibleSalts = main_salts.filter((s) =>
+    pond_names.some((name) => ((annual_salts_t_year[name] || {}) as Record<string, number>)[s] > 0),
+  );
   return (
     <div>
       <div className="flex gap-2 mb-2 text-xs">
@@ -238,7 +246,7 @@ export function Tabla3({
           <thead>
             <tr>
               <th>{t('tbl_pond')}</th>
-              {main_salts.map((s) => (
+              {visibleSalts.map((s) => (
                 <th key={s}>{s}</th>
               ))}
               {unit === 'ton' && <th>{t('dynres_th_total_ty')}</th>}
@@ -251,7 +259,7 @@ export function Tabla3({
               return (
                 <tr key={name}>
                   <td className="font-medium" title={name}>{displayPondName(name)}</td>
-                  {main_salts.map((s) => (
+                  {visibleSalts.map((s) => (
                     <td key={s} className="font-mono text-xs">
                       {unit === 'ton' ? fmtSci(row[s]) : fmt(row[s], 2)}
                     </td>
@@ -350,6 +358,14 @@ function ChartsCascadePostliming({
     return Array.from(dayMap.values()).sort((a, b) => a.day - b.day);
   }, [pond_names, daily_series]);
 
+  // Toggle Días/Fechas del eje X (usa la fecha de la serie diaria).
+  const dayDates = useMemo(() => {
+    const first = pond_names.map((n) => daily_series[n]).find((s) => s && s.length);
+    return (first ?? []).map((s) => ({ day: s.day, date: (s as { date?: string }).date }));
+  }, [pond_names, daily_series]);
+  const { mode: xMode, fmtX } = useDayDateAxis(dayDates);
+  const xLabel = xMode === 'date' ? t('dynres_axis_date') : t('dynres_axis_day');
+
   const toggleSpecies = (sp: string) => {
     setSelectedSpecies((prev) =>
       prev.includes(sp) ? prev.filter((s) => s !== sp) : [...prev, sp],
@@ -362,9 +378,9 @@ function ChartsCascadePostliming({
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={pivot}>
           <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-          <XAxis dataKey="day" label={{ value: t('dynres_axis_day'), position: 'insideBottom', offset: -2 }} />
+          <XAxis dataKey="day" tickFormatter={fmtX} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
           <YAxis label={{ value: ylabel, angle: -90, position: 'insideLeft' }} />
-          <Tooltip />
+          <Tooltip labelFormatter={fmtX} />
           <Legend />
           {pond_names.map((name, i) => (
             <Line
@@ -393,9 +409,9 @@ function ChartsCascadePostliming({
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={pivot}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" label={{ value: t('dynres_axis_day'), position: 'insideBottom', offset: -2 }} />
+            <XAxis dataKey="day" tickFormatter={fmtX} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
             <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
+            <Tooltip labelFormatter={fmtX} />
             <Legend />
             {pond_names.map((name, i) => (
               <Line
@@ -453,6 +469,7 @@ function ChartSalesPerPond({
   const [selectedPond, setSelectedPond] = useState<string>(pond_names[0] || '');
   const [data, setData] = useState<Record<string, number>[]>([]);
   const [saltNames, setSaltNames] = useState<string[]>([]);
+  const [dayDates, setDayDates] = useState<{ day: number; date?: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -478,21 +495,24 @@ function ChartSalesPerPond({
         }
         const header = lines[0].split(',');
         const dayIdx = header.indexOf('day');
+        const dateIdx = header.indexOf('date');
         const saltCols = header
           .map((h, i) => ({ h, i }))
           .filter(({ h }) => h.startsWith('salt_') && h.endsWith('_ton'));
         const rows: Record<string, number>[] = [];
+        const dds: { day: number; date?: string }[] = [];
         for (let li = 1; li < lines.length; li++) {
           const cols = lines[li].split(',');
-          const row: Record<string, number> = {
-            day: dayIdx >= 0 ? parseInt(cols[dayIdx]) || li : li,
-          };
+          const dayVal = dayIdx >= 0 ? parseInt(cols[dayIdx]) || li : li;
+          const row: Record<string, number> = { day: dayVal };
           for (const { h, i } of saltCols) {
             const saltName = h.replace(/^salt_/, '').replace(/_ton$/, '');
             row[saltName] = parseFloat(cols[i]) || 0;
           }
           rows.push(row);
+          dds.push({ day: dayVal, date: dateIdx >= 0 ? cols[dateIdx] : undefined });
         }
+        setDayDates(dds);
         // Only keep salts with at least one nonzero value
         const nonzero = saltCols
           .map(({ h }) => h.replace(/^salt_/, '').replace(/_ton$/, ''))
@@ -504,6 +524,9 @@ function ChartSalesPerPond({
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPond, executionId, run_tag, stage]);
+
+  const { mode: xMode, fmtX } = useDayDateAxis(dayDates);
+  const xLabel = xMode === 'date' ? t('dynres_axis_date') : t('dynres_axis_day');
 
   return (
     <div className="card p-3 mb-4">
@@ -536,9 +559,9 @@ function ChartSalesPerPond({
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" label={{ value: t('dynres_axis_day'), position: 'insideBottom', offset: -2 }} />
+            <XAxis dataKey="day" tickFormatter={fmtX} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
+            <Tooltip labelFormatter={fmtX} />
             <Legend />
             {saltNames.map((salt, i) => (
               <Line
@@ -613,6 +636,12 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
     [results.daily_series],
   );
 
+  const dayDates = useMemo(
+    () => results.daily_series.map((r) => ({ day: r.day, date: (r as { date?: string }).date })),
+    [results.daily_series],
+  );
+  const { fmtX } = useDayDateAxis(dayDates);
+
   return (
     <div>
       {/* Li% */}
@@ -621,9 +650,9 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={liData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" />
+            <XAxis dataKey="day" tickFormatter={fmtX} />
             <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
+            <Tooltip labelFormatter={fmtX} />
             <Line type="monotone" dataKey="li_pct" name="Li%" stroke={CHART_COLORS[0]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -635,9 +664,9 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={compData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" />
+            <XAxis dataKey="day" tickFormatter={fmtX} />
             <YAxis label={{ value: '%w/w', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
+            <Tooltip labelFormatter={fmtX} />
             <Legend />
             {ENC_COMPOSITION_SPECIES.map((sp, i) => (
               <Line
@@ -660,9 +689,9 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={saltData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" />
+            <XAxis dataKey="day" tickFormatter={fmtX} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
+            <Tooltip labelFormatter={fmtX} />
             <Line type="monotone" dataKey="salt" name={t('dynres_total_salts_line')} stroke={CHART_COLORS[4]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -674,9 +703,9 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" />
+            <XAxis dataKey="day" tickFormatter={fmtX} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
+            <Tooltip labelFormatter={fmtX} />
             <Legend />
             <Line type="monotone" dataKey="lechada" name={t('dynres_lime_milk')} stroke={CHART_COLORS[0]} dot={false} />
             <Line type="monotone" dataKey="cacl2" name={t('dynres_cacl2_solution')} stroke={CHART_COLORS[1]} dot={false} />
@@ -690,9 +719,9 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={flowData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" />
+            <XAxis dataKey="day" tickFormatter={fmtX} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
+            <Tooltip labelFormatter={fmtX} />
             <Line type="monotone" dataKey="flow" name={t('dynres_flow_out_line')} stroke={CHART_COLORS[2]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -704,9 +733,9 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={ratioData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" />
+            <XAxis dataKey="day" tickFormatter={fmtX} />
             <YAxis label={{ value: 'SO4/Mg', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
+            <Tooltip labelFormatter={fmtX} />
             <Line type="monotone" dataKey="ratio" name="SO4/Mg" stroke={CHART_COLORS[3]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -799,6 +828,7 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
   ];
 
   return (
+    <XAxisModeProvider>
     <div>
       {/* Scale factor control (Section 3.5) */}
       <div
@@ -871,6 +901,11 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
       {tab === 'tabla2' && cp && <Tabla2 results={cp} />}
       {tab === 'tabla3' && cp && <Tabla3 results={cp} />}
       {tab === 'compacta' && cp && <TablaCompacta results={cp} />}
+      {tab === 'graficos' && (
+        <div className="flex justify-end mb-3">
+          <DayDateToggle labels={{ day: t('chart_view_days'), date: t('chart_view_dates') }} />
+        </div>
+      )}
       {tab === 'graficos' && cp && <ChartsCascadePostliming results={cp} executionId={executionId} />}
       {tab === 'graficos' && enc && <ChartsEncalado results={enc} />}
       {tab === 'encalado_detalle' && enc && enc.encalado_result_averaged && (
@@ -888,5 +923,6 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
       )}
       {tab === 'archivos' && <FilesTab executionId={executionId} files={files} />}
     </div>
+    </XAxisModeProvider>
   );
 }
