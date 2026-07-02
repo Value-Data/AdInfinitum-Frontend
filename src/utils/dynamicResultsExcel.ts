@@ -13,6 +13,7 @@ import type {
 } from '../types';
 import { buildEncaladoSheet } from './exportExecutionExcel';
 import { displayPondName } from './dynamicDisplayNames';
+import { formatDMY } from './chartDateAxis';
 
 function safeSheetName(name: string): string {
   const cleaned = name.replace(/[\\/?*[\]:]/g, ' ').trim();
@@ -48,18 +49,21 @@ function seriesSheet(
   metric: string,
 ): unknown[][] {
   const dayMap = new Map<number, Record<string, number>>();
+  const dayToDate = new Map<number, string>();
   for (const name of r.pond_names) {
     for (const s of r.daily_series[name] || []) {
       if (!dayMap.has(s.day)) dayMap.set(s.day, {});
-      const rec = s as unknown as Record<string, number>;
-      dayMap.get(s.day)![name] = rec[metric] ?? 0;
+      const rec = s as unknown as Record<string, unknown>;
+      dayMap.get(s.day)![name] = (rec[metric] as number) ?? 0;
+      if (!dayToDate.has(s.day) && rec.date) dayToDate.set(s.day, formatDMY(rec.date as string));
     }
   }
   const days = Array.from(dayMap.keys()).sort((a, b) => a - b);
-  const aoa: unknown[][] = [['Día', ...r.pond_names.map(displayPondName)]];
+  // Columna Fecha (dd-mm-aaaa) junto al Día para graficar por fecha.
+  const aoa: unknown[][] = [['Día', 'Fecha', ...r.pond_names.map(displayPondName)]];
   for (const d of days) {
     const row = dayMap.get(d)!;
-    aoa.push([d, ...r.pond_names.map((nm) => num(row[nm]))]);
+    aoa.push([d, dayToDate.get(d) ?? '', ...r.pond_names.map((nm) => num(row[nm]))]);
   }
   return aoa;
 }
@@ -72,7 +76,6 @@ function buildCascadeSheets(wb: XLSX.WorkBook, r: DynamicCascadeOrPostlimingResu
     { key: 'area_m2', label: 'Área m²' },
     { key: 'flow_in_t_d_avg', label: 'Flujo in t/d' },
     { key: 'flow_in_t_y', label: 'Flujo in t/y' },
-    { key: 'hold_up_delta_t', label: 'Hold Up Δ t' },
     { key: 'evap_t_y', label: 'Evap t/y' },
     { key: 'evap_mm_d_avg', label: 'Evap mm/d' },
     { key: 'flow_out_t_d_avg', label: 'Flujo out t/d' },

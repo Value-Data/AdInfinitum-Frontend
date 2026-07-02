@@ -1,7 +1,7 @@
 import React from 'react';
 import type { SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
-import { fmtNum, getDecimalsOverride } from '../utils/numberFormat';
+import { getDecimalsOverride, formatEs } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
 
 interface KPI {
@@ -18,11 +18,7 @@ interface Props {
 
 function formatNum(n: number, decimals = 2): string {
   const _ov = getDecimalsOverride();
-  if (_ov != null) return fmtNum(n, decimals);
-  if (Math.abs(n) >= 1000) {
-    return n.toLocaleString('es-CL', { maximumFractionDigits: decimals });
-  }
-  return n.toFixed(decimals);
+  return formatEs(n, _ov != null ? _ov : decimals);
 }
 
 const iconClass = 'h-5 w-5';

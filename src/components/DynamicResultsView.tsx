@@ -19,11 +19,15 @@ import { useT } from '../i18n/LanguageContext';
 import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
 import { useDayDateAxis, DayDateToggle, XAxisModeProvider } from '../utils/chartDateAxis';
+
+// Ticks del eje Y con coma decimal (preserva los ticks "lindos" de recharts).
+const fmtAxisEs = (v: number | string): string =>
+  typeof v === 'number' ? String(v).replace('.', ',') : String(v);
 import { displayPondName } from '../utils/dynamicDisplayNames';
 import EncaladoResultPanel from './EncaladoResultPanel';
 import DecimalsSelect from './common/DecimalsSelect';
 import { downloadDynamicResultsExcel } from '../utils/dynamicResultsExcel';
-import { getDecimalsOverride } from '../utils/numberFormat';
+import { getDecimalsOverride, formatEs } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
 
 const CHART_COLORS = [
@@ -43,14 +47,14 @@ function fmt(n: number | undefined | null, digits = 2): string {
   if (n == null || !Number.isFinite(n)) return '—';
   const ov = getDecimalsOverride();
   const d = ov == null ? digits : ov;
-  if (Math.abs(n) >= 1000)
-    return n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
-  return n.toFixed(d);
+  return formatEs(n, d);
 }
 
 function fmtSci(n: number | undefined | null): string {
   if (n == null || !Number.isFinite(n)) return '—';
-  if (getDecimalsOverride() == null && Math.abs(n) < 1e-4 && n !== 0) return n.toExponential(3);
+  // Notación científica solo para valores diminutos; coma en la mantisa.
+  if (getDecimalsOverride() == null && Math.abs(n) < 1e-4 && n !== 0)
+    return n.toExponential(3).replace('.', ',');
   return fmt(n, 4);
 }
 
@@ -101,7 +105,6 @@ export function Tabla1({ results }: { results: DynamicCascadeOrPostlimingResults
             <th>{t('dynres_th_area')}</th>
             <th>{t('dynres_th_flow_in_td')}</th>
             <th>{t('dynres_th_flow_in_ty')}</th>
-            <th>{t('dynres_th_holdup')}</th>
             <th>{t('dynres_th_evap_ty')}</th>
             <th>{t('dynres_th_evap_mmd')}</th>
             <th>{t('dynres_th_flow_out_td')}</th>
@@ -123,7 +126,6 @@ export function Tabla1({ results }: { results: DynamicCascadeOrPostlimingResults
                 <td className="font-mono text-sm">{fmt(a.area_m2, 0)}</td>
                 <td className="font-mono text-sm">{fmt(a.flow_in_t_d_avg)}</td>
                 <td className="font-mono text-sm">{fmt(a.flow_in_t_y, 0)}</td>
-                <td className="font-mono text-sm">{fmt(a.hold_up_delta_t)}</td>
                 <td className="font-mono text-sm">{fmt(a.evap_t_y, 0)}</td>
                 <td className="font-mono text-sm">{fmt(a.evap_mm_d_avg, 3)}</td>
                 <td className="font-mono text-sm">{fmt(a.flow_out_t_d_avg)}</td>
@@ -379,8 +381,8 @@ function ChartsCascadePostliming({
         <LineChart data={pivot}>
           <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
           <XAxis dataKey="day" tickFormatter={fmtX} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
-          <YAxis label={{ value: ylabel, angle: -90, position: 'insideLeft' }} />
-          <Tooltip labelFormatter={fmtX} />
+          <YAxis label={{ value: ylabel, angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
+          <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
           <Legend />
           {pond_names.map((name, i) => (
             <Line
@@ -410,8 +412,8 @@ function ChartsCascadePostliming({
           <LineChart data={pivot}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" tickFormatter={fmtX} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
-            <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} />
-            <Tooltip labelFormatter={fmtX} />
+            <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
+            <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
             {pond_names.map((name, i) => (
               <Line
@@ -565,8 +567,8 @@ function ChartSalesPerPond({
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" tickFormatter={fmtX} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
-            <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
-            <Tooltip labelFormatter={fmtX} />
+            <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
+            <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
             {saltNames.map((salt, i) => (
               <Line
@@ -656,8 +658,8 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
           <LineChart data={liData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" tickFormatter={fmtX} />
-            <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} />
-            <Tooltip labelFormatter={fmtX} />
+            <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
+            <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="li_pct" name="Li%" stroke={CHART_COLORS[0]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -670,8 +672,8 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
           <LineChart data={compData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" tickFormatter={fmtX} />
-            <YAxis label={{ value: '%w/w', angle: -90, position: 'insideLeft' }} />
-            <Tooltip labelFormatter={fmtX} />
+            <YAxis label={{ value: '%w/w', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
+            <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
             {ENC_COMPOSITION_SPECIES.map((sp, i) => (
               <Line
@@ -695,8 +697,8 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
           <LineChart data={saltData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" tickFormatter={fmtX} />
-            <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
-            <Tooltip labelFormatter={fmtX} />
+            <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
+            <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="salt" name={t('dynres_total_salts_line')} stroke={CHART_COLORS[4]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -709,8 +711,8 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" tickFormatter={fmtX} />
-            <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
-            <Tooltip labelFormatter={fmtX} />
+            <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
+            <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
             <Line type="monotone" dataKey="lechada" name={t('dynres_lime_milk')} stroke={CHART_COLORS[0]} dot={false} />
             <Line type="monotone" dataKey="cacl2" name={t('dynres_cacl2_solution')} stroke={CHART_COLORS[1]} dot={false} />
@@ -725,8 +727,8 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
           <LineChart data={flowData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" tickFormatter={fmtX} />
-            <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} />
-            <Tooltip labelFormatter={fmtX} />
+            <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
+            <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="flow" name={t('dynres_flow_out_line')} stroke={CHART_COLORS[2]} dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -739,8 +741,8 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
           <LineChart data={ratioData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
             <XAxis dataKey="day" tickFormatter={fmtX} />
-            <YAxis label={{ value: 'SO4/Mg', angle: -90, position: 'insideLeft' }} />
-            <Tooltip labelFormatter={fmtX} />
+            <YAxis label={{ value: 'SO4/Mg', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
+            <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="ratio" name="SO4/Mg" stroke={CHART_COLORS[3]} dot={false} />
           </LineChart>
         </ResponsiveContainer>

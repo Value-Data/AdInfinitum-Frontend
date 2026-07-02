@@ -38,8 +38,23 @@ export function setDecimalsOverride(v: number | null): void {
  * (in which case the override wins). Returns '' for null/NaN so callers can
  * apply their own fallback (e.g. `fmtNum(x, 2) || '-'`).
  */
+/**
+ * Formatea un número con convención española: coma decimal y punto de miles.
+ * Determinista (no depende de Intl/ICU) para que sea testeable y consistente.
+ * Ej: formatEs(1234.5, 2) => "1.234,50" ; formatEs(-0.5, 3) => "-0,500".
+ */
+export function formatEs(value: number, decimals: number): string {
+  const fixed = Math.abs(value).toFixed(decimals);
+  const dot = fixed.indexOf('.');
+  const intPart = dot === -1 ? fixed : fixed.slice(0, dot);
+  const decPart = dot === -1 ? '' : fixed.slice(dot + 1);
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const sign = value < 0 && Number(fixed) !== 0 ? '-' : '';
+  return sign + grouped + (decPart ? ',' + decPart : '');
+}
+
 export function fmtNum(value: number | null | undefined, defaultDecimals = 2): string {
   if (value == null || !Number.isFinite(value)) return '';
   const d = _override == null ? defaultDecimals : _override;
-  return (value as number).toFixed(d);
+  return formatEs(value as number, d);
 }

@@ -14,6 +14,11 @@ import {
 } from 'recharts';
 import type { SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import { formatEs } from '../utils/numberFormat';
+
+// Ticks del eje Y con coma decimal (preserva los ticks "lindos" de recharts).
+const fmtAxisEs = (v: number | string): string =>
+  typeof v === 'number' ? String(v).replace('.', ',') : String(v);
 
 interface Props {
   stageLabel: string;
@@ -209,6 +214,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
                 <YAxis
                   yAxisId="li"
                   tick={{ fontSize: 10 }}
+                  tickFormatter={fmtAxisEs}
                   label={{
                     value: 'Li+',
                     angle: -90,
@@ -220,6 +226,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
                   yAxisId="other"
                   orientation="right"
                   tick={{ fontSize: 10 }}
+                  tickFormatter={fmtAxisEs}
                   label={{
                     value: sp.name,
                     angle: 90,
@@ -284,6 +291,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
                 unit={concentrationView === 'abs' ? ' ton/d' : ' %'}
                 domain={['auto', 'auto']}
                 tick={{ fontSize: 10 }}
+                tickFormatter={fmtAxisEs}
                 label={{
                   value: `Li+ (${concUnit})`,
                   angle: -90,
@@ -294,7 +302,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
               <Tooltip
                 cursor={{ strokeDasharray: '3 3' }}
                 formatter={(value: number | string, _name, item) => {
-                  const v = typeof value === 'number' ? value.toFixed(4) : value;
+                  const v = typeof value === 'number' ? formatEs(value, 4) : value;
                   if (item?.dataKey === 'density') return [`${v} kg/m³`, t('charts_density')];
                   if (item?.dataKey === 'Li+')
                     return [`${v} ${concentrationView === 'abs' ? 'ton/d' : '%'}`, 'Li+'];
@@ -331,8 +339,8 @@ export default function ResultCharts({ stageLabel, result }: Props) {
             <LineChart data={flowData} style={chartStyle}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+              <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickFormatter={fmtAxisEs} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={fmtAxisEs} />
               <Tooltip />
               <Legend />
               <Line yAxisId="left" type="monotone" dataKey="Flujo salida" name={t('charts_outlet_flow')} stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
@@ -350,7 +358,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
             <LineChart data={densityData} style={chartStyle}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
+              <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} tickFormatter={fmtAxisEs} />
               <Tooltip />
               <Legend />
               <Line type="monotone" dataKey="Densidad" name={t('charts_density')} stroke="var(--color-danger)" strokeWidth={2} dot={{ r: 3 }} />
@@ -367,7 +375,7 @@ export default function ResultCharts({ stageLabel, result }: Props) {
             <LineChart data={saltData} style={chartStyle}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={fmtAxisEs} />
               <Tooltip />
               <Legend />
               <Line type="monotone" dataKey="Sales precipitadas" name={t('charts_precipitated_salts')} stroke="#0891b2" strokeWidth={2} dot={{ r: 3 }} />
@@ -385,10 +393,10 @@ export default function ResultCharts({ stageLabel, result }: Props) {
               <LineChart data={saltEvolutionData} style={chartStyle}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={fmtAxisEs} />
                 <Tooltip
                   formatter={(value: number | string) =>
-                    typeof value === 'number' ? value.toFixed(4) : value
+                    typeof value === 'number' ? formatEs(value, 4) : value
                   }
                 />
                 <Legend wrapperStyle={{ fontSize: 10 }} />

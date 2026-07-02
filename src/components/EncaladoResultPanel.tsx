@@ -1,7 +1,7 @@
 import React from 'react';
 import SulfateRemovalTable, { type StreamId, type StreamValues } from './SulfateRemovalTable';
 import { useT } from '../i18n/LanguageContext';
-import { fmtNum, getDecimalsOverride } from '../utils/numberFormat';
+import { fmtNum, getDecimalsOverride, formatEs } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
 
 interface EncaladoData {
@@ -26,8 +26,7 @@ function fmt(v: unknown, dec = 2): string {
   const n = Number(v);
   if (isNaN(n)) return '-';
   const _ov = getDecimalsOverride();
-  if (_ov != null) return n.toFixed(_ov);
-  return n.toLocaleString('es-CL', { maximumFractionDigits: dec, minimumFractionDigits: dec });
+  return formatEs(n, _ov != null ? _ov : dec);
 }
 
 function fmtCompact(v: unknown, dec = 4): string {
@@ -35,10 +34,10 @@ function fmtCompact(v: unknown, dec = 4): string {
   const n = Number(v);
   if (isNaN(n)) return '-';
   const _ov = getDecimalsOverride();
-  if (_ov != null) return n.toFixed(_ov);
+  if (_ov != null) return formatEs(n, _ov);
   if (n === 0) return '0';
-  if (Math.abs(n) < 1e-4) return n.toExponential(3);
-  return n.toFixed(dec);
+  if (Math.abs(n) < 1e-4) return n.toExponential(3).replace('.', ',');
+  return formatEs(n, dec);
 }
 
 function isNumericDict(v: unknown): v is Record<string, number> {

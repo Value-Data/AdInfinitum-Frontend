@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useT } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
-import { getDecimalsOverride } from '../utils/numberFormat';
+import { getDecimalsOverride, formatEs } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
 
 export type StreamId =
@@ -137,13 +137,10 @@ function resolveStreams(
 function formatNum(v: number | undefined, digits = 2): string {
   if (v === undefined || v === null || Number.isNaN(v)) return '';
   const _ov = getDecimalsOverride();
-  if (_ov != null) return v.toFixed(_ov);
+  if (_ov != null) return formatEs(v, _ov);
   if (v === 0) return '0';
-  if (Math.abs(v) >= 1000) {
-    return v.toLocaleString('es-CL', { maximumFractionDigits: digits, minimumFractionDigits: digits });
-  }
-  if (Math.abs(v) < 1e-3 && digits > 2) return v.toExponential(3);
-  return v.toFixed(digits);
+  if (Math.abs(v) < 1e-3 && digits > 2) return v.toExponential(3).replace('.', ',');
+  return formatEs(v, digits);
 }
 
 interface RowConfig {
