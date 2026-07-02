@@ -232,7 +232,7 @@ export const TRANSLATIONS = {
   applied: { es: 'Aplicado', en: 'Applied' },
 
   // ===== i18n migration: auth / nav / common =====
-  login_subtitle: { es: 'Simulador de Evaporación de Litio por Salmueras', en: 'Lithium Brine Evaporation Simulator' },
+  login_subtitle: { es: 'Simulador de Evaporación de Salmueras', en: 'Brine Evaporation Simulator' },
   login_error_required: { es: 'Ingrese usuario y contrasena', en: 'Enter username and password' },
   login_error_invalid: { es: 'Credenciales invalidas. Intente nuevamente.', en: 'Invalid credentials. Please try again.' },
   login_username: { es: 'Usuario', en: 'Username' },
