@@ -3,6 +3,7 @@ import type { PondResult, SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
 import { getDecimalsOverride, formatEs } from '../utils/numberFormat';
+import { boronFrom } from '../utils/boron';
 import { useDecimals } from '../context/DecimalsContext';
 
 interface Props {
@@ -249,13 +250,17 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
             ? t('ponddetail_transfer_caption_abs')
             : t('ponddetail_transfer_caption_pct')
         }
-        rowLabels={SPECIES}
+        rowLabels={[...SPECIES, 'B']}
         headerLabel={t('comp_species')}
         ponds={ponds}
         titleRight={liquidToggle}
         valueDigits={liquidView === 'pct' ? 3 : 5}
         getValue={(label, p) => {
-          const value = p.aqsol_result?.eq_liquid?.[label] ?? 0;
+          // B (Boro) derivado de H3BO3 + B4O7-- + BO2-; el resto, directo de eq_liquid.
+          const value =
+            label === 'B'
+              ? boronFrom(p.aqsol_result?.eq_liquid)
+              : p.aqsol_result?.eq_liquid?.[label] ?? 0;
           if (liquidView === 'abs') return value;
           const idx = ponds.indexOf(p);
           const total = liquidTotalsByPond[idx];

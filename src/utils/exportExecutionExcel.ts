@@ -7,6 +7,7 @@
    ============================================================ */
 
 import * as XLSX from 'xlsx';
+import { boronFrom } from './boron';
 import type {
   ExecutionResult,
   PondResult,
@@ -362,6 +363,11 @@ function buildPondDetailSheet(s: StageData): unknown[][] {
       }),
     ]);
   }
+  // Boro (B) derivado de H3BO3 + B4O7-- + BO2-.
+  aoa.push([
+    'B',
+    ...ponds.map((p) => num(boronFrom((aq(p).eq_liquid as Record<string, number>) || {}))),
+  ]);
   aoa.push([]);
 
   // Section 3: Precipitated salts (absolute + %w/w)
@@ -499,6 +505,8 @@ export function buildEncaladoSheet(enc: Record<string, unknown>): unknown[][] {
       }),
     ]);
   }
+  // Boro (B) derivado de H3BO3 + B4O7-- + BO2-.
+  aoa.push(['B', ...compCols.map((c) => boronFrom(c.data as Record<string, number> | undefined))]);
   aoa.push([]);
 
   // Thermodynamic properties
