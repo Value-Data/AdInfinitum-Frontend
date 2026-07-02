@@ -678,6 +678,10 @@ export const TRANSLATIONS = {
   dynres_th_total_ty: { es: 'Total t/y', en: 'Total t/y' },
   dynres_th_outflow_td: { es: 'Flujo salida t/d', en: 'Outflow t/d' },
   dynres_axis_day: { es: 'Día', en: 'Day' },
+  dynres_files_not_local: {
+    es: 'Los archivos de salida de esta ejecución no están disponibles en este backend (se generaron en otra máquina o corrida). El registro sí está en la base de datos.',
+    en: 'The output files for this execution are not available on this backend (generated on another machine or run). The record is still in the database.',
+  },
   dynres_axis_date: { es: 'Fecha', en: 'Date' },
   chart_view_days: { es: 'Días', en: 'Days' },
   chart_view_dates: { es: 'Fechas', en: 'Dates' },

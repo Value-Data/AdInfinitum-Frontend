@@ -520,7 +520,12 @@ function ChartSalesPerPond({
         setSaltNames(nonzero);
         setData(rows);
       })
-      .catch((e) => setErr(String(e)))
+      .catch((e) => {
+        // 404 = los CSV por-poza de esta ejecución no están en este backend
+        // (la DB de ejecuciones es compartida, pero los archivos son por-máquina).
+        const status = (e as { response?: { status?: number } })?.response?.status;
+        setErr(status === 404 ? t('dynres_files_not_local') : String(e));
+      })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPond, executionId, run_tag, stage]);
