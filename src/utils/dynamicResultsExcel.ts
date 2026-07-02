@@ -14,6 +14,7 @@ import type {
 import { buildEncaladoSheet } from './exportExecutionExcel';
 import { displayPondName } from './dynamicDisplayNames';
 import { formatDMY } from './chartDateAxis';
+import { boronFrom } from './boron';
 
 function safeSheetName(name: string): string {
   const cleaned = name.replace(/[\\/?*[\]:]/g, ' ').trim();
@@ -95,16 +96,24 @@ function buildCascadeSheets(wb: XLSX.WorkBook, r: DynamicCascadeOrPostlimingResu
   addSheet(wb, 'Balance anual', bal);
 
   // --- Compositions & salts (tables) ---
-  const compTable = (src: Record<string, Record<string, number>>, cols: string[]): unknown[][] => {
-    const aoa: unknown[][] = [['Poza', ...cols]];
+  const compTable = (
+    src: Record<string, Record<string, number>>,
+    cols: string[],
+    addBoron = false,
+  ): unknown[][] => {
+    const header = ['Poza', ...cols];
+    if (addBoron) header.push('B');
+    const aoa: unknown[][] = [header];
     for (const name of r.pond_names) {
       const row = src[name] || {};
-      aoa.push([displayPondName(name), ...cols.map((c) => num(row[c]))]);
+      const vals: unknown[] = cols.map((c) => num(row[c]));
+      if (addBoron) vals.push(num(boronFrom(row)));
+      aoa.push([displayPondName(name), ...vals]);
     }
     return aoa;
   };
-  addSheet(wb, 'Composición %w_w', compTable(r.annual_composition_pct, r.table_species));
-  addSheet(wb, 'Composición t año', compTable(r.annual_species_t_year, r.table_species));
+  addSheet(wb, 'Composición %w_w', compTable(r.annual_composition_pct, r.table_species, true));
+  addSheet(wb, 'Composición t año', compTable(r.annual_species_t_year, r.table_species, true));
   addSheet(wb, 'Sales t año', compTable(r.annual_salts_t_year, r.main_salts));
   addSheet(wb, 'Sales %w_w', compTable(r.annual_salts_pct, r.main_salts));
 

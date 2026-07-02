@@ -18,6 +18,7 @@ import type {
 import { useT } from '../i18n/LanguageContext';
 import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
+import { boronFrom } from '../utils/boron';
 import { useDayDateAxis, DayDateToggle, XAxisModeProvider } from '../utils/chartDateAxis';
 
 // Ticks del eje Y con coma decimal (preserva los ticks "lindos" de recharts).
@@ -183,6 +184,7 @@ export function Tabla2({
               {table_species.map((sp) => (
                 <th key={sp}>{sp}</th>
               ))}
+              <th title="Boro derivado de H3BO3 + B4O7-- + BO2-">B</th>
             </tr>
           </thead>
           <tbody>
@@ -196,6 +198,9 @@ export function Tabla2({
                       {unit === 'pct' ? fmt(row[sp], 4) : fmtSci(row[sp])}
                     </td>
                   ))}
+                  <td className="font-mono text-xs">
+                    {unit === 'pct' ? fmt(boronFrom(row), 4) : fmtSci(boronFrom(row))}
+                  </td>
                 </tr>
               );
             })}

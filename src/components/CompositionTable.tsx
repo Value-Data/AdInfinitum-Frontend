@@ -1,6 +1,7 @@
 import React from 'react';
 import type { SolverResult } from '../types';
 import { MAIN_SPECIES } from '../types';
+import { boronFrom } from '../utils/boron';
 import { useT } from '../i18n/LanguageContext';
 import { fmtNum } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
@@ -65,6 +66,29 @@ export default function CompositionTable({ stageLabel, result }: Props) {
                 })}
               </tr>
             ))}
+            {/* Boro derivado (H3BO3 + B4O7-- + BO2-) */}
+            <tr>
+              <td
+                className="font-medium sticky left-0"
+                style={{ backgroundColor: 'var(--color-surface)' }}
+                title="Boro derivado de H3BO3 + B4O7-- + BO2-"
+              >
+                B
+              </td>
+              {ponds.map((p, i) => {
+                const eqLiquid = p.aqsol_result?.eq_liquid;
+                const total = eqLiquid
+                  ? Object.values(eqLiquid).reduce((s, v) => s + (v || 0), 0)
+                  : 0;
+                const mass = boronFrom(eqLiquid);
+                const ww = total > 0 ? (mass / total) * 100 : 0;
+                return (
+                  <td key={i} className="font-mono text-xs">
+                    {fmtNum(mass, 4)} | {fmtNum(ww, 2)}%
+                  </td>
+                );
+              })}
+            </tr>
           </tbody>
         </table>
       </div>
