@@ -28,12 +28,21 @@ function triggerDownload(blob: Blob, filename: string): void {
 type Html2Canvas = (typeof import('html2canvas'))['default'];
 
 async function elementToPngBlob(html2canvas: Html2Canvas, el: HTMLElement): Promise<Blob | null> {
+  // El clon de html2canvas debe layoutearse con las dimensiones REALES de la página
+  // (no del elemento), si no el ResponsiveContainer de recharts se re-mide más angosto
+  // y el gráfico sale recortado (no llega al último día). Capturamos el elemento
+  // completo (scrollWidth/Height) respetando el scroll actual de la página.
   const canvas = await html2canvas(el, {
     scale: 2,
     backgroundColor: '#ffffff',
     useCORS: true,
     logging: false,
-    windowWidth: el.scrollWidth,
+    scrollX: -window.scrollX,
+    scrollY: -window.scrollY,
+    width: el.scrollWidth,
+    height: el.scrollHeight,
+    windowWidth: document.documentElement.offsetWidth,
+    windowHeight: document.documentElement.offsetHeight,
   });
   return await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
 }
