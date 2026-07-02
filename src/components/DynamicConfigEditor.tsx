@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n/LanguageContext';
+import { formatEs } from '../utils/numberFormat';
 import type { TranslationKey } from '../i18n/translations';
 import type {
   DosificacionConfig,
@@ -1369,10 +1370,10 @@ function ClimateSection({
             <>
               {' · '}
               {t('dyncfg_averages')}: evap{' '}
-              <span className="font-mono">{avgEvap.toFixed(3)}</span> mm/d (min{' '}
-              {minEvap.toFixed(3)}, max {maxEvap.toFixed(3)}) · temp{' '}
-              <span className="font-mono">{avgTemp.toFixed(2)}</span> °C (min{' '}
-              {minTemp.toFixed(2)}, max {maxTemp.toFixed(2)})
+              <span className="font-mono">{formatEs(avgEvap, 3)}</span> mm/d (min{' '}
+              {formatEs(minEvap, 3)}, max {formatEs(maxEvap, 3)}) · temp{' '}
+              <span className="font-mono">{formatEs(avgTemp, 2)}</span> °C (min{' '}
+              {formatEs(minTemp, 2)}, max {formatEs(maxTemp, 2)})
             </>
           )}
         </div>

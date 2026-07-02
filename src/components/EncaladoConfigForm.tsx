@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { EncaladoConfig } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import { formatEs } from '../utils/numberFormat';
 import type { TranslationKey } from '../i18n/translations';
 import Tip from './common/Tip';
 
@@ -165,7 +166,7 @@ export default function EncaladoConfigForm({ value, onChange, readOnly = false }
                     )
                   ) : readOnly ? (
                     <span className="font-mono text-sm">
-                      {(value[field.key] as number).toFixed(4)}
+                      {formatEs(value[field.key] as number, 4)}
                     </span>
                   ) : (
                     <input

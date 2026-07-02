@@ -1,6 +1,7 @@
 import React from 'react';
 import { BRINE_SPECIES_ORDER } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import { formatEs } from '../utils/numberFormat';
 import Tip from './common/Tip';
 
 interface Props {
@@ -34,7 +35,7 @@ export default function BrineEditor({ value, onChange, readOnly = false }: Props
               <td>
                 {readOnly ? (
                   <span className="font-mono text-sm">
-                    {(value[species] ?? 0).toFixed(6)}
+                    {formatEs(value[species] ?? 0, 6)}
                   </span>
                 ) : (
                   <input

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PondConfig } from '../types';
 import { useT } from '../i18n/LanguageContext';
+import { formatEs } from '../utils/numberFormat';
 import Tip from './common/Tip';
 
 interface Props {
@@ -84,7 +85,7 @@ export default function PondEditor({ value, onChange, readOnly = false, label }:
                 </td>
                 <td>
                   {readOnly ? (
-                    <span className="font-mono text-sm">{pond.area_design_m2.toLocaleString()}</span>
+                    <span className="font-mono text-sm">{formatEs(pond.area_design_m2, 0)}</span>
                   ) : (
                     <input
                       type="number"

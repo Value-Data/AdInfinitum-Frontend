@@ -778,7 +778,7 @@ function FilesTab({ executionId, files }: { executionId: string; files: Executio
         {files.map((f) => (
           <tr key={f.name}>
             <td className="font-mono text-xs">{f.name}</td>
-            <td className="font-mono text-xs">{(f.size_bytes / 1024).toFixed(1)} KB</td>
+            <td className="font-mono text-xs">{formatEs(f.size_bytes / 1024, 1)} KB</td>
             <td>
               <button className="btn btn-outline btn-sm" onClick={() => handleDownload(f.name)}>
                 {t('download')}
