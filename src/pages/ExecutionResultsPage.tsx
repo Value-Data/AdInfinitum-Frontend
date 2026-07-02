@@ -16,7 +16,7 @@ import ParameterSnapshot from '../components/ParameterSnapshot';
 import EncaladoResultPanel from '../components/EncaladoResultPanel';
 import PondDetailBreakdown from '../components/PondDetailBreakdown';
 import StaticReportModal from '../components/StaticReportModal';
-import { downloadChartsPng } from '../utils/downloadCharts';
+import { downloadChartsZip } from '../utils/downloadCharts';
 import GlobalBalanceTable, {
   type GlobalStreamId,
   type GlobalStreamValues,
@@ -977,7 +977,7 @@ export default function ExecutionResultsPage() {
                 <button
                   className="btn btn-outline btn-sm"
                   onClick={() =>
-                    downloadChartsPng(staticChartsRef.current, `graficos_${execution.execution_type}`)
+                    downloadChartsZip(staticChartsRef.current, `graficos_${execution.execution_type}`)
                   }
                 >
                   {t('download_charts')}

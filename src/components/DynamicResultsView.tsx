@@ -19,7 +19,7 @@ import { useT } from '../i18n/LanguageContext';
 import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
 import { boronFrom } from '../utils/boron';
-import { downloadChartsPng } from '../utils/downloadCharts';
+import { downloadChartsZip } from '../utils/downloadCharts';
 import { useDayDateAxis, DayDateToggle, XAxisModeProvider } from '../utils/chartDateAxis';
 
 // Ticks del eje Y con coma decimal (preserva los ticks "lindos" de recharts).
@@ -922,7 +922,7 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
             <button
               className="btn btn-outline btn-sm"
               onClick={() =>
-                downloadChartsPng(
+                downloadChartsZip(
                   chartsRef.current,
                   `graficos_${(results as { run_tag?: string }).run_tag ?? 'run'}`,
                 )
