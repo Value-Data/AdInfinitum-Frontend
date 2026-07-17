@@ -303,6 +303,7 @@ export function TablaCompacta({ results }: { results: DynamicCascadeOrPostliming
             {COMPACT_SPECIES.map((sp) => (
               <th key={sp}>{sp}</th>
             ))}
+            <th title="Boro derivado de H3BO3 + B4O7-- + BO2-">B</th>
           </tr>
         </thead>
         <tbody>
@@ -316,6 +317,7 @@ export function TablaCompacta({ results }: { results: DynamicCascadeOrPostliming
                 {COMPACT_SPECIES.map((sp) => (
                   <td key={sp} className="font-mono text-xs">{fmt(pcts[sp], 4)}</td>
                 ))}
+                <td className="font-mono text-xs">{fmt(boronFrom(pcts), 4)}</td>
               </tr>
             );
           })}
