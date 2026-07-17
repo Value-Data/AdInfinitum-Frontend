@@ -20,7 +20,7 @@ import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
 import { boronFrom } from '../utils/boron';
 import { downloadChartsZip } from '../utils/downloadCharts';
-import { useDayDateAxis, DayDateToggle, XAxisModeProvider } from '../utils/chartDateAxis';
+import { useDayDateAxis, DayDateToggle, DayStepSelect, XAxisModeProvider } from '../utils/chartDateAxis';
 
 // Ticks del eje Y con coma decimal (preserva los ticks "lindos" de recharts).
 const fmtAxisEs = (v: number | string): string =>
@@ -371,7 +371,7 @@ function ChartsCascadePostliming({
     const first = pond_names.map((n) => daily_series[n]).find((s) => s && s.length);
     return (first ?? []).map((s) => ({ day: s.day, date: (s as { date?: string }).date }));
   }, [pond_names, daily_series]);
-  const { mode: xMode, fmtX } = useDayDateAxis(dayDates);
+  const { mode: xMode, fmtX, xInterval } = useDayDateAxis(dayDates);
   const xLabel = xMode === 'date' ? t('dynres_axis_date') : t('dynres_axis_day');
 
   const toggleSpecies = (sp: string) => {
@@ -386,7 +386,7 @@ function ChartsCascadePostliming({
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={pivot}>
           <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-          <XAxis dataKey="day" tickFormatter={fmtX} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
+          <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
           <YAxis label={{ value: ylabel, angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
           <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
           <Legend />
@@ -417,7 +417,7 @@ function ChartsCascadePostliming({
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={pivot}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
+            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
             <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
@@ -538,7 +538,7 @@ function ChartSalesPerPond({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPond, executionId, run_tag, stage]);
 
-  const { mode: xMode, fmtX } = useDayDateAxis(dayDates);
+  const { mode: xMode, fmtX, xInterval } = useDayDateAxis(dayDates);
   const xLabel = xMode === 'date' ? t('dynres_axis_date') : t('dynres_axis_day');
 
   return (
@@ -572,7 +572,7 @@ function ChartSalesPerPond({
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
+            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
@@ -653,7 +653,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
     () => results.daily_series.map((r) => ({ day: r.day, date: (r as { date?: string }).date })),
     [results.daily_series],
   );
-  const { fmtX } = useDayDateAxis(dayDates);
+  const { fmtX, xInterval } = useDayDateAxis(dayDates);
 
   return (
     <div>
@@ -663,7 +663,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={liData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} />
+            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
             <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="li_pct" name="Li%" stroke={CHART_COLORS[0]} dot={false} />
@@ -677,7 +677,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={compData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} />
+            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
             <YAxis label={{ value: '%w/w', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
@@ -702,7 +702,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={saltData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} />
+            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="salt" name={t('dynres_total_salts_line')} stroke={CHART_COLORS[4]} dot={false} />
@@ -716,7 +716,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} />
+            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
@@ -732,7 +732,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={flowData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} />
+            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="flow" name={t('dynres_flow_out_line')} stroke={CHART_COLORS[2]} dot={false} />
@@ -746,7 +746,7 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={ratioData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} />
+            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
             <YAxis label={{ value: 'SO4/Mg', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="ratio" name="SO4/Mg" stroke={CHART_COLORS[3]} dot={false} />
@@ -918,7 +918,10 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
       {tab === 'graficos' && (
         <>
           <div className="flex justify-between items-center mb-3">
-            <DayDateToggle labels={{ day: t('chart_view_days'), date: t('chart_view_dates') }} />
+            <div className="flex gap-4 items-center">
+              <DayDateToggle labels={{ day: t('chart_view_days'), date: t('chart_view_dates') }} />
+              <DayStepSelect label={t('chart_x_step')} autoLabel={t('chart_x_step_auto')} />
+            </div>
             <button
               className="btn btn-outline btn-sm"
               onClick={() =>

@@ -686,6 +686,8 @@ export const TRANSLATIONS = {
   dynres_axis_date: { es: 'Fecha', en: 'Date' },
   chart_view_days: { es: 'Días', en: 'Days' },
   chart_view_dates: { es: 'Fechas', en: 'Dates' },
+  chart_x_step: { es: 'Separación eje X', en: 'X-axis step' },
+  chart_x_step_auto: { es: 'Auto', en: 'Auto' },
   dynres_composition_pre: { es: 'Composición', en: 'Composition' },
   dynres_composition_post: { es: 'por poza', en: 'per pond' },
   dynres_salts_nonzero: { es: 'sales con valores > 0 en esta poza)', en: 'salts with values > 0 in this pond)' },
