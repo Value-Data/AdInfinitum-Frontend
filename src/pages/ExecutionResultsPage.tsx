@@ -17,6 +17,8 @@ import EncaladoResultPanel from '../components/EncaladoResultPanel';
 import PondDetailBreakdown from '../components/PondDetailBreakdown';
 import StaticReportModal from '../components/StaticReportModal';
 import { downloadChartsZip } from '../utils/downloadCharts';
+import StaticDailyCharts from '../components/StaticDailyCharts';
+import { XAxisModeProvider, DayDateToggle, DayStepSelect } from '../utils/chartDateAxis';
 import GlobalBalanceTable, {
   type GlobalStreamId,
   type GlobalStreamValues,
@@ -972,8 +974,16 @@ export default function ExecutionResultsPage() {
           })()}
 
           {activeTab === 'graficos' && (
-            <>
-              <div className="flex justify-end mb-3">
+            <XAxisModeProvider>
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex gap-4 items-center">
+                  {isMultiDay && (
+                    <DayDateToggle labels={{ day: t('chart_view_days'), date: t('chart_view_dates') }} />
+                  )}
+                  {isMultiDay && (
+                    <DayStepSelect label={t('chart_x_step')} autoLabel={t('chart_x_step_auto')} />
+                  )}
+                </div>
                 <button
                   className="btn btn-outline btn-sm"
                   onClick={() =>
@@ -984,11 +994,18 @@ export default function ExecutionResultsPage() {
                 </button>
               </div>
               <div ref={staticChartsRef}>
+                {isMultiDay && dailyResults && (
+                  <>
+                    <h4 className="text-sm font-semibold mb-2">{t('execres_charts_by_day')}</h4>
+                    <StaticDailyCharts dailyResults={dailyResults} />
+                    <h4 className="text-sm font-semibold mb-2 mt-4">{t('execres_charts_by_pond')}</h4>
+                  </>
+                )}
                 {renderStageResults((label, result) => (
                   <ResultCharts stageLabel={label} result={result} />
                 ))}
               </div>
-            </>
+            </XAxisModeProvider>
           )}
 
           {activeTab === 'encalado' && encaladoData && (
