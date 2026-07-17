@@ -703,6 +703,7 @@ function DynamicResultPanel({
   const t = useT();
   const [results, setResults] = useState<DynamicResults | null>(null);
   const [files, setFiles] = useState<ExecutionFile[]>([]);
+  const [snapshot, setSnapshot] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [execStatus, setExecStatus] = useState<string>('');
@@ -723,6 +724,7 @@ function DynamicResultPanel({
         if (!alive) return;
         setExecStatus(exec.status);
         setResults((exec.results as unknown as DynamicResults | null) || null);
+        setSnapshot((exec.parameters_snapshot as Record<string, unknown> | null) || null);
         setFiles(fs);
         // If execution still running/pending OR results not yet populated, retry in 2s.
         if (
@@ -780,7 +782,7 @@ function DynamicResultPanel({
           </p>
         </div>
       ) : (
-        <DynamicResultsView executionId={executionId} results={results} files={files} />
+        <DynamicResultsView executionId={executionId} results={results} files={files} snapshot={snapshot} />
       )}
     </div>
   );

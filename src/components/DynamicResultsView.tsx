@@ -41,7 +41,68 @@ type Props = {
   executionId: string;
   results: DynamicResults;
   files: ExecutionFile[];
+  snapshot?: Record<string, unknown> | null;
 };
+
+// Orden de especies para la tabla de salmuera de pozo (ingreso).
+const WELL_BRINE_SPECIES = [
+  'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'H+', 'Cl-', 'HSO4-',
+  'SO4--', 'OH-', 'CO2(aq)', 'HCO3-', 'CO3--', 'H3BO3', 'B4O7--', 'BO2-',
+];
+
+/**
+ * Tabla "Masa ingreso salmuera de pozo": composición del feed inicial (brine del
+ * snapshot) normalizada a %w/w y escalada al flujo de ingreso (average_flow_ton_day).
+ */
+function WellBrineFeedTable({ snapshot }: { snapshot?: Record<string, unknown> | null }) {
+  const t = useT();
+  const brine = (snapshot?.brine as Record<string, number> | undefined) || undefined;
+  const flow =
+    ((snapshot?.precon as Record<string, unknown> | undefined)?.average_flow_ton_day as number) ??
+    ((snapshot?.simulation as Record<string, unknown> | undefined)?.average_flow_ton_day as number);
+  if (!brine || !flow) return null;
+  const total = Object.values(brine).reduce((s, v) => s + (Number(v) || 0), 0);
+  if (total <= 0) return null;
+  const species = [
+    ...WELL_BRINE_SPECIES.filter((s) => s in brine),
+    ...Object.keys(brine).filter((s) => !WELL_BRINE_SPECIES.includes(s)),
+  ];
+  return (
+    <div className="card p-3 mb-4">
+      <h4 className="text-sm font-semibold mb-2">
+        {t('dynres_well_brine_feed')}: <span className="font-mono">{fmt(flow, 0)}</span> t/d
+      </h4>
+      <div className="overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>{t('comp_species')}</th>
+              <th>%w/w</th>
+              <th>t/d</th>
+            </tr>
+          </thead>
+          <tbody>
+            {species.map((sp) => {
+              const frac = (Number(brine[sp]) || 0) / total;
+              return (
+                <tr key={sp}>
+                  <td className="font-medium">{sp}</td>
+                  <td className="font-mono text-xs">{fmt(frac * 100, 2)}</td>
+                  <td className="font-mono text-xs">{fmt(frac * flow, 0)}</td>
+                </tr>
+              );
+            })}
+            <tr className="font-semibold">
+              <td>Total</td>
+              <td className="font-mono text-xs">{fmt(100, 2)}</td>
+              <td className="font-mono text-xs">{fmt(flow, 0)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 type ResultTabKey = 'kpis' | 'tabla1' | 'tabla2' | 'tabla3' | 'compacta' | 'graficos' | 'encalado_detalle' | 'archivos';
 
@@ -803,7 +864,7 @@ function FilesTab({ executionId, files }: { executionId: string; files: Executio
 // ============================================================
 // Main view with tabs
 // ============================================================
-export default function DynamicResultsView({ executionId, results, files }: Props) {
+export default function DynamicResultsView({ executionId, results, files, snapshot }: Props) {
   const t = useT();
   useDecimals(); // subscribe so tables re-render when the global decimals change
   const [tab, setTab] = useState<ResultTabKey>('kpis');
@@ -914,7 +975,12 @@ export default function DynamicResultsView({ executionId, results, files }: Prop
       </div>
 
       {tab === 'kpis' && <KpiCards results={results} />}
-      {tab === 'tabla1' && cp && <Tabla1 results={cp} />}
+      {tab === 'tabla1' && cp && (
+        <>
+          <WellBrineFeedTable snapshot={snapshot} />
+          <Tabla1 results={cp} />
+        </>
+      )}
       {tab === 'tabla2' && cp && <Tabla2 results={cp} />}
       {tab === 'tabla3' && cp && <Tabla3 results={cp} />}
       {tab === 'compacta' && cp && <TablaCompacta results={cp} />}
