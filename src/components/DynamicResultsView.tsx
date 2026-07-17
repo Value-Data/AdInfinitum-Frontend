@@ -347,7 +347,8 @@ function ChartsCascadePostliming({
 }) {
   const t = useT();
   const { pond_names, daily_series, default_chart_species } = results;
-  const [selectedSpecies, setSelectedSpecies] = useState<string[]>(default_chart_species);
+  // Por default, todas las especies/iones seleccionadas para ver todos los gráficos.
+  const [selectedSpecies, setSelectedSpecies] = useState<string[]>(ALL_CHART_SPECIES);
 
   // Pivot daily_series to wide: rows = days, cols = pond names
   const pivot = useMemo(() => {
