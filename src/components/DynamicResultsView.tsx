@@ -56,10 +56,13 @@ const WELL_BRINE_SPECIES = [
  */
 function WellBrineFeedTable({ snapshot }: { snapshot?: Record<string, unknown> | null }) {
   const t = useT();
-  const brine = (snapshot?.brine as Record<string, number> | undefined) || undefined;
+  // Para ejecuciones dinámicas, el config vive en snapshot.dynamic_config
+  // (brine + precon.average_flow_ton_day). Fallback al snapshot directo por si acaso.
+  const dc = (snapshot?.dynamic_config as Record<string, unknown> | undefined) ?? snapshot ?? undefined;
+  const brine = (dc?.brine as Record<string, number> | undefined) || undefined;
   const flow =
-    ((snapshot?.precon as Record<string, unknown> | undefined)?.average_flow_ton_day as number) ??
-    ((snapshot?.simulation as Record<string, unknown> | undefined)?.average_flow_ton_day as number);
+    ((dc?.precon as Record<string, unknown> | undefined)?.average_flow_ton_day as number) ??
+    ((dc?.simulation as Record<string, unknown> | undefined)?.average_flow_ton_day as number);
   if (!brine || !flow) return null;
   const total = Object.values(brine).reduce((s, v) => s + (Number(v) || 0), 0);
   if (total <= 0) return null;
