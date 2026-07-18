@@ -8,6 +8,7 @@
 
 import * as XLSX from 'xlsx';
 import { boronFrom } from './boron';
+import { buildWellBrineFeedAoa } from './wellBrineFeed';
 import type {
   ExecutionResult,
   PondResult,
@@ -701,6 +702,7 @@ export function exportExecutionToExcel(input: ExportInput): Blob {
   const wb = XLSX.utils.book_new();
 
   addSheet(wb, 'Resumen', buildResumenSheet(input));
+  addSheet(wb, 'Masa Ingreso', buildWellBrineFeedAoa(input.execution.parameters_snapshot ?? null, 'static'));
   addSheet(wb, 'Global', buildGlobalSheet(input));
 
   const preconStages = input.stages.filter((s) =>

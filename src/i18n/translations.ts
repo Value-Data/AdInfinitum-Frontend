@@ -692,6 +692,8 @@ export const TRANSLATIONS = {
   execres_daily_climate: { es: 'Clima (Temp / Evap)', en: 'Climate (Temp / Evap)' },
   execres_charts_by_day: { es: 'Gráficos por día', en: 'Charts by day' },
   execres_charts_by_pond: { es: 'Gráficos por poza', en: 'Charts by pond' },
+  execres_chartmode_day: { es: 'Ver por día', en: 'By day' },
+  execres_chartmode_pond: { es: 'Por poza', en: 'By pond' },
   dynres_composition_pre: { es: 'Composición', en: 'Composition' },
   dynres_composition_post: { es: 'por poza', en: 'per pond' },
   dynres_salts_nonzero: { es: 'sales con valores > 0 en esta poza)', en: 'salts with values > 0 in this pond)' },

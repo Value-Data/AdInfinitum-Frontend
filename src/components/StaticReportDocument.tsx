@@ -4,6 +4,8 @@ import { useT } from '../i18n/LanguageContext';
 import KPICards from './KPICards';
 import GlobalBalanceTable, { type GlobalBalanceTableProps } from './GlobalBalanceTable';
 import PondDetailBreakdown from './PondDetailBreakdown';
+import WellBrineFeedTable from './WellBrineFeedTable';
+import { resolveWellBrineFeed } from '../utils/wellBrineFeed';
 import ResultCharts from './ResultCharts';
 import EncaladoResultPanel from './EncaladoResultPanel';
 import ParameterSnapshot from './ParameterSnapshot';
@@ -105,6 +107,14 @@ export default function StaticReportDocument({
           </div>
         ))}
       </Block>
+
+      {/* Masa de ingreso (salmuera de pozo) — el componente ya trae su título;
+          el Block sin título solo agrupa para la captura html2canvas. */}
+      {resolveWellBrineFeed(snapshot, 'static') && (
+        <Block>
+          <WellBrineFeedTable snapshot={snapshot} mode="static" />
+        </Block>
+      )}
 
       {/* Balance global */}
       <Block title={t('execres_tab_global')}>

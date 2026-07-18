@@ -20,7 +20,7 @@ import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
 import { boronFrom } from '../utils/boron';
 import { downloadChartsZip } from '../utils/downloadCharts';
-import { useDayDateAxis, DayDateToggle, DayStepSelect, XAxisModeProvider } from '../utils/chartDateAxis';
+import { useDayDateAxis, DayDateToggle, DayStepSelect, XAxisModeProvider, ScrollableChart } from '../utils/chartDateAxis';
 
 // Ticks del eje Y con coma decimal (preserva los ticks "lindos" de recharts).
 const fmtAxisEs = (v: number | string): string =>
@@ -31,6 +31,7 @@ import DecimalsSelect from './common/DecimalsSelect';
 import { downloadDynamicResultsExcel } from '../utils/dynamicResultsExcel';
 import { getDecimalsOverride, formatEs } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
+import WellBrineFeedTable from './WellBrineFeedTable';
 
 const CHART_COLORS = [
   '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
@@ -44,68 +45,8 @@ type Props = {
   snapshot?: Record<string, unknown> | null;
 };
 
-// Orden de especies para la tabla de salmuera de pozo (ingreso).
-const WELL_BRINE_SPECIES = [
-  'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'H+', 'Cl-', 'HSO4-',
-  'SO4--', 'OH-', 'CO2(aq)', 'HCO3-', 'CO3--', 'H3BO3', 'B4O7--', 'BO2-',
-];
-
-/**
- * Tabla "Masa ingreso salmuera de pozo": composición del feed inicial (brine del
- * snapshot) normalizada a %w/w y escalada al flujo de ingreso (average_flow_ton_day).
- */
-function WellBrineFeedTable({ snapshot }: { snapshot?: Record<string, unknown> | null }) {
-  const t = useT();
-  // Para ejecuciones dinámicas, el config vive en snapshot.dynamic_config
-  // (brine + precon.average_flow_ton_day). Fallback al snapshot directo por si acaso.
-  const dc = (snapshot?.dynamic_config as Record<string, unknown> | undefined) ?? snapshot ?? undefined;
-  const brine = (dc?.brine as Record<string, number> | undefined) || undefined;
-  const flow =
-    ((dc?.precon as Record<string, unknown> | undefined)?.average_flow_ton_day as number) ??
-    ((dc?.simulation as Record<string, unknown> | undefined)?.average_flow_ton_day as number);
-  if (!brine || !flow) return null;
-  const total = Object.values(brine).reduce((s, v) => s + (Number(v) || 0), 0);
-  if (total <= 0) return null;
-  const species = [
-    ...WELL_BRINE_SPECIES.filter((s) => s in brine),
-    ...Object.keys(brine).filter((s) => !WELL_BRINE_SPECIES.includes(s)),
-  ];
-  return (
-    <div className="card p-3 mb-4">
-      <h4 className="text-sm font-semibold mb-2">
-        {t('dynres_well_brine_feed')}: <span className="font-mono">{fmt(flow, 0)}</span> t/d
-      </h4>
-      <div className="overflow-x-auto">
-        <table>
-          <thead>
-            <tr>
-              <th>{t('comp_species')}</th>
-              <th>%w/w</th>
-              <th>t/d</th>
-            </tr>
-          </thead>
-          <tbody>
-            {species.map((sp) => {
-              const frac = (Number(brine[sp]) || 0) / total;
-              return (
-                <tr key={sp}>
-                  <td className="font-medium">{sp}</td>
-                  <td className="font-mono text-xs">{fmt(frac * 100, 2)}</td>
-                  <td className="font-mono text-xs">{fmt(frac * flow, 0)}</td>
-                </tr>
-              );
-            })}
-            <tr className="font-semibold">
-              <td>Total</td>
-              <td className="font-mono text-xs">{fmt(100, 2)}</td>
-              <td className="font-mono text-xs">{fmt(flow, 0)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+// La tabla "Masa ingreso salmuera de pozo" se movió a ./WellBrineFeedTable (compartida
+// entre estático y dinámico).
 
 type ResultTabKey = 'kpis' | 'tabla1' | 'tabla2' | 'tabla3' | 'compacta' | 'graficos' | 'encalado_detalle' | 'archivos';
 
@@ -438,7 +379,7 @@ function ChartsCascadePostliming({
     const first = pond_names.map((n) => daily_series[n]).find((s) => s && s.length);
     return (first ?? []).map((s) => ({ day: s.day, date: (s as { date?: string }).date }));
   }, [pond_names, daily_series]);
-  const { mode: xMode, fmtX, xInterval } = useDayDateAxis(dayDates);
+  const { mode: xMode, fmtX, xAxisProps, chartMinWidth } = useDayDateAxis(dayDates);
   const xLabel = xMode === 'date' ? t('dynres_axis_date') : t('dynres_axis_day');
 
   const toggleSpecies = (sp: string) => {
@@ -450,10 +391,10 @@ function ChartsCascadePostliming({
   const renderChart = (metric: string, ylabel: string, title: string) => (
     <div className="card p-3 mb-4">
       <h4 className="text-sm font-semibold mb-2">{title}</h4>
-      <ResponsiveContainer width="100%" height={240}>
+      <ScrollableChart minWidth={chartMinWidth}><ResponsiveContainer width="100%" height={240}>
         <LineChart data={pivot}>
           <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-          <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
+          <XAxis dataKey="day" {...xAxisProps} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
           <YAxis label={{ value: ylabel, angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
           <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
           <Legend />
@@ -469,7 +410,7 @@ function ChartsCascadePostliming({
             />
           ))}
         </LineChart>
-      </ResponsiveContainer>
+      </ResponsiveContainer></ScrollableChart>
     </div>
   );
 
@@ -481,10 +422,10 @@ function ChartsCascadePostliming({
       {/* Fixed Li% chart — always visible */}
       <div className="card p-3 mb-4">
         <h4 className="text-sm font-semibold mb-2">{t('li_per_pond_per_day')}</h4>
-        <ResponsiveContainer width="100%" height={240}>
+        <ScrollableChart minWidth={chartMinWidth}><ResponsiveContainer width="100%" height={240}>
           <LineChart data={pivot}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
+            <XAxis dataKey="day" {...xAxisProps} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
             <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
@@ -500,7 +441,7 @@ function ChartsCascadePostliming({
               />
             ))}
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></ScrollableChart>
       </div>
 
       {/* Species selector for composition charts */}
@@ -605,7 +546,7 @@ function ChartSalesPerPond({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPond, executionId, run_tag, stage]);
 
-  const { mode: xMode, fmtX, xInterval } = useDayDateAxis(dayDates);
+  const { mode: xMode, fmtX, xAxisProps, chartMinWidth } = useDayDateAxis(dayDates);
   const xLabel = xMode === 'date' ? t('dynres_axis_date') : t('dynres_axis_day');
 
   return (
@@ -636,10 +577,10 @@ function ChartSalesPerPond({
         </p>
       )}
       {!loading && data.length > 0 && (
-        <ResponsiveContainer width="100%" height={300}>
+        <ScrollableChart minWidth={chartMinWidth}><ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
+            <XAxis dataKey="day" {...xAxisProps} label={{ value: xLabel, position: 'insideBottom', offset: -2 }} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
@@ -655,7 +596,7 @@ function ChartSalesPerPond({
               />
             ))}
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></ScrollableChart>
       )}
     </div>
   );
@@ -720,31 +661,31 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
     () => results.daily_series.map((r) => ({ day: r.day, date: (r as { date?: string }).date })),
     [results.daily_series],
   );
-  const { fmtX, xInterval } = useDayDateAxis(dayDates);
+  const { fmtX, xAxisProps, chartMinWidth } = useDayDateAxis(dayDates);
 
   return (
     <div>
       {/* Li% */}
       <div className="card p-3 mb-4">
         <h4 className="text-sm font-semibold mb-2">{t('dynres_enc_li_out')}</h4>
-        <ResponsiveContainer width="100%" height={240}>
+        <ScrollableChart minWidth={chartMinWidth}><ResponsiveContainer width="100%" height={240}>
           <LineChart data={liData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
+            <XAxis dataKey="day" {...xAxisProps} />
             <YAxis label={{ value: '%', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="li_pct" name="Li%" stroke={CHART_COLORS[0]} dot={false} />
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></ScrollableChart>
       </div>
 
       {/* Composición de salida */}
       <div className="card p-3 mb-4">
         <h4 className="text-sm font-semibold mb-2">{t('dynres_enc_composition_out')}</h4>
-        <ResponsiveContainer width="100%" height={240}>
+        <ScrollableChart minWidth={chartMinWidth}><ResponsiveContainer width="100%" height={240}>
           <LineChart data={compData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
+            <XAxis dataKey="day" {...xAxisProps} />
             <YAxis label={{ value: '%w/w', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
@@ -760,65 +701,65 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
               />
             ))}
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></ScrollableChart>
       </div>
 
       {/* Sales precipitadas */}
       <div className="card p-3 mb-4">
         <h4 className="text-sm font-semibold mb-2">{t('dynres_enc_total_salts')}</h4>
-        <ResponsiveContainer width="100%" height={240}>
+        <ScrollableChart minWidth={chartMinWidth}><ResponsiveContainer width="100%" height={240}>
           <LineChart data={saltData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
+            <XAxis dataKey="day" {...xAxisProps} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="salt" name={t('dynres_total_salts_line')} stroke={CHART_COLORS[4]} dot={false} />
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></ScrollableChart>
       </div>
 
       {/* Consumo de reactivos */}
       <div className="card p-3 mb-4">
         <h4 className="text-sm font-semibold mb-2">{t('reagent_consumption')}</h4>
-        <ResponsiveContainer width="100%" height={240}>
+        <ScrollableChart minWidth={chartMinWidth}><ResponsiveContainer width="100%" height={240}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
+            <XAxis dataKey="day" {...xAxisProps} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Legend />
             <Line type="monotone" dataKey="lechada" name={t('dynres_lime_milk')} stroke={CHART_COLORS[0]} dot={false} />
             <Line type="monotone" dataKey="cacl2" name={t('dynres_cacl2_solution')} stroke={CHART_COLORS[1]} dot={false} />
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></ScrollableChart>
       </div>
 
       {/* Flujo de salida */}
       <div className="card p-3 mb-4">
         <h4 className="text-sm font-semibold mb-2">{t('flow_out')}</h4>
-        <ResponsiveContainer width="100%" height={240}>
+        <ScrollableChart minWidth={chartMinWidth}><ResponsiveContainer width="100%" height={240}>
           <LineChart data={flowData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
+            <XAxis dataKey="day" {...xAxisProps} />
             <YAxis label={{ value: 't/d', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="flow" name={t('dynres_flow_out_line')} stroke={CHART_COLORS[2]} dot={false} />
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></ScrollableChart>
       </div>
 
       {/* Ratio SO4/Mg */}
       <div className="card p-3 mb-4">
         <h4 className="text-sm font-semibold mb-2">{t('so4_mg_ratio')}</h4>
-        <ResponsiveContainer width="100%" height={240}>
+        <ScrollableChart minWidth={chartMinWidth}><ResponsiveContainer width="100%" height={240}>
           <LineChart data={ratioData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="day" tickFormatter={fmtX} interval={xInterval} />
+            <XAxis dataKey="day" {...xAxisProps} />
             <YAxis label={{ value: 'SO4/Mg', angle: -90, position: 'insideLeft' }} tickFormatter={fmtAxisEs} />
             <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
             <Line type="monotone" dataKey="ratio" name="SO4/Mg" stroke={CHART_COLORS[3]} dot={false} />
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></ScrollableChart>
       </div>
     </div>
   );
@@ -951,6 +892,7 @@ export default function DynamicResultsView({ executionId, results, files, snapsh
             downloadDynamicResultsExcel(
               scaledResults,
               `resultados_${scaledResults.stage}_${scaledResults.run_tag || 'run'}.xlsx`,
+              snapshot,
             )
           }
           title={t('export_excel_hint')}
@@ -980,7 +922,7 @@ export default function DynamicResultsView({ executionId, results, files, snapsh
       {tab === 'kpis' && <KpiCards results={results} />}
       {tab === 'tabla1' && cp && (
         <>
-          <WellBrineFeedTable snapshot={snapshot} />
+          <WellBrineFeedTable snapshot={snapshot} mode="dynamic" />
           <Tabla1 results={cp} />
         </>
       )}

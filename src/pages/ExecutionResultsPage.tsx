@@ -15,6 +15,7 @@ import ResultCharts from '../components/ResultCharts';
 import ParameterSnapshot from '../components/ParameterSnapshot';
 import EncaladoResultPanel from '../components/EncaladoResultPanel';
 import PondDetailBreakdown from '../components/PondDetailBreakdown';
+import WellBrineFeedTable from '../components/WellBrineFeedTable';
 import StaticReportModal from '../components/StaticReportModal';
 import { downloadChartsZip } from '../utils/downloadCharts';
 import StaticDailyCharts from '../components/StaticDailyCharts';
@@ -391,6 +392,8 @@ export default function ExecutionResultsPage() {
   const [execution, setExecution] = useState<ExecutionResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ResultTab>('resumen');
+  // Modo de gráficos en el tab "Gráficos" (solo aplica a ejecuciones multi-día).
+  const [staticChartView, setStaticChartView] = useState<'day' | 'pond'>('day');
   const [exporting, setExporting] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
   const [viewMode, setViewMode] = useState<'day' | 'average'>('average');
@@ -912,12 +915,15 @@ export default function ExecutionResultsPage() {
               328.5;
             const postlimingDaysYear = (snap.postliming_days_year as number | undefined) ?? 365;
             return (
-              <GlobalBalanceTable
-                streams={streamsForExport}
-                preconDaysYear={preconDaysYear}
-                encaladoDaysYear={encaladoDaysYear}
-                postlimingDaysYear={postlimingDaysYear}
-              />
+              <>
+                <WellBrineFeedTable snapshot={snap} mode="static" />
+                <GlobalBalanceTable
+                  streams={streamsForExport}
+                  preconDaysYear={preconDaysYear}
+                  encaladoDaysYear={encaladoDaysYear}
+                  postlimingDaysYear={postlimingDaysYear}
+                />
+              </>
             );
           })()}
 
@@ -973,14 +979,36 @@ export default function ExecutionResultsPage() {
             );
           })()}
 
-          {activeTab === 'graficos' && (
+          {activeTab === 'graficos' && (() => {
+            // Para single-day no hay serie por día → siempre "por poza".
+            const chartView = isMultiDay ? staticChartView : 'pond';
+            return (
             <XAxisModeProvider>
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex gap-4 items-center">
+              <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
+                <div className="flex gap-4 items-center flex-wrap">
+                  {/* Toggle explícito Por día / Por poza (solo multi-día) */}
                   {isMultiDay && (
+                    <div className="inline-flex rounded overflow-hidden border" style={{ borderColor: 'var(--color-border)' }}>
+                      {(['day', 'pond'] as const).map((v) => (
+                        <button
+                          key={v}
+                          className="px-3 py-1 text-sm font-medium"
+                          style={{
+                            background: chartView === v ? 'var(--color-primary)' : 'transparent',
+                            color: chartView === v ? '#fff' : 'var(--color-text)',
+                          }}
+                          onClick={() => setStaticChartView(v)}
+                        >
+                          {v === 'day' ? t('execres_chartmode_day') : t('execres_chartmode_pond')}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Controles de eje X: solo aplican a la vista por día */}
+                  {isMultiDay && chartView === 'day' && (
                     <DayDateToggle labels={{ day: t('chart_view_days'), date: t('chart_view_dates') }} />
                   )}
-                  {isMultiDay && (
+                  {isMultiDay && chartView === 'day' && (
                     <DayStepSelect label={t('chart_x_step')} autoLabel={t('chart_x_step_auto')} />
                   )}
                 </div>
@@ -994,19 +1022,25 @@ export default function ExecutionResultsPage() {
                 </button>
               </div>
               <div ref={staticChartsRef}>
-                {isMultiDay && dailyResults && (
+                {chartView === 'day' && isMultiDay && dailyResults ? (
                   <>
                     <h4 className="text-sm font-semibold mb-2">{t('execres_charts_by_day')}</h4>
                     <StaticDailyCharts dailyResults={dailyResults} />
-                    <h4 className="text-sm font-semibold mb-2 mt-4">{t('execres_charts_by_pond')}</h4>
+                  </>
+                ) : (
+                  <>
+                    {isMultiDay && (
+                      <h4 className="text-sm font-semibold mb-2">{t('execres_charts_by_pond')}</h4>
+                    )}
+                    {renderStageResults((label, result) => (
+                      <ResultCharts stageLabel={label} result={result} />
+                    ))}
                   </>
                 )}
-                {renderStageResults((label, result) => (
-                  <ResultCharts stageLabel={label} result={result} />
-                ))}
               </div>
             </XAxisModeProvider>
-          )}
+            );
+          })()}
 
           {activeTab === 'encalado' && encaladoData && (
             <EncaladoResultPanel

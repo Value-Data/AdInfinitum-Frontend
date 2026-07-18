@@ -20,6 +20,8 @@ import {
   ChartsEncalado,
 } from './DynamicResultsView';
 import EncaladoResultPanel from './EncaladoResultPanel';
+import WellBrineFeedTable from './WellBrineFeedTable';
+import { resolveWellBrineFeed } from '../utils/wellBrineFeed';
 import { displayPondName } from '../utils/dynamicDisplayNames';
 import { useT } from '../i18n/LanguageContext';
 
@@ -54,6 +56,7 @@ type Props = {
   projectName: string;
   generatedAt: string;
   stages: ReportStageInput[];
+  snapshot?: Record<string, unknown> | null;
 };
 
 // A self-contained block that html2canvas captures as one unit (kept together
@@ -223,6 +226,7 @@ export default function DynamicReportDocument({
   projectName,
   generatedAt,
   stages,
+  snapshot,
 }: Props) {
   const t = useT();
   return (
@@ -282,6 +286,15 @@ export default function DynamicReportDocument({
           </tbody>
         </table>
       </div>
+
+      {/* Masa de ingreso (salmuera de pozo) — feed inicial del proceso.
+          El componente ya trae su propio título; el Block sin título solo lo agrupa
+          para que html2canvas lo capture como una unidad. */}
+      {resolveWellBrineFeed(snapshot, 'dynamic') && (
+        <Block>
+          <WellBrineFeedTable snapshot={snapshot} mode="dynamic" />
+        </Block>
+      )}
 
       {stages.map((s) => (
         <div key={s.executionId}>

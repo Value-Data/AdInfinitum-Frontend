@@ -15,6 +15,7 @@ import { buildEncaladoSheet } from './exportExecutionExcel';
 import { displayPondName } from './dynamicDisplayNames';
 import { formatDMY } from './chartDateAxis';
 import { boronFrom } from './boron';
+import { buildWellBrineFeedAoa } from './wellBrineFeed';
 
 function safeSheetName(name: string): string {
   const cleaned = name.replace(/[\\/?*[\]:]/g, ' ').trim();
@@ -122,7 +123,9 @@ function buildCascadeSheets(wb: XLSX.WorkBook, r: DynamicCascadeOrPostlimingResu
   addSheet(wb, 'Serie Altura', seriesSheet(r, 'height_m'));
   addSheet(wb, 'Serie Li%', seriesSheet(r, 'li_pct'));
   addSheet(wb, 'Serie Sales precip', seriesSheet(r, 'salt_precipitated_ton'));
-  for (const sp of r.default_chart_species) {
+  // Se excluye 'Li+' del loop: ya tiene su hoja dedicada "Serie Li%" (li_pct).
+  // Sin este filtro se generaba una hoja "Serie Li+" (Li+_pct) duplicando el litio.
+  for (const sp of r.default_chart_species.filter((sp) => sp !== 'Li+')) {
     addSheet(wb, `Serie ${sp}`, seriesSheet(r, `${sp}_pct`));
   }
 }
@@ -136,7 +139,9 @@ function buildEncaladoSheets(wb: XLSX.WorkBook, r: DynamicEncaladoResults): void
   const pctKeys = new Set<string>();
   for (const row of rows) {
     for (const k of Object.keys(row)) {
-      if (k.endsWith('_pct') && k !== 'li_pct') pctKeys.add(k);
+      // Se excluye 'Li+_pct' además de 'li_pct': la columna 'Li%' ya cubre el litio;
+      // sin esto el litio saldría duplicado (columna Li% + columna Li+_pct).
+      if (k.endsWith('_pct') && k !== 'li_pct' && k !== 'Li+_pct') pctKeys.add(k);
     }
   }
   const pctCols = Array.from(pctKeys).sort();
@@ -172,8 +177,13 @@ function buildEncaladoSheets(wb: XLSX.WorkBook, r: DynamicEncaladoResults): void
 }
 
 /** Build the workbook and trigger a download. */
-export function downloadDynamicResultsExcel(results: DynamicResults, filename: string): void {
+export function downloadDynamicResultsExcel(
+  results: DynamicResults,
+  filename: string,
+  snapshot?: Record<string, unknown> | null,
+): void {
   const wb = XLSX.utils.book_new();
+  addSheet(wb, 'Masa Ingreso', buildWellBrineFeedAoa(snapshot ?? null, 'dynamic'));
   if (results.stage === 'encalado') {
     buildEncaladoSheets(wb, results);
   } else {

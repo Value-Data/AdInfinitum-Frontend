@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import type { SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
-import { useDayDateAxis } from '../utils/chartDateAxis';
+import { useDayDateAxis, ScrollableChart } from '../utils/chartDateAxis';
 import { formatEs } from '../utils/numberFormat';
 
 const CHART_COLORS = [
@@ -62,8 +62,7 @@ export default function StaticDailyCharts({ dailyResults }: { dailyResults: Stat
   );
 
   const dayDates = useMemo(() => data.map((d) => ({ day: d.day, date: d.date })), [data]);
-  const { mode, fmtX, xInterval } = useDayDateAxis(dayDates);
-  const xLabel = mode === 'date' ? t('dynres_axis_date') : t('dynres_axis_day');
+  const { fmtX, xAxisProps, chartMinWidth } = useDayDateAxis(dayDates);
 
   const chart = (
     title: string,
@@ -72,31 +71,28 @@ export default function StaticDailyCharts({ dailyResults }: { dailyResults: Stat
   ) => (
     <div className="card p-3 mb-4">
       <h4 className="text-sm font-semibold mb-2">{title}</h4>
-      <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-          <XAxis
-            dataKey="day"
-            tickFormatter={fmtX}
-            interval={xInterval}
-            label={{ value: xLabel, position: 'insideBottom', offset: -2 }}
-          />
-          <YAxis tickFormatter={fmtAxisEs} label={{ value: ylabel, angle: -90, position: 'insideLeft' }} />
-          <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
-          <Legend />
-          {lines.map((l, i) => (
-            <Line
-              key={l.key}
-              type="monotone"
-              dataKey={l.key}
-              name={l.name}
-              stroke={CHART_COLORS[i % CHART_COLORS.length]}
-              dot={false}
-              strokeWidth={1.5}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+      <ScrollableChart minWidth={chartMinWidth}>
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={data} margin={{ top: 5, right: 20, bottom: 8, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+            <XAxis dataKey="day" {...xAxisProps} />
+            <YAxis tickFormatter={fmtAxisEs} label={{ value: ylabel, angle: -90, position: 'insideLeft' }} />
+            <Tooltip labelFormatter={fmtX} formatter={(v) => (typeof v === 'number' ? formatEs(v, 3) : v)} />
+            <Legend />
+            {lines.map((l, i) => (
+              <Line
+                key={l.key}
+                type="monotone"
+                dataKey={l.key}
+                name={l.name}
+                stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                dot={false}
+                strokeWidth={1.5}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </ScrollableChart>
     </div>
   );
 

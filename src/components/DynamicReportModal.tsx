@@ -45,6 +45,7 @@ export default function DynamicReportModal({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportStages, setReportStages] = useState<ReportStageInput[] | null>(null);
+  const [reportSnapshot, setReportSnapshot] = useState<Record<string, unknown> | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   const completedByStage = useMemo(() => {
@@ -70,8 +71,14 @@ export default function DynamicReportModal({
     setGenerating(true);
     try {
       const stages: ReportStageInput[] = [];
+      // El feed inicial (salmuera de pozo) vive en el snapshot; se prefiere el de la
+      // cascada, pero cualquier etapa comparte el mismo dynamic_config.brine.
+      let snapshot: Record<string, unknown> | null = null;
       for (const st of chosen) {
         const exec = await getExecution(sel[st].execId);
+        if (st === 'cascade' || snapshot == null) {
+          snapshot = (exec.parameters_snapshot as Record<string, unknown> | null) ?? null;
+        }
         const results = exec.results as unknown as
           | ReportStageInput['results']
           | null;
@@ -86,6 +93,7 @@ export default function DynamicReportModal({
           results,
         } as ReportStageInput);
       }
+      setReportSnapshot(snapshot);
       setReportStages(stages);
     } catch (e) {
       setError(String((e as Error).message || e));
@@ -195,6 +203,7 @@ export default function DynamicReportModal({
               projectName={projectName}
               generatedAt={new Date().toLocaleString()}
               stages={reportStages}
+              snapshot={reportSnapshot}
             />
           </div>
         </div>

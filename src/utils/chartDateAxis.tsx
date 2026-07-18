@@ -67,7 +67,52 @@ export function useDayDateAxis(dayDates: Array<{ day: number; date?: string | nu
   const xInterval: number | 'preserveStartEnd' =
     dayStep === 'auto' ? 'preserveStartEnd' : Math.max(0, Math.round(dayStep) - 1);
 
-  return { mode, fmtX, hasDates: dayToDate.size > 0, xInterval };
+  // Cuántas marcas se dibujarán (aprox) para decidir angulado + ancho con scroll.
+  const nDays = dayDates.length;
+  const stepNum = dayStep === 'auto' ? null : Math.max(1, Math.round(dayStep));
+  const visibleTicks = stepNum ? Math.floor(Math.max(0, nDays - 1) / stepNum) + 1 : 0;
+
+  // Angular etiquetas cuando son fechas (largas) o hay muchas marcas → no se enciman.
+  const angled = mode === 'date' || visibleTicks > 10;
+
+  // Props para <XAxis {...xAxisProps} /> (además de dataKey y label).
+  const xAxisProps = {
+    tickFormatter: fmtX,
+    interval: xInterval,
+    angle: angled ? -35 : 0,
+    textAnchor: (angled ? 'end' : 'middle') as 'end' | 'middle',
+    height: angled ? 62 : 30,
+    tickMargin: 8,
+    minTickGap: 4,
+  };
+
+  // Ancho mínimo (px) para que TODAS las marcas quepan sin encimarse: si hay muchas,
+  // el gráfico se ensancha y aparece scroll horizontal (envolver en <ScrollableChart>).
+  const PX_PER_TICK = 46;
+  const chartMinWidth = visibleTicks > 16 ? Math.round(visibleTicks * PX_PER_TICK) : 0;
+
+  return { mode, fmtX, hasDates: dayToDate.size > 0, xInterval, xAxisProps, chartMinWidth };
+}
+
+/**
+ * Envuelve un ResponsiveContainer para permitir scroll horizontal cuando el eje X
+ * tiene muchas marcas. `minWidth` = 0 → ocupa el 100% (sin scroll); > 0 → ancho fijo
+ * en px (aparece scroll si excede el contenedor). Reutilizable en estático y dinámico.
+ */
+export function ScrollableChart({
+  minWidth,
+  children,
+}: {
+  minWidth: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ overflowX: 'auto', width: '100%' }}>
+      <div style={{ width: minWidth ? `${minWidth}px` : '100%', minWidth: '100%' }}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 /** Botón único Días | Fechas (controla el Context => todos los gráficos). */
