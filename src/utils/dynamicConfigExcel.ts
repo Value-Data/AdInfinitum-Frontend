@@ -17,6 +17,7 @@ import type {
   SaltFactor,
 } from '../types';
 import { BRINE_SPECIES_ORDER } from '../types';
+import { asPercentBasis } from './brineComposition';
 
 const SHEET = {
   readme: 'Instrucciones',
@@ -146,7 +147,7 @@ function readmeSheet(): XLSX.WorkSheet {
     [],
     ['Hoja', 'Descripcion'],
     [SHEET.simulation, 'n_days, start_date, y modulacion de flujo de la cascada.'],
-    [SHEET.brine, 'Salmuera inicial: 17 especies (ton/dia). No borre ni renombre especies.'],
+    [SHEET.brine, 'Salmuera inicial: 17 especies en %w/w (composicion). La masa diaria sale de average_flow_ton_day. No borre ni renombre especies.'],
     [SHEET.preconPonds, 'Pozas Pz1-Pz7. Incluye control_mode (ALTURA/FLUJO_FIJO) y campos especificos.'],
     [SHEET.preconFactors, 'Factores de inhibicion preconcentracion: 137 sales (dll_index, name, factor).'],
     [SHEET.climate, 'Serie climatica diaria: day, evap_mm_day, temp_C. Una fila por dia.'],
@@ -177,9 +178,12 @@ function simulationSheet(cfg: DynamicConfig): XLSX.WorkSheet {
 }
 
 function brineSheet(brine: Record<string, number>): XLSX.WorkSheet {
-  const rows: (string | number)[][] = [['Especie', 'Valor (ton/dia)']];
+  // Se exporta como composición: el motor dinámico normaliza el brine y toma el caudal
+  // de average_flow_ton_day. asPercentBasis convierte configuraciones antiguas en t/d.
+  const pct = asPercentBasis(brine);
+  const rows: (string | number)[][] = [['Especie', '%w/w']];
   for (const sp of BRINE_SPECIES_ORDER) {
-    rows.push([sp, brine[sp] ?? 0]);
+    rows.push([sp, pct[sp] ?? 0]);
   }
   return XLSX.utils.aoa_to_sheet(rows);
 }
