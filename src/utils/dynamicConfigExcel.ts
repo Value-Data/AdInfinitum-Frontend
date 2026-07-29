@@ -385,7 +385,11 @@ function parseBrine(ws: XLSX.WorkSheet): Record<string, number> {
   rows.forEach((r) => {
     const name = String(r['Especie'] ?? r['especie'] ?? '').trim();
     if (!name) return;
-    out[name] = toNum(r['Valor (ton/dia)'] ?? r['Valor'] ?? r['valor']);
+    // '%w/w' es el encabezado actual; los demás son plantillas anteriores en t/d.
+    // asPercentBasis se encarga de la escala al leerlo, así que ambas entran bien.
+    out[name] = toNum(
+      r['%w/w'] ?? r['%W/W'] ?? r['Valor (ton/dia)'] ?? r['Valor'] ?? r['valor'],
+    );
   });
   return out;
 }
