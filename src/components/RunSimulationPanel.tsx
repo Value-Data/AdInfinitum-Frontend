@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { ExecutionType } from '../types';
+import type { AqsolVersion, ExecutionType } from '../types';
+import { AQSOL_VERSIONS } from '../types';
 import { createExecution } from '../services/api';
 import LoadingSpinner from './common/LoadingSpinner';
 import { useT } from '../i18n/LanguageContext';
@@ -12,6 +13,8 @@ interface Props {
 export default function RunSimulationPanel({ projectId, onExecutionCreated }: Props) {
   const t = useT();
   const [executionType, setExecutionType] = useState<ExecutionType>('proceso_completo');
+  // 027 es el motor validado; 066 se elige explícitamente para comparar.
+  const [aqsolVersion, setAqsolVersion] = useState<AqsolVersion>('027');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +24,7 @@ export default function RunSimulationPanel({ projectId, onExecutionCreated }: Pr
     try {
       await createExecution(projectId, {
         execution_type: executionType,
+        aqsol_version: aqsolVersion,
       });
       onExecutionCreated();
     } catch (err: unknown) {
@@ -51,6 +55,24 @@ export default function RunSimulationPanel({ projectId, onExecutionCreated }: Pr
           >
             <option value="proceso_completo">{t('runsim_proceso_completo')}</option>
             <option value="preconcentracion">{t('runsim_preconcentracion')}</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="label" title={t('aqsol_version_tip')}>
+            {t('aqsol_version_pick')}
+          </label>
+          <select
+            className="input w-40"
+            value={aqsolVersion}
+            onChange={(e) => setAqsolVersion(e.target.value as AqsolVersion)}
+            title={t('aqsol_version_tip')}
+          >
+            {AQSOL_VERSIONS.map((v) => (
+              <option key={v.value} value={v.value}>
+                {v.label}
+              </option>
+            ))}
           </select>
         </div>
 

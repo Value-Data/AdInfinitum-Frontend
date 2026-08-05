@@ -689,6 +689,8 @@ export const TRANSLATIONS = {
   dynres_axis_day: { es: 'Día', en: 'Day' },
   dynres_well_brine_feed: { es: 'Masa ingreso salmuera de pozo', en: 'Well brine feed mass' },
   aqsol_version: { es: 'Versión AQSOL', en: 'AQSOL version' },
+  aqsol_version_pick: { es: 'Motor AQSOL', en: 'AQSOL engine' },
+  aqsol_version_tip: { es: 'Versión del motor termodinámico con que se ejecuta esta corrida. Entre versiones cambian las especies y las fases sólidas, así que dos corridas con motores distintos no son comparables. La versión queda registrada en los resultados.', en: 'Thermodynamic engine version used for this run. Species and solid phases differ between versions, so runs with different engines are not comparable. The version is recorded in the results.' },
   aqsol_version_unknown: { es: 'No registrada', en: 'Not recorded' },
   aqsol_version_sub: { es: 'motor termodinámico', en: 'thermodynamic engine' },
   download_charts: { es: 'Descargar gráficos', en: 'Download charts' },

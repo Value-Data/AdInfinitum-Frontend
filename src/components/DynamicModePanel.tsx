@@ -22,7 +22,8 @@ import DynamicResultsView from './DynamicResultsView';
 import DynamicChainView from './DynamicChainView';
 import DynamicReportModal from './DynamicReportModal';
 import { displayStageName } from '../utils/dynamicDisplayNames';
-import type { DynamicResults } from '../types';
+import type { AqsolVersion, DynamicResults } from '../types';
+import { AQSOL_VERSIONS } from '../types';
 import { useT } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
 import {
@@ -86,6 +87,8 @@ export default function DynamicModePanel({
   const [sourceExecId, setSourceExecId] = useState<string>('');
   const [nDays, setNDays] = useState<number>(1460);
   const [runTag, setRunTag] = useState<string>('baseline');
+  // 027 es el motor validado; 066 se elige explicitamente para comparar.
+  const [aqsolVersion, setAqsolVersion] = useState<AqsolVersion>('027');
   const [launching, setLaunching] = useState(false);
   const [activeTab, setActiveTab] = useState<DynTabKey>(isAdmin ? 'config' : 'executions');
   const [projectName, setProjectName] = useState<string>('proyecto');
@@ -373,6 +376,7 @@ export default function DynamicModePanel({
         source_execution_id: needsSource ? sourceExecId : undefined,
         n_days_override: nDays,
         run_tag: runTag,
+        aqsol_version: aqsolVersion,
       });
       setExecutions((prev) => [exec, ...prev]);
       setSelectedExecId(exec.id);
@@ -561,6 +565,26 @@ export default function DynamicModePanel({
                     value={runTag}
                     onChange={(e) => setRunTag(e.target.value)}
                   />
+                </div>
+                <div>
+                  <label
+                    className="block text-xs font-medium mb-1"
+                    title={t('aqsol_version_tip')}
+                  >
+                    {t('aqsol_version_pick')}
+                  </label>
+                  <select
+                    className="input w-full"
+                    value={aqsolVersion}
+                    onChange={(e) => setAqsolVersion(e.target.value as AqsolVersion)}
+                    title={t('aqsol_version_tip')}
+                  >
+                    {AQSOL_VERSIONS.map((v) => (
+                      <option key={v.value} value={v.value}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <button className="btn btn-primary" onClick={handleLaunch} disabled={launching}>

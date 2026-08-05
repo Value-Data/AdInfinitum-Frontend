@@ -389,12 +389,21 @@ export interface Execution {
   created_at: string;
 }
 
+/** Version del motor termodinamico. Omitir = default de la instancia. */
+export type AqsolVersion = '027' | '066';
+
+export const AQSOL_VERSIONS: { value: AqsolVersion; label: string }[] = [
+  { value: '027', label: 'AQSOL027' },
+  { value: '066', label: 'AQSOL066' },
+];
+
 export interface ExecutionCreate {
   execution_type: ExecutionType;
   selected_days?: number[] | null;
   source_execution_id?: string | null;
   n_days_override?: number | null;
   run_tag?: string;
+  aqsol_version?: AqsolVersion | null;
 }
 
 export interface ExecutionFile {
