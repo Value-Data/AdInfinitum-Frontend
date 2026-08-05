@@ -468,8 +468,20 @@ export interface DynamicReagentsDaily {
   cacl2_t_d: number;
 }
 
+/**
+ * Versión del motor termodinámico con que se corrió la ejecución. Opcional: las
+ * ejecuciones anteriores a la incorporación del sello no la traen.
+ */
+export interface AqsolStamp {
+  engine: 'static' | 'dynamic';
+  available: boolean;
+  version: string | null;
+  dll: string | null;
+}
+
 export interface DynamicCascadeOrPostlimingResults {
   stage: 'cascade' | 'postliming';
+  aqsol?: AqsolStamp;
   run_tag: string;
   n_days_sim: number;
   pond_names: string[];
@@ -498,6 +510,7 @@ export interface DynamicCascadeOrPostlimingResults {
 
 export interface DynamicEncaladoResults {
   stage: 'encalado';
+  aqsol?: AqsolStamp;
   run_tag: string;
   n_days_sim: number;
   n_days_with_feed: number;

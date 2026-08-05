@@ -758,6 +758,23 @@ export default function ExecutionResultsPage() {
               <span className="label">{t('execlist_duration')}</span>
               <p className="text-sm font-mono">{getDuration()}</p>
             </div>
+            {/* Versión del motor termodinámico. Las ejecuciones anteriores al sello no
+                la traen: se muestra "No registrada" en vez de inventar una. */}
+            <div>
+              <span className="label">{t('aqsol_version')}</span>
+              <p className="text-sm font-mono">
+                {(execution.results as Record<string, unknown> | undefined)?.aqsol &&
+                (((execution.results as Record<string, unknown>).aqsol) as Record<string, unknown>)
+                  .version
+                  ? String(
+                      (((execution.results as Record<string, unknown>).aqsol) as Record<
+                        string,
+                        unknown
+                      >).version,
+                    )
+                  : t('aqsol_version_unknown')}
+              </p>
+            </div>
           </div>
 
           {execution.status === 'completed' && (

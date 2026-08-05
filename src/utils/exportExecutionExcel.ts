@@ -338,16 +338,15 @@ function buildPondDetailSheet(s: StageData): unknown[][] {
   aoa.push(['pH', ...ponds.map((p) => num(aq(p).pH))]);
   aoa.push(['Actividad de agua (aw)', ...ponds.map((p) => num(aq(p).water_activity))]);
   aoa.push(['Fuerza iónica', ...ponds.map((p) => num(aq(p).ionic_strength))]);
+  // El backend pre-multiplica por 1.08 para neutralizar el descuento de bermas del
+  // motor; dividir acá devuelve el área configurada (= área de proceso). Se quitó la
+  // fila "Área de diseño": con factor 1 no hay tal distinción.
   aoa.push([
     'Área de proceso (m²)',
     ...ponds.map((p) => {
       const a = num(cfg(p).area_design_m2);
       return typeof a === 'number' ? a / 1.08 : '';
     }),
-  ]);
-  aoa.push([
-    'Área de diseño (m²)',
-    ...ponds.map((p) => num(cfg(p).area_design_m2)),
   ]);
   aoa.push(['Iteraciones', ...ponds.map((p) => num(p.iterations))]);
   aoa.push([]);

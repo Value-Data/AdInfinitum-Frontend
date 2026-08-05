@@ -688,6 +688,9 @@ export const TRANSLATIONS = {
   dynres_th_outflow_td: { es: 'Flujo salida t/d', en: 'Outflow t/d' },
   dynres_axis_day: { es: 'Día', en: 'Day' },
   dynres_well_brine_feed: { es: 'Masa ingreso salmuera de pozo', en: 'Well brine feed mass' },
+  aqsol_version: { es: 'Versión AQSOL', en: 'AQSOL version' },
+  aqsol_version_unknown: { es: 'No registrada', en: 'Not recorded' },
+  aqsol_version_sub: { es: 'motor termodinámico', en: 'thermodynamic engine' },
   download_charts: { es: 'Descargar gráficos', en: 'Download charts' },
   dynres_files_not_local: {
     es: 'Los archivos de salida de esta ejecución no están disponibles en este backend (se generaron en otra máquina o corrida). El registro sí está en la base de datos.',

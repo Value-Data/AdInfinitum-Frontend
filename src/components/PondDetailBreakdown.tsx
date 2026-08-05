@@ -41,8 +41,11 @@ const METRICS: Array<{ label: TranslationKey; extract: MetricExtractor }> = [
   { label: 'ponddetail_temperature', extract: (_p, t) => (t != null ? formatNum(t, 1) : '-') },
   { label: 'props_ph', extract: (p) => formatNum(p.aqsol_result?.pH, 2) },
   { label: 'ponddetail_activity_aw', extract: (p) => formatNum(p.aqsol_result?.water_activity, 5) },
+  // El backend pre-multiplica el área por 1.08 para neutralizar el descuento de bermas
+  // que el motor aplica siempre; al dividir acá se recupera el área configurada, que es
+  // el área de proceso. Ya no se muestra "área de diseño": con factor 1 no existe tal
+  // distinción, y `config.area_design_m2` es solo el valor compensado.
   { label: 'ponddetail_process_area', extract: (p) => formatNum(p.config.area_design_m2 / 1.08, 2) },
-  { label: 'ponddetail_design_area', extract: (p) => formatNum(p.config.area_design_m2, 2) },
 ];
 
 function MatrixSubTable({

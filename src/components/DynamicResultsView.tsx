@@ -77,6 +77,13 @@ export function KpiCards({ results }: { results: DynamicResults }) {
       <Card title={t('li_production')} value={`${fmt(k.annual_li_production_ton, 1)} t/y`} sub={t('last_year')} />
       <Card title={t('days_simulated')} value={String(k.n_days_simulated)} sub={`${t('dynres_annual_window')} ${results.stage !== 'encalado' ? `${(results as DynamicCascadeOrPostlimingResults).annual_window?.[0]}–${(results as DynamicCascadeOrPostlimingResults).annual_window?.[1]}` : '—'}`} />
       <Card title={t('aqsol_convergence')} value={`${fmt(k.aqsol_convergence_pct, 2)}%`} sub={results.stage === 'encalado' ? `${(results as DynamicEncaladoResults).n_days_aqsol_failed} ${t('dynres_days_failed')}` : 'days_ok / total'} />
+      {/* Versión del motor termodinámico. Las ejecuciones anteriores al sello no la
+          traen: se muestra "No registrada" en vez de asumir una. */}
+      <Card
+        title={t('aqsol_version')}
+        value={results.aqsol?.version ?? t('aqsol_version_unknown')}
+        sub={t('aqsol_version_sub')}
+      />
     </div>
   );
 }
