@@ -38,8 +38,10 @@ export default function SaltFactorEditor({
     const limit = saltNames.length > 0 ? saltNames.length : value.length;
 
     for (let index = 0; index < limit; index++) {
-      const factor = value[index];
-      if (factor === undefined) continue;
+      // Si el array guardado es mas corto que el catalogo (config que cambio de base
+      // y todavia no se guardo), la sal igual se muestra con el default habilitado.
+      // Antes se hacia `continue` y las filas faltantes desaparecian sin aviso.
+      const factor = value[index] ?? 1;
       const name = saltNames[index] || `${t('saltfactor_salt')} ${index}`;
       const item = { index, name, factor };
 
