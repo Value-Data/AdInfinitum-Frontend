@@ -8,10 +8,22 @@ interface Props {
   value: Record<string, number>;
   onChange: (brine: Record<string, number>) => void;
   readOnly?: boolean;
+  /**
+   * Especies a mostrar, servidas por el catálogo de la versión de AQSOL en que está
+   * expresada la config (17 en la 027, 23 en la 066). Si no se pasa, cae al orden
+   * canónico de la 027 para no romper llamadas existentes.
+   */
+  species?: string[];
 }
 
-export default function BrineEditor({ value, onChange, readOnly = false }: Props) {
+export default function BrineEditor({
+  value,
+  onChange,
+  readOnly = false,
+  species,
+}: Props) {
   const t = useT();
+  const rows = species && species.length ? species : (BRINE_SPECIES_ORDER as string[]);
   const handleChange = (species: string, val: number) => {
     onChange({ ...value, [species]: val });
   };
@@ -27,7 +39,7 @@ export default function BrineEditor({ value, onChange, readOnly = false }: Props
           </tr>
         </thead>
         <tbody>
-          {BRINE_SPECIES_ORDER.map((species) => (
+          {rows.map((species) => (
             <tr key={species}>
               <td className="font-medium" style={{ color: 'var(--color-text)' }}>
                 {species}

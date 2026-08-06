@@ -11,6 +11,7 @@ import type {
 import {
   getProject,
   getProjectConfig,
+  getAqsolCatalog,
   updateProjectConfig,
   getProjectConfigDefaults,
 } from '../services/api';
@@ -25,6 +26,8 @@ import RunSimulationPanel from '../components/RunSimulationPanel';
 import DynamicModePanel from '../components/DynamicModePanel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { downloadExcel, parseWorkbookFile } from '../utils/configExcel';
+import type { AqsolCatalog, AqsolVersion } from '../types';
+import { AQSOL_VERSIONS } from '../types';
 
 type TabKey = 'config' | 'executions';
 type ProjectMode = 'static' | 'dynamic';
@@ -111,6 +114,9 @@ export default function ProjectDetailPage() {
   const [postlimingFaktor, setPostlimingFaktor] = useState<number[]>([]);
   const [dailySchedule, setDailySchedule] = useState<DailyScheduleItem[]>([]);
   const [saltNames, setSaltNames] = useState<string[]>([]);
+  // Base AQSOL de ESTA config: define que especies y sales muestran los editores.
+  const [aqsolBasis, setAqsolBasis] = useState<AqsolVersion>('027');
+  const [catalog, setCatalog] = useState<AqsolCatalog | null>(null);
   const [preconDaysYear, setPreconDaysYear] = useState<number>(365);
   const [encaladoDaysYear, setEncaladoDaysYear] = useState<number>(328.5);
   const [postlimingDaysYear, setPostlimingDaysYear] = useState<number>(365);
@@ -145,6 +151,7 @@ export default function ProjectDetailPage() {
         ]);
         setConfig(cfg);
         setBrine(cfg.brine || {});
+        setAqsolBasis((cfg.aqsol_version as AqsolVersion) || '027');
         setPreconPonds(cfg.precon_ponds || []);
         setPreconFaktor(cfg.precon_faktor || []);
         setEncaladoConfig((cfg.encalado_config as EncaladoConfig) || DEFAULT_ENCALADO);
@@ -282,12 +289,23 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // El catalogo manda que filas se editan; sin el, los editores caen a las 17
+  // especies y 137 sales de la 027 (comportamiento previo).
+  useEffect(() => {
+    let cancelado = false;
+    getAqsolCatalog(aqsolBasis)
+      .then((c) => { if (!cancelado) setCatalog(c); })
+      .catch(() => { if (!cancelado) setCatalog(null); });
+    return () => { cancelado = true; };
+  }, [aqsolBasis]);
+
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
     setSaveMsg(null);
     try {
       const updated = await updateProjectConfig(id, {
+        aqsol_version: aqsolBasis,
         brine,
         precon_ponds: preconPonds,
         precon_faktor: preconFaktor,
@@ -484,7 +502,29 @@ export default function ProjectDetailPage() {
             isOpen={openSections.brine}
             onToggle={() => toggleSection('brine')}
           >
-            <BrineEditor value={brine} onChange={setBrine} />
+            <div className="flex flex-wrap items-end gap-3 mb-3">
+              <div>
+                <label className="label" title={t('aqsol_basis_tip')}>
+                  {t('aqsol_basis')}
+                </label>
+                <select
+                  className="input w-40"
+                  value={aqsolBasis}
+                  onChange={(e) => setAqsolBasis(e.target.value as AqsolVersion)}
+                  title={t('aqsol_basis_tip')}
+                >
+                  {AQSOL_VERSIONS.map((v) => (
+                    <option key={v.value} value={v.value}>{v.label}</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+                {catalog
+                  ? `${catalog.species.length} ${t('aqsol_basis_species')} · ${catalog.salts.length} ${t('aqsol_basis_salts')}`
+                  : ''}
+              </p>
+            </div>
+            <BrineEditor value={brine} onChange={setBrine} species={catalog?.species} />
           </SectionHeader>
 
           <SectionHeader
@@ -500,7 +540,7 @@ export default function ProjectDetailPage() {
             isOpen={openSections.precon_faktor}
             onToggle={() => toggleSection('precon_faktor')}
           >
-            <SaltFactorEditor value={preconFaktor} onChange={setPreconFaktor} saltNames={saltNames} />
+            <SaltFactorEditor value={preconFaktor} onChange={setPreconFaktor} saltNames={catalog ? catalog.salts.map((x: { name: string }) => x.name) : saltNames} />
           </SectionHeader>
 
           <SectionHeader
@@ -516,7 +556,7 @@ export default function ProjectDetailPage() {
             isOpen={openSections.encalado_faktor}
             onToggle={() => toggleSection('encalado_faktor')}
           >
-            <SaltFactorEditor value={encaladoFaktor} onChange={setEncaladoFaktor} saltNames={saltNames} />
+            <SaltFactorEditor value={encaladoFaktor} onChange={setEncaladoFaktor} saltNames={catalog ? catalog.salts.map((x: { name: string }) => x.name) : saltNames} />
           </SectionHeader>
 
           <SectionHeader
@@ -532,7 +572,7 @@ export default function ProjectDetailPage() {
             isOpen={openSections.postliming_faktor}
             onToggle={() => toggleSection('postliming_faktor')}
           >
-            <SaltFactorEditor value={postlimingFaktor} onChange={setPostlimingFaktor} saltNames={saltNames} />
+            <SaltFactorEditor value={postlimingFaktor} onChange={setPostlimingFaktor} saltNames={catalog ? catalog.salts.map((x: { name: string }) => x.name) : saltNames} />
           </SectionHeader>
 
           <SectionHeader

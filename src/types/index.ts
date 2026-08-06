@@ -171,10 +171,14 @@ export interface ProjectConfig {
   encalado_days_year: number | null;
   postliming_days_year: number | null;
   dynamic_config: DynamicConfig | null;
+  /** Catalogo AQSOL en que estan brine y los *_faktor de esta config. */
+  aqsol_version: AqsolVersion;
   updated_at: string;
 }
 
 export interface ProjectConfigUpdate {
+  /** Base AQSOL en que se guardan brine y los *_faktor. */
+  aqsol_version?: AqsolVersion;
   brine?: Record<string, number>;
   precon_ponds?: PondConfig[];
   precon_faktor?: number[];
@@ -396,6 +400,16 @@ export const AQSOL_VERSIONS: { value: AqsolVersion; label: string }[] = [
   { value: '027', label: 'AQSOL027' },
   { value: '066', label: 'AQSOL066' },
 ];
+
+/** Especies y sales editables de una version de AQSOL (servidas por el backend). */
+export interface AqsolCatalog {
+  version: string;
+  species: string[];
+  salts: { dll_index: number; name: string }[];
+  n_aqueous: number;
+  n_salts: number;
+  faktor_length: number;
+}
 
 export interface ExecutionCreate {
   execution_type: ExecutionType;

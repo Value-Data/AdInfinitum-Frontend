@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type {
   Execution,
+  AqsolCatalog,
   ExecutionCreate,
   ExecutionResult,
   ExecutionStatusResponse,
@@ -208,6 +209,11 @@ export async function createExecution(
     `/projects/${projectId}/executions`,
     execData,
   );
+  return data;
+}
+
+export async function getAqsolCatalog(version: string): Promise<AqsolCatalog> {
+  const { data } = await api.get<AqsolCatalog>(`/projects/aqsol/catalog/${version}`);
   return data;
 }
 
