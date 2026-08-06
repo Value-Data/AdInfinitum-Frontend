@@ -22,6 +22,9 @@ export interface ExcelConfig {
   daily_schedule?: DailyScheduleItem[];
   /** Engine salt names indexed by Faktor position (length 137). Optional — used only for export labelling. */
   salt_names?: string[];
+  /** Especies a exportar, del catalogo de la base AQSOL de la config.
+   *  Sin esto el Excel siempre saldria con las 17 de la 027. */
+  species?: string[];
   /** Operating calendar — days/year per phase. */
   precon_days_year?: number;
   encalado_days_year?: number;
@@ -99,9 +102,12 @@ function sheetToRows(ws: XLSX.WorkSheet): Record<string, unknown>[] {
 
 /* -------- build sheets (write) -------- */
 
-function brineSheet(brine: Record<string, number> | undefined): XLSX.WorkSheet {
+function brineSheet(
+  brine: Record<string, number> | undefined,
+  species: string[] | undefined,
+): XLSX.WorkSheet {
   const rows: (string | number)[][] = [['Especie', 'Valor (ton/dia)']];
-  for (const sp of ALL_SPECIES) {
+  for (const sp of (species && species.length ? species : ALL_SPECIES)) {
     rows.push([sp, brine?.[sp] ?? 0]);
   }
   return XLSX.utils.aoa_to_sheet(rows);
@@ -194,7 +200,7 @@ export function buildWorkbook(cfg: ExcelConfig): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
   const names = cfg.salt_names;
   XLSX.utils.book_append_sheet(wb, readmeSheet(), SHEET.readme);
-  XLSX.utils.book_append_sheet(wb, brineSheet(cfg.brine), SHEET.brine);
+  XLSX.utils.book_append_sheet(wb, brineSheet(cfg.brine, cfg.species), SHEET.brine);
   XLSX.utils.book_append_sheet(wb, pondsSheet(cfg.precon_ponds), SHEET.preconPonds);
   XLSX.utils.book_append_sheet(wb, faktorSheet(cfg.precon_faktor, names), SHEET.preconFaktor);
   XLSX.utils.book_append_sheet(wb, encaladoSheet(cfg.encalado_config), SHEET.encalado);

@@ -195,7 +195,10 @@ export default function ProjectDetailPage() {
         postliming_ponds: postlimingPonds,
         postliming_faktor: postlimingFaktor,
         daily_schedule: dailySchedule,
-        salt_names: saltNames,
+        // Mismo catalogo que usan los editores: si la base es 066, el Excel
+        // sale con 23 especies y 243 sales.
+        species: catalog?.species,
+        salt_names: catalog ? catalog.salts.map((x: { name: string }) => x.name) : saltNames,
         precon_days_year: preconDaysYear,
         encalado_days_year: encaladoDaysYear,
         postliming_days_year: postlimingDaysYear,
