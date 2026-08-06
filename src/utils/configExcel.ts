@@ -306,7 +306,15 @@ function parseCalendar(ws: XLSX.WorkSheet): {
 
 /* -------- parse workbook -------- */
 
-export async function parseWorkbookFile(file: File): Promise<ExcelConfig> {
+/**
+ * @param faktorLength Largo del array Faktor de la base AQSOL de la config (156 en la
+ * 027, 267 en la 066). Sin esto se truncaba en 156 y toda sal con indice mayor —
+ * CaSO4 (160), SrSO4 (203), H3BO3(s) (237)… — se perdia en silencio al importar.
+ */
+export async function parseWorkbookFile(
+  file: File,
+  faktorLength = 156,
+): Promise<ExcelConfig> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array' });
   const out: ExcelConfig = {};
@@ -315,14 +323,14 @@ export async function parseWorkbookFile(file: File): Promise<ExcelConfig> {
 
   if (get(SHEET.brine)) out.brine = parseBrine(get(SHEET.brine));
   if (get(SHEET.preconPonds)) out.precon_ponds = parsePonds(get(SHEET.preconPonds));
-  if (get(SHEET.preconFaktor)) out.precon_faktor = parseFaktor(get(SHEET.preconFaktor));
+  if (get(SHEET.preconFaktor)) out.precon_faktor = parseFaktor(get(SHEET.preconFaktor), faktorLength);
   if (get(SHEET.encalado)) {
     out.encalado_config = parseEncalado(get(SHEET.encalado)) as EncaladoConfig;
   }
-  if (get(SHEET.encaladoFaktor)) out.encalado_faktor = parseFaktor(get(SHEET.encaladoFaktor));
+  if (get(SHEET.encaladoFaktor)) out.encalado_faktor = parseFaktor(get(SHEET.encaladoFaktor), faktorLength);
   if (get(SHEET.postlimingPonds)) out.postliming_ponds = parsePonds(get(SHEET.postlimingPonds));
   if (get(SHEET.postlimingFaktor))
-    out.postliming_faktor = parseFaktor(get(SHEET.postlimingFaktor));
+    out.postliming_faktor = parseFaktor(get(SHEET.postlimingFaktor), faktorLength);
   if (get(SHEET.schedule)) out.daily_schedule = parseSchedule(get(SHEET.schedule));
   if (get(SHEET.calendar)) {
     const cal = parseCalendar(get(SHEET.calendar));

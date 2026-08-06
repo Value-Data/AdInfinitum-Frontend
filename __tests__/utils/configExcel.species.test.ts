@@ -57,3 +57,48 @@ describe('Excel de config estatica — especies segun la base de catalogo', () =
     expect(Object.keys(parsed.brine!)).toHaveLength(23);
   });
 });
+
+/**
+ * Caso reportado: se marcan 15 sales con factor 1 en el Excel (base 066) y al importar
+ * solo quedan 7 — exactamente las de indice <= 155. El importador armaba el array con
+ * largo fijo 156 y descartaba en silencio todo indice mayor.
+ */
+const INDICES_REPORTADOS = [
+  5, 32, 83, 85, 125, 154, 155, 156, 160, 161, 162, 199, 200, 203, 237,
+];
+
+function hojaFactores(indices: number[]): XLSX.WorkSheet {
+  const rows: (string | number)[][] = [['indice', 'sal', 'factor']];
+  for (let i = 0; i < 242; i++) {
+    rows.push([i, `Sal ${i}`, indices.includes(i) ? 1 : 1e9]);
+  }
+  return XLSX.utils.aoa_to_sheet(rows);
+}
+
+async function importar(faktorLength?: number) {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, hojaFactores(INDICES_REPORTADOS), 'Factores Precon');
+  const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  return parseWorkbookFile(fakeFile(buf), faktorLength);
+}
+
+describe('Excel de config estatica — factores mas alla del indice 155', () => {
+  it('con largo 267 (base 066) sobreviven las 15 sales habilitadas', async () => {
+    const parsed = await importar(267);
+    // Solo el rango de sales reales (0..241). Las posiciones 242..266 son padding del
+    // Faktor y parseFaktor las deja en 1 por defecto, igual que 137..155 en la 027.
+    const habilitadas = parsed.precon_faktor!
+      .slice(0, 242)
+      .map((v, i) => [i, v] as const)
+      .filter(([, v]) => v === 1)
+      .map(([i]) => i);
+    expect(habilitadas).toEqual(INDICES_REPORTADOS);
+    expect(parsed.precon_faktor).toHaveLength(267);
+  });
+
+  it('reproduce el bug con el largo viejo: solo quedan las de indice <= 155', async () => {
+    const parsed = await importar(156);
+    const habilitadas = parsed.precon_faktor!.slice(0, 242).filter((v) => v === 1).length;
+    expect(habilitadas).toBe(7);
+  });
+});

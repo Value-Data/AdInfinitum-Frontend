@@ -217,7 +217,7 @@ export default function ProjectDetailPage() {
     e.target.value = '';
     if (!file) return;
     try {
-      const parsed = await parseWorkbookFile(file);
+      const parsed = await parseWorkbookFile(file, catalog?.faktor_length);
       const applied: string[] = [];
       if (parsed.brine) {
         setBrine(parsed.brine);
