@@ -418,6 +418,8 @@ export interface ExecutionCreate {
   n_days_override?: number | null;
   run_tag?: string;
   aqsol_version?: AqsolVersion | null;
+  /** Maximo de iteraciones del solver de pozas (default 200). */
+  max_iter?: number | null;
 }
 
 export interface ExecutionFile {

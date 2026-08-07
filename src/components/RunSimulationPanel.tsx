@@ -15,6 +15,7 @@ export default function RunSimulationPanel({ projectId, onExecutionCreated }: Pr
   const [executionType, setExecutionType] = useState<ExecutionType>('proceso_completo');
   // 027 es el motor validado; 066 se elige explícitamente para comparar.
   const [aqsolVersion, setAqsolVersion] = useState<AqsolVersion>('027');
+  const [maxIter, setMaxIter] = useState<number>(200);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +26,7 @@ export default function RunSimulationPanel({ projectId, onExecutionCreated }: Pr
       await createExecution(projectId, {
         execution_type: executionType,
         aqsol_version: aqsolVersion,
+        max_iter: maxIter,
       });
       onExecutionCreated();
     } catch (err: unknown) {
@@ -74,6 +76,22 @@ export default function RunSimulationPanel({ projectId, onExecutionCreated }: Pr
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="label" title={t('runsim_max_iter_tip')}>
+            {t('runsim_max_iter')}
+          </label>
+          <input
+            type="number"
+            className="input input-number w-28"
+            min={10}
+            max={5000}
+            step={10}
+            value={maxIter}
+            onChange={(e) => setMaxIter(parseInt(e.target.value) || 200)}
+            title={t('runsim_max_iter_tip')}
+          />
         </div>
 
         <button

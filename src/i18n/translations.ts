@@ -691,6 +691,8 @@ export const TRANSLATIONS = {
   aqsol_version: { es: 'Versión AQSOL', en: 'AQSOL version' },
   aqsol_version_pick: { es: 'Motor AQSOL', en: 'AQSOL engine' },
   aqsol_basis: { es: 'Base de catálogo', en: 'Catalog basis' },
+  runsim_max_iter: { es: 'Iteraciones máx.', en: 'Max iterations' },
+  runsim_max_iter_tip: { es: 'Máximo de iteraciones del solver por poza (default 200). Subirlo da más margen a pozas que convergen lento, pero NO rescata las que se estancan: el solver corta igual si el error no mejora en 10 iteraciones seguidas.', en: 'Maximum solver iterations per pond (default 200). Raising it gives more room to slow-converging ponds, but does NOT rescue stagnating ones: the solver aborts anyway if the error does not improve for 10 consecutive iterations.' },
   aqsol_basis_species: { es: 'especies', en: 'species' },
   aqsol_basis_salts: { es: 'sales', en: 'salts' },
   aqsol_basis_tip: { es: 'Catálogo AQSOL en que se guardan la salmuera y los factores de esta configuración. Define qué especies y sales podés editar: 17 y 137 en la 027, 23 y 243 en la 066. No es la versión con que se ejecuta — esa se elige al lanzar. Al cambiarla, las especies nuevas aparecen en cero y los factores se reindexan por nombre al correr.', en: 'AQSOL catalog in which this configuration stores its brine and factors. Defines which species and salts you can edit: 17 and 137 in 027, 23 and 243 in 066. It is not the engine used to run — that is chosen at launch. When changed, new species appear as zero and factors are reindexed by name at run time.' },
