@@ -173,12 +173,15 @@ export interface ProjectConfig {
   dynamic_config: DynamicConfig | null;
   /** Catalogo AQSOL en que estan brine y los *_faktor de esta config. */
   aqsol_version: AqsolVersion;
+  /** Convencion del arrastre: 'wet' = % de la torta humeda, 'dry' = % de la sal. */
+  entrainment_basis: EntrainmentBasis;
   updated_at: string;
 }
 
 export interface ProjectConfigUpdate {
   /** Base AQSOL en que se guardan brine y los *_faktor. */
   aqsol_version?: AqsolVersion;
+  entrainment_basis?: EntrainmentBasis;
   brine?: Record<string, number>;
   precon_ponds?: PondConfig[];
   precon_faktor?: number[];
@@ -395,6 +398,13 @@ export interface Execution {
 
 /** Version del motor termodinamico. Omitir = default de la instancia. */
 export type AqsolVersion = '027' | '066';
+
+/**
+ * Base del entrainment. 'wet': el % es la fraccion de la torta humeda que es salmuera
+ * (lo que hace el motor; 25% => 333 kg por tonelada de sal). 'dry': el % se aplica a la
+ * masa de sal seca (25% => 250 kg por tonelada).
+ */
+export type EntrainmentBasis = 'wet' | 'dry';
 
 export const AQSOL_VERSIONS: { value: AqsolVersion; label: string }[] = [
   { value: '027', label: 'AQSOL027' },

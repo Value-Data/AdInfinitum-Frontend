@@ -26,7 +26,7 @@ import RunSimulationPanel from '../components/RunSimulationPanel';
 import DynamicModePanel from '../components/DynamicModePanel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { downloadExcel, parseWorkbookFile } from '../utils/configExcel';
-import type { AqsolCatalog, AqsolVersion } from '../types';
+import type { AqsolCatalog, AqsolVersion, EntrainmentBasis } from '../types';
 import { AQSOL_VERSIONS } from '../types';
 
 type TabKey = 'config' | 'executions';
@@ -116,6 +116,8 @@ export default function ProjectDetailPage() {
   const [saltNames, setSaltNames] = useState<string[]>([]);
   // Base AQSOL de ESTA config: define que especies y sales muestran los editores.
   const [aqsolBasis, setAqsolBasis] = useState<AqsolVersion>('027');
+  // Convencion del arrastre: la del motor ('wet') o sobre la sal seca ('dry').
+  const [entrBasis, setEntrBasis] = useState<EntrainmentBasis>('wet');
   const [catalog, setCatalog] = useState<AqsolCatalog | null>(null);
   const [preconDaysYear, setPreconDaysYear] = useState<number>(365);
   const [encaladoDaysYear, setEncaladoDaysYear] = useState<number>(328.5);
@@ -152,6 +154,7 @@ export default function ProjectDetailPage() {
         setConfig(cfg);
         setBrine(cfg.brine || {});
         setAqsolBasis((cfg.aqsol_version as AqsolVersion) || '027');
+        setEntrBasis((cfg.entrainment_basis as EntrainmentBasis) || 'wet');
         setPreconPonds(cfg.precon_ponds || []);
         setPreconFaktor(cfg.precon_faktor || []);
         setEncaladoConfig((cfg.encalado_config as EncaladoConfig) || DEFAULT_ENCALADO);
@@ -309,6 +312,7 @@ export default function ProjectDetailPage() {
     try {
       const updated = await updateProjectConfig(id, {
         aqsol_version: aqsolBasis,
+        entrainment_basis: entrBasis,
         brine,
         precon_ponds: preconPonds,
         precon_faktor: preconFaktor,
@@ -535,6 +539,25 @@ export default function ProjectDetailPage() {
             isOpen={openSections.precon_ponds}
             onToggle={() => toggleSection('precon_ponds')}
           >
+            <div className="flex flex-wrap items-end gap-3 mb-3">
+              <div>
+                <label className="label" title={t('entr_basis_tip')}>
+                  {t('entr_basis')}
+                </label>
+                <select
+                  className="input w-44"
+                  value={entrBasis}
+                  onChange={(e) => setEntrBasis(e.target.value as EntrainmentBasis)}
+                  title={t('entr_basis_tip')}
+                >
+                  <option value="wet">{t('entr_basis_wet')}</option>
+                  <option value="dry">{t('entr_basis_dry')}</option>
+                </select>
+              </div>
+              <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+                {entrBasis === 'wet' ? '25% → 333 kg/t' : '25% → 250 kg/t'}
+              </p>
+            </div>
             <PondEditor value={preconPonds} onChange={setPreconPonds} label={t('projdetail_label_precon_ponds')} />
           </SectionHeader>
 
