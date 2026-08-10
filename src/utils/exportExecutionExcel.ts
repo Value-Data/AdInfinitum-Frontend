@@ -42,6 +42,19 @@ export interface ExportInput {
   }>;
 }
 
+/**
+ * Especies a listar: el orden canonico primero y despues cualquier otra que el motor
+ * haya devuelto. La 066 agrega Ba++, Sr++, NO3-, NH4+ y demas; con la lista fija no
+ * aparecian nunca en las tablas de composicion.
+ */
+function speciesPresentes(fuentes: (Record<string, number> | undefined)[]): string[] {
+  const extra = new Set<string>();
+  for (const f of fuentes) {
+    if (f) for (const k of Object.keys(f)) if (!SPECIES_ORDER.includes(k)) extra.add(k);
+  }
+  return [...SPECIES_ORDER, ...Array.from(extra).sort()];
+}
+
 const SPECIES_ORDER = [
   'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'H+',
   'Cl-', 'HSO4-', 'SO4--', 'OH-',
@@ -354,7 +367,7 @@ function buildPondDetailSheet(s: StageData): unknown[][] {
   // Section 2: Composition
   aoa.push(['QUIMICA FLUJO DE TRASPASO (ton/d)']);
   aoa.push(['Especie', ...colLabels]);
-  for (const sp of SPECIES_ORDER) {
+  for (const sp of speciesPresentes(ponds.map((p) => aq(p).eq_liquid as Record<string, number>))) {
     aoa.push([
       sp,
       ...ponds.map((p) => {
@@ -490,12 +503,7 @@ export function buildEncaladoSheet(enc: Record<string, unknown>): unknown[][] {
   ];
   aoa.push(['COMPOSICION POR ETAPA (ton/d)']);
   aoa.push(['Especie', ...compCols.map((c) => c.label)]);
-  const speciesSet = new Set<string>(SPECIES_ORDER);
-  for (const c of compCols) if (c.data) Object.keys(c.data).forEach((k) => speciesSet.add(k));
-  const species = [
-    ...SPECIES_ORDER,
-    ...Array.from(speciesSet).filter((s) => !SPECIES_ORDER.includes(s)).sort(),
-  ];
+  const species = speciesPresentes(compCols.map((c) => c.data as Record<string, number>));
   for (const sp of species) {
     aoa.push([
       sp,

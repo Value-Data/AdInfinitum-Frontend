@@ -1,6 +1,6 @@
 import React from 'react';
 import type { SolverResult } from '../types';
-import { MAIN_SPECIES } from '../types';
+import { BRINE_SPECIES_ORDER, MAIN_SPECIES } from '../types';
 import { boronFrom } from '../utils/boron';
 import { useT } from '../i18n/LanguageContext';
 import { fmtNum } from '../utils/numberFormat';
@@ -15,6 +15,29 @@ export default function CompositionTable({ stageLabel, result }: Props) {
   const t = useT();
   useDecimals();
   const ponds = result.ponds || [];
+
+  // Las especies se derivan del RESULTADO, no de una lista fija. El motor devuelve las
+  // que tiene su catalogo: 17 en la 027 y 23 en la 066 (Ba++, Sr++, NO3-, NH4+…). Con
+  // MAIN_SPECIES hardcodeado solo se veian 9 y las nuevas no aparecian nunca.
+  // Orden: las principales primero, despues el resto del orden canonico, y al final
+  // cualquier especie que el motor haya agregado.
+  const speciesRows = React.useMemo(() => {
+    const presentes = new Set<string>();
+    for (const p of ponds) {
+      for (const k of Object.keys(p.aqsol_result?.eq_liquid || {})) presentes.add(k);
+    }
+    const orden = [...MAIN_SPECIES, ...BRINE_SPECIES_ORDER] as string[];
+    const vistas = new Set<string>();
+    const salida: string[] = [];
+    for (const sp of orden) {
+      if (presentes.has(sp) && !vistas.has(sp)) { vistas.add(sp); salida.push(sp); }
+    }
+    for (const sp of presentes) {
+      if (!vistas.has(sp)) { vistas.add(sp); salida.push(sp); }
+    }
+    // Sin datos (ejecucion vacia): al menos las principales, como antes.
+    return salida.length ? salida : (MAIN_SPECIES as unknown as string[]);
+  }, [ponds]);
 
   // Calculate %w/w from eq_liquid: species_mass / total_mass * 100
   const getWW = (eqLiquid: Record<string, number> | undefined, species: string): number => {
@@ -47,7 +70,7 @@ export default function CompositionTable({ stageLabel, result }: Props) {
             </tr>
           </thead>
           <tbody>
-            {MAIN_SPECIES.map((species) => (
+            {speciesRows.map((species) => (
               <tr key={species}>
                 <td
                   className="font-medium sticky left-0"
