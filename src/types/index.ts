@@ -152,6 +152,12 @@ export interface DailyScheduleItem {
   date_label: string;
   temperature_C: number;
   evap_rate: number;
+  /**
+   * Caudal de salmuera de este día, ton/d. Opcional: sin valor, el día usa el caudal
+   * global de la configuración. La composición en %w/w es siempre la misma; lo que
+   * cambia día a día es la escala.
+   */
+  brine_total_flow?: number;
 }
 
 // ---- Project Config ----
@@ -159,7 +165,10 @@ export interface DailyScheduleItem {
 export interface ProjectConfig {
   id: string;
   project_id: string;
+  /** Composicion de la salmuera de pozo en %w/w. El caudal va en brine_total_flow. */
   brine: Record<string, number> | null;
+  /** Caudal total de la salmuera de pozo, ton/d. Escala de `brine`. */
+  brine_total_flow: number | null;
   precon_ponds: PondConfig[] | null;
   precon_faktor: number[] | null;
   encalado_config: EncaladoConfig | null;
@@ -183,6 +192,7 @@ export interface ProjectConfigUpdate {
   aqsol_version?: AqsolVersion;
   entrainment_basis?: EntrainmentBasis;
   brine?: Record<string, number>;
+  brine_total_flow?: number;
   precon_ponds?: PondConfig[];
   precon_faktor?: number[];
   encalado_config?: Record<string, unknown>;
@@ -198,6 +208,7 @@ export interface ProjectConfigUpdate {
 
 export interface ProjectConfigDefaults {
   brine: Record<string, number>;
+  brine_total_flow: number;
   precon_ponds: PondConfig[];
   precon_faktor: number[];
   encalado_config: Record<string, unknown>;
@@ -246,6 +257,17 @@ export interface DynamicClimate {
   series_start_date: string;
   evaporation_mm_day: number[];
   temperature_C: number[];
+  /**
+   * Caudal de salmuera de cada dia, ton/d. Serie paralela y OPCIONAL.
+   *
+   * null/ausente (default): el caudal diario lo modula el motor a partir de
+   * average_flow_ton_day, max_flow_ton_day y flow_modulation.
+   * Con valores: cada dia usa el suyo; las posiciones en null quedan moduladas, asi
+   * que se puede fijar el caudal de un tramo y dejar el resto como estaba.
+   *
+   * Equivale al brine_total_flow por dia del cronograma del modelo estatico.
+   */
+  brine_flow_ton_day?: (number | null)[] | null;
 }
 
 // v2: 5 supported reactivo/objetivo combinations.
@@ -342,6 +364,15 @@ export interface DynamicSimulation {
 }
 
 export interface DynamicConfig {
+  /**
+   * Base de catalogo AQSOL en que estan expresados `brine` y los `factors` de este
+   * blob: define que especies y sales muestran los editores y la plantilla Excel, y
+   * es TAMBIEN el motor con que se ejecutan las etapas dinamicas — el backend lo toma
+   * de aca al lanzar, no del panel de ejecuciones.
+   *
+   * Es independiente de ProjectConfig.aqsol_version, la base del modelo estatico.
+   */
+  aqsol_version?: AqsolVersion;
   brine: Record<string, number>;
   precon: DynamicPrecon;
   climate: DynamicClimate;
@@ -388,6 +419,8 @@ export interface Execution {
   execution_type: ExecutionType;
   status: ExecutionStatus;
   error_message: string | null;
+  /** Falló, pero el backend conservó lo calculado hasta el corte. */
+  has_partial_results?: boolean;
   celery_task_id: string | null;
   source_execution_id: string | null;
   started_at: string | null;
@@ -565,7 +598,20 @@ export interface DynamicEncaladoResults {
   files: ExecutionFile[];
 }
 
-export type DynamicResults = DynamicCascadeOrPostlimingResults | DynamicEncaladoResults;
+/**
+ * Marca de corrida cortada. El backend guarda igual lo calculado hasta el fallo
+ * (`dynamic_runner.simular_conservando_parcial`), así que estos campos aparecen en
+ * cualquier etapa cuando `status === 'failed'`.
+ */
+export interface DynamicPartialInfo {
+  partial?: boolean;
+  days_completed?: number;
+  days_total?: number;
+  error_msg?: string;
+}
+
+export type DynamicResults =
+  (DynamicCascadeOrPostlimingResults | DynamicEncaladoResults) & DynamicPartialInfo;
 
 export interface ExecutionStatusResponse {
   id: string;

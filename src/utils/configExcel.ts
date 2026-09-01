@@ -12,7 +12,10 @@ import type {
 import { MAIN_SPECIES, TRACE_SPECIES } from '../types';
 
 export interface ExcelConfig {
+  /** Composicion de la salmuera en %w/w (debe sumar 100). */
   brine?: Record<string, number>;
+  /** Caudal total de la salmuera, ton/d. Escala de `brine`. */
+  brine_total_flow?: number;
   precon_ponds?: PondConfig[];
   precon_faktor?: number[];
   encalado_config?: EncaladoConfig;
@@ -102,14 +105,22 @@ function sheetToRows(ws: XLSX.WorkSheet): Record<string, unknown>[] {
 
 /* -------- build sheets (write) -------- */
 
+/** Etiqueta de la fila que lleva el caudal. El parser la reconoce por prefijo. */
+const TOTAL_FLOW_LABEL = 'Flujo total (ton/dia)';
+
 function brineSheet(
   brine: Record<string, number> | undefined,
   species: string[] | undefined,
+  totalFlow: number | undefined,
 ): XLSX.WorkSheet {
-  const rows: (string | number)[][] = [['Especie', 'Valor (ton/dia)']];
+  // La salmuera se exporta como composicion + caudal, igual que se guarda. El caudal
+  // va en una fila propia al final en vez de una celda suelta: asi la hoja sigue
+  // siendo una tabla de dos columnas que el parser recorre linealmente.
+  const rows: (string | number)[][] = [['Especie', '%w/w']];
   for (const sp of (species && species.length ? species : ALL_SPECIES)) {
     rows.push([sp, brine?.[sp] ?? 0]);
   }
+  rows.push([TOTAL_FLOW_LABEL, totalFlow ?? 0]);
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
@@ -156,9 +167,13 @@ function encaladoSheet(cfg: EncaladoConfig | undefined): XLSX.WorkSheet {
 }
 
 function scheduleSheet(schedule: DailyScheduleItem[] | undefined): XLSX.WorkSheet {
-  const rows: (string | number)[][] = [['date_label', 'temperature_C', 'evap_rate']];
+  const rows: (string | number)[][] = [
+    ['date_label', 'temperature_C', 'evap_rate', 'brine_total_flow'],
+  ];
   (schedule ?? []).forEach((d) => {
-    rows.push([d.date_label, d.temperature_C, d.evap_rate]);
+    // Celda vacía = el día hereda el caudal global. Escribir 0 significaría un día sin
+    // alimentación, que es otra cosa.
+    rows.push([d.date_label, d.temperature_C, d.evap_rate, d.brine_total_flow ?? '']);
   });
   return XLSX.utils.aoa_to_sheet(rows);
 }
@@ -176,14 +191,14 @@ function readmeSheet(): XLSX.WorkSheet {
     ['Plantilla de Configuracion — AdInfinitum'],
     [],
     ['Hoja', 'Descripcion'],
-    [SHEET.brine, 'Salmuera inicial: 17 especies (ton/dia). No borre ni renombre especies.'],
+    [SHEET.brine, 'Salmuera inicial: composicion en %w/w (debe sumar 100) mas el caudal total en ton/dia al pie de la hoja. El ton/dia de cada especie se calcula al ejecutar. No borre ni renombre especies.'],
     [SHEET.preconPonds, 'Pozas de preconcentracion. Agregue/elimine filas segun necesite.'],
     [SHEET.preconFaktor, 'Factores de precipitacion preconcentracion (F<1 favorece, F=1 habilita, F>1 inhibe). Columna sal es informativa; el indice manda al importar.'],
     [SHEET.encalado, 'Parametros de encalado (clave/valor). use_CaCl2 acepta TRUE/FALSE.'],
     [SHEET.encaladoFaktor, 'Factores de precipitacion encalado. Columna sal es informativa.'],
     [SHEET.postlimingPonds, 'Pozas de post-liming.'],
     [SHEET.postlimingFaktor, 'Factores de precipitacion post-liming. Columna sal es informativa.'],
-    [SHEET.schedule, 'Cronograma diario: date_label, temperatura (C), evaporacion (mm/dia).'],
+    [SHEET.schedule, 'Cronograma diario: date_label, temperatura (C), evaporacion (mm/dia) y caudal de salmuera (ton/dia). Deje el caudal vacio para que el dia use el caudal global de la hoja Salmuera.'],
     [SHEET.calendar, 'Calendario operativo: dias/ano por fase (preconcentracion, encalado, postliming).'],
     [],
     ['Notas'],
@@ -200,7 +215,11 @@ export function buildWorkbook(cfg: ExcelConfig): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
   const names = cfg.salt_names;
   XLSX.utils.book_append_sheet(wb, readmeSheet(), SHEET.readme);
-  XLSX.utils.book_append_sheet(wb, brineSheet(cfg.brine, cfg.species), SHEET.brine);
+  XLSX.utils.book_append_sheet(
+    wb,
+    brineSheet(cfg.brine, cfg.species, cfg.brine_total_flow),
+    SHEET.brine,
+  );
   XLSX.utils.book_append_sheet(wb, pondsSheet(cfg.precon_ponds), SHEET.preconPonds);
   XLSX.utils.book_append_sheet(wb, faktorSheet(cfg.precon_faktor, names), SHEET.preconFaktor);
   XLSX.utils.book_append_sheet(wb, encaladoSheet(cfg.encalado_config), SHEET.encalado);
@@ -219,15 +238,49 @@ export function downloadExcel(cfg: ExcelConfig, filename: string): void {
 
 /* -------- parse sheets (read) -------- */
 
-function parseBrine(ws: XLSX.WorkSheet): Record<string, number> {
+/**
+ * Lee la hoja Salmuera en cualquiera de los dos formatos.
+ *
+ * Nuevo: columna `%w/w` + fila `Flujo total (ton/dia)`.
+ * Antiguo: columna `Valor (ton/dia)` con el caudal de cada especie. Se convierte a
+ * composicion + caudal para que una plantilla vieja siga sirviendo — el archivo que el
+ * usuario tenga en su disco no deberia quedar inservible por este cambio.
+ */
+function parseBrine(ws: XLSX.WorkSheet): {
+  brine: Record<string, number>;
+  brine_total_flow?: number;
+} {
   const rows = sheetToRows(ws);
-  const out: Record<string, number> = {};
+  const pct: Record<string, number> = {};
+  const tons: Record<string, number> = {};
+  let total: number | undefined;
+
   rows.forEach((r) => {
     const name = String(r['Especie'] ?? r['especie'] ?? '').trim();
     if (!name) return;
-    out[name] = toNum(r['Valor (ton/dia)'] ?? r['Valor'] ?? r['valor']);
+    if (name.toLowerCase().startsWith('flujo total')) {
+      total = toNum(r['%w/w'] ?? r['Valor (ton/dia)'] ?? r['Valor'] ?? r['valor']);
+      return;
+    }
+    const pctCell = r['%w/w'] ?? r['%W/W'] ?? r['pct'];
+    if (pctCell !== undefined && pctCell !== '') {
+      pct[name] = toNum(pctCell);
+    } else {
+      tons[name] = toNum(r['Valor (ton/dia)'] ?? r['Valor'] ?? r['valor']);
+    }
   });
-  return out;
+
+  if (Object.keys(pct).length > 0) {
+    return { brine: pct, brine_total_flow: total };
+  }
+
+  // Formato antiguo: los valores son caudales. La suma es el caudal total y cada
+  // especie pasa a su participacion, que es exactamente lo que hizo la migracion 008.
+  const suma = Object.values(tons).reduce((s, v) => s + v, 0);
+  if (suma <= 0) return { brine: tons, brine_total_flow: 0 };
+  const conv: Record<string, number> = {};
+  for (const [k, v] of Object.entries(tons)) conv[k] = (v / suma) * 100;
+  return { brine: conv, brine_total_flow: suma };
 }
 
 function parsePonds(ws: XLSX.WorkSheet): PondConfig[] {
@@ -278,11 +331,20 @@ function parseSchedule(ws: XLSX.WorkSheet): DailyScheduleItem[] {
   const rows = sheetToRows(ws);
   return rows
     .filter((r) => String(r['date_label'] ?? '').trim() !== '')
-    .map((r) => ({
-      date_label: String(r['date_label']),
-      temperature_C: toNum(r['temperature_C']),
-      evap_rate: toNum(r['evap_rate']),
-    }));
+    .map((r) => {
+      const flow = r['brine_total_flow'];
+      const item: DailyScheduleItem = {
+        date_label: String(r['date_label']),
+        temperature_C: toNum(r['temperature_C']),
+        evap_rate: toNum(r['evap_rate']),
+      };
+      // Solo se fija si la celda trae algo: una plantilla sin la columna, o con la
+      // celda vacía, deja el día heredando el caudal global.
+      if (flow !== undefined && flow !== '' && flow !== null) {
+        item.brine_total_flow = toNum(flow);
+      }
+      return item;
+    });
 }
 
 function parseCalendar(ws: XLSX.WorkSheet): {
@@ -321,7 +383,11 @@ export async function parseWorkbookFile(
 
   const get = (name: string) => wb.Sheets[name];
 
-  if (get(SHEET.brine)) out.brine = parseBrine(get(SHEET.brine));
+  if (get(SHEET.brine)) {
+    const b = parseBrine(get(SHEET.brine));
+    out.brine = b.brine;
+    if (b.brine_total_flow !== undefined) out.brine_total_flow = b.brine_total_flow;
+  }
   if (get(SHEET.preconPonds)) out.precon_ponds = parsePonds(get(SHEET.preconPonds));
   if (get(SHEET.preconFaktor)) out.precon_faktor = parseFaktor(get(SHEET.preconFaktor), faktorLength);
   if (get(SHEET.encalado)) {

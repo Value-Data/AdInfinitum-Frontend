@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n/LanguageContext';
 import { formatEs } from '../utils/numberFormat';
 import {
@@ -9,6 +9,8 @@ import {
 } from '../utils/brineComposition';
 import type { TranslationKey } from '../i18n/translations';
 import type {
+  AqsolCatalog,
+  AqsolVersion,
   DosificacionConfig,
   DosificacionObjetivo,
   DosificacionReactivo,
@@ -20,7 +22,8 @@ import type {
   DynamicSimulation,
   SaltFactor,
 } from '../types';
-import { BRINE_SPECIES_ORDER } from '../types';
+import { AQSOL_VERSIONS, BRINE_SPECIES_ORDER } from '../types';
+import { getAqsolCatalog } from '../services/api';
 
 type Props = {
   value: DynamicConfig;
@@ -101,15 +104,22 @@ function BrineSection({
   value,
   onChange,
   totalFlow,
+  species,
 }: {
   value: Record<string, number>;
   onChange: (v: Record<string, number>) => void;
   totalFlow: number;
+  /**
+   * Especies a mostrar, servidas por el catálogo de la base AQSOL de la config
+   * (17 en la 027, 23 en la 066). Si no se pasa —catálogo aún cargando o caído—
+   * cae al orden canónico de la 027, igual que el BrineEditor del estático.
+   */
+  species?: string[];
 }) {
   const t = useT();
   const { rows, totalPct, totalMass } = buildBrineCompositionRows(
     value,
-    BRINE_SPECIES_ORDER as unknown as string[],
+    species && species.length ? species : (BRINE_SPECIES_ORDER as unknown as string[]),
     totalFlow,
   );
   const closure = compositionClosure(value);
@@ -1318,10 +1328,23 @@ function ClimateSection({
   const [bulkDays, setBulkDays] = useState(30);
   const [bulkTemp, setBulkTemp] = useState(20);
   const [bulkEvap, setBulkEvap] = useState(5);
+  // 0 = los dias agregados quedan modulados (sin caudal propio).
+  const [bulkFlow, setBulkFlow] = useState(0);
 
   const evap = climate.evaporation_mm_day;
   const temp = climate.temperature_C;
   const n = Math.min(evap.length, temp.length);
+
+  // Caudal por dia: serie paralela y OPCIONAL. Una celda vacia (null) significa "que
+  // lo module el motor con average/max_flow", que es el comportamiento por defecto.
+  const flows = climate.brine_flow_ton_day ?? [];
+  const nConCaudal = flows.filter((f) => typeof f === 'number' && f > 0).length;
+
+  const setFlows = (next: (number | null)[]) => {
+    // Serie toda vacia => se guarda como ausente, para no dejar ruido en la config.
+    const alguno = next.some((f) => typeof f === 'number' && f > 0);
+    onChange({ ...climate, brine_flow_ton_day: alguno ? next : null });
+  };
 
   const avgEvap = n ? evap.reduce((a, b) => a + b, 0) / n : 0;
   const minEvap = n ? Math.min(...evap) : 0;
@@ -1352,22 +1375,39 @@ function ClimateSection({
     onChange({ ...climate, evaporation_mm_day: newEvap, temperature_C: newTemp });
   };
 
+  const updateFlow = (i: number, val: number | null) => {
+    // Se rellena hasta i para no dejar huecos que corran los indices de la serie.
+    const next: (number | null)[] = [...flows];
+    while (next.length <= i) next.push(null);
+    next[i] = val;
+    setFlows(next);
+  };
+
   const addDay = () => {
     onChange({
       ...climate,
       evaporation_mm_day: [...evap, 5],
       temperature_C: [...temp, 20],
+      // El dia nuevo arranca modulado; el caudal propio se pone a mano si se quiere.
+      brine_flow_ton_day: flows.length ? [...flows, null] : climate.brine_flow_ton_day,
     });
   };
 
   const addBulk = () => {
     const newEvap = [...evap];
     const newTemp = [...temp];
+    const newFlows: (number | null)[] = [...flows];
     for (let i = 0; i < bulkDays; i++) {
       newEvap.push(bulkEvap);
       newTemp.push(bulkTemp);
+      if (flows.length) newFlows.push(bulkFlow > 0 ? bulkFlow : null);
     }
-    onChange({ ...climate, evaporation_mm_day: newEvap, temperature_C: newTemp });
+    onChange({
+      ...climate,
+      evaporation_mm_day: newEvap,
+      temperature_C: newTemp,
+      brine_flow_ton_day: flows.length ? newFlows : climate.brine_flow_ton_day,
+    });
   };
 
   const removeDay = (i: number) => {
@@ -1375,12 +1415,20 @@ function ClimateSection({
       ...climate,
       evaporation_mm_day: evap.filter((_, idx) => idx !== i),
       temperature_C: temp.filter((_, idx) => idx !== i),
+      brine_flow_ton_day: flows.length
+        ? flows.filter((_, idx) => idx !== i)
+        : climate.brine_flow_ton_day,
     });
   };
 
   const clearAll = () => {
     if (!confirm(`${t('dyncfg_climate_clear_confirm_pre')} ${n} ${t('dyncfg_climate_clear_confirm_post')}`)) return;
-    onChange({ ...climate, evaporation_mm_day: [], temperature_C: [] });
+    onChange({
+      ...climate,
+      evaporation_mm_day: [],
+      temperature_C: [],
+      brine_flow_ton_day: null,
+    });
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1395,24 +1443,45 @@ function ClimateSection({
       const evapIdx = header.findIndex((h) => h.startsWith('evap'));
       const tempIdx = header.findIndex((h) => h.startsWith('temp'));
       if (evapIdx < 0 || tempIdx < 0) throw new Error(t('dyncfg_csv_missing_cols'));
+      // Columna de caudal OPCIONAL: sin ella el CSV se importa como siempre y todos
+      // los dias quedan modulados. Celda vacia o <= 0 = ese dia modulado.
+      const flowIdx = header.findIndex((h) => h.startsWith('flow') || h.startsWith('caudal'));
       const newEvap: number[] = [];
       const newTemp: number[] = [];
+      const newFlows: (number | null)[] = [];
       for (let i = 1; i < lines.length; i++) {
         const cols = lines[i].split(',');
         newEvap.push(parseFloat(cols[evapIdx]));
         newTemp.push(parseFloat(cols[tempIdx]));
+        if (flowIdx >= 0) {
+          const f = parseFloat((cols[flowIdx] ?? '').trim());
+          newFlows.push(Number.isFinite(f) && f > 0 ? f : null);
+        }
       }
-      onChange({ ...climate, evaporation_mm_day: newEvap, temperature_C: newTemp });
-      setMsg(`${t('dyncfg_loaded_pre')} ${newEvap.length} ${t('schedule_days_lower')}.`);
+      const conCaudal = newFlows.filter((f) => f !== null).length;
+      onChange({
+        ...climate,
+        evaporation_mm_day: newEvap,
+        temperature_C: newTemp,
+        brine_flow_ton_day: conCaudal > 0 ? newFlows : null,
+      });
+      setMsg(
+        `${t('dyncfg_loaded_pre')} ${newEvap.length} ${t('schedule_days_lower')}` +
+          (conCaudal > 0 ? ` · ${conCaudal} ${t('dyncfg_flow_days_loaded')}` : '') +
+          '.',
+      );
     } catch (err) {
       setMsg(`${t('error')}: ${(err as Error).message}`);
     }
   };
 
   const handleExport = () => {
-    const rows = ['day,date,evap_mm_day,temp_C'];
+    // Se exporta la columna de caudal siempre: asi el CSV exportado se puede reimportar
+    // sin perder la serie, y sirve de plantilla para llenarla a mano.
+    const rows = ['day,date,evap_mm_day,temp_C,flow_ton_day'];
     for (let i = 0; i < n; i++) {
-      rows.push(`${i + 1},${dateLabel(i)},${evap[i]},${temp[i]}`);
+      const f = typeof flows[i] === 'number' ? flows[i] : '';
+      rows.push(`${i + 1},${dateLabel(i)},${evap[i]},${temp[i]},${f}`);
     }
     const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -1448,6 +1517,13 @@ function ClimateSection({
               {formatEs(minTemp, 2)}, max {formatEs(maxTemp, 2)})
             </>
           )}
+          {nConCaudal > 0 && (
+            <>
+              {' · '}
+              <span className="font-mono">{nConCaudal}</span>{' '}
+              {t('dyncfg_climate_flow_summary')}
+            </>
+          )}
         </div>
       </div>
 
@@ -1467,6 +1543,10 @@ function ClimateSection({
               <th>
                 {t('dyncfg_th_evaporation')}
                 <Tip text={t('dyncfg_tip_day_evap')} />
+              </th>
+              <th>
+                {t('dyncfg_th_brine_flow')}
+                <Tip text={t('dyncfg_tip_day_flow')} />
               </th>
               <th className="w-20">{t('actions')}</th>
             </tr>
@@ -1501,6 +1581,23 @@ function ClimateSection({
                     onChange={(e) =>
                       updateDay(i, 'evap', parseFloat(e.target.value) || 0)
                     }
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    className="input input-number w-28"
+                    step={100}
+                    min={0}
+                    // Vacio = sin caudal propio: ese dia lo modula el motor.
+                    placeholder={t('dyncfg_flow_modulated')}
+                    title={t('dyncfg_tip_day_flow')}
+                    value={typeof flows[i] === 'number' ? (flows[i] as number) : ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.trim();
+                      const parsed = parseFloat(raw);
+                      updateFlow(i, raw === '' || !(parsed > 0) ? null : parsed);
+                    }}
                   />
                 </td>
                 <td>
@@ -1564,6 +1661,25 @@ function ClimateSection({
               onChange={(e) => setBulkEvap(parseFloat(e.target.value) || 0)}
             />
           </div>
+          {/* Solo tiene sentido si la serie ya usa caudal propio; si no, los dias
+              nuevos quedan modulados y este input no haria nada. */}
+          {flows.length > 0 && (
+            <div>
+              <label className="label" title={t('dyncfg_tip_day_flow')}>
+                {t('dyncfg_bulk_flow')}
+              </label>
+              <input
+                type="number"
+                className="input input-number w-24"
+                step={100}
+                min={0}
+                placeholder={t('dyncfg_flow_modulated')}
+                title={t('dyncfg_tip_day_flow')}
+                value={bulkFlow || ''}
+                onChange={(e) => setBulkFlow(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+          )}
           <button type="button" className="btn btn-outline btn-sm" onClick={addBulk}>
             {t('add')} {bulkDays} {t('schedule_days_lower')}
           </button>
@@ -1772,6 +1888,32 @@ function FactorsSection({
 // =========================================================
 export default function DynamicConfigEditor({ value, onChange }: Props) {
   const t = useT();
+
+  // Base AQSOL de ESTA config dinamica (independiente de la del estatico): define que
+  // especies y sales muestran los editores Y con que motor se ejecutan las corridas
+  // dinamicas — el backend la toma de aca al lanzar, no del panel de ejecuciones, para
+  // que el catalogo de los factores que se editan sea el mismo con que se corre.
+  // El backend reindexa las tablas por nombre al leer la config, asi que cambiar la base
+  // aca hace aparecer las filas nuevas en cuanto se recarga; el array en la base nueva
+  // se persiste en el siguiente Guardar.
+  const aqsolBasis: AqsolVersion = value.aqsol_version ?? '027';
+  const [catalog, setCatalog] = useState<AqsolCatalog | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    getAqsolCatalog(aqsolBasis)
+      .then((c) => {
+        if (!cancelado) setCatalog(c);
+      })
+      // Sin catalogo la salmuera cae al orden canonico de la 027: se degrada, no rompe.
+      .catch(() => {
+        if (!cancelado) setCatalog(null);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [aqsolBasis]);
+
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     sim: true,
     brine: false,
@@ -1815,10 +1957,35 @@ export default function DynamicConfigEditor({ value, onChange }: Props) {
         isOpen={openSections.brine}
         onToggle={() => toggle('brine')}
       >
+        <div className="flex flex-wrap items-end gap-3 mb-3">
+          <div>
+            <label className="label" title={t('aqsol_basis_tip_dynamic')}>
+              {t('aqsol_basis_dynamic')}
+            </label>
+            <select
+              className="input w-40"
+              value={aqsolBasis}
+              onChange={(e) =>
+                onChange({ ...value, aqsol_version: e.target.value as AqsolVersion })
+              }
+              title={t('aqsol_basis_tip_dynamic')}
+            >
+              {AQSOL_VERSIONS.map((v) => (
+                <option key={v.value} value={v.value}>{v.label}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+            {catalog
+              ? `${catalog.species.length} ${t('aqsol_basis_species')} · ${catalog.salts.length} ${t('aqsol_basis_salts')}`
+              : ''}
+          </p>
+        </div>
         <BrineSection
           value={value.brine}
           onChange={(b) => onChange({ ...value, brine: b })}
           totalFlow={value.precon.average_flow_ton_day}
+          species={catalog?.species}
         />
       </SectionHeader>
 

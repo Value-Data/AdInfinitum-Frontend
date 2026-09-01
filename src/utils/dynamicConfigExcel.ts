@@ -6,6 +6,7 @@
 
 import * as XLSX from 'xlsx';
 import type {
+  AqsolCatalog,
   DosificacionConfig,
   DosificacionObjetivo,
   DosificacionReactivo,
@@ -18,6 +19,12 @@ import type {
 } from '../types';
 import { BRINE_SPECIES_ORDER } from '../types';
 import { asPercentBasis } from './brineComposition';
+
+/** Catálogo de la base AQSOL de la config: define qué filas lleva la plantilla.
+ *  Sin él el Excel sale siempre con las 17 especies y las sales de la 027, aunque la
+ *  config esté en base 066 (23 especies y 243 sales). Mismo rol que `species` y
+ *  `salt_names` en configExcel.ts del estático. */
+export type ExcelCatalog = Pick<AqsolCatalog, 'species' | 'salts'>;
 
 const SHEET = {
   readme: 'Instrucciones',
@@ -141,21 +148,24 @@ function sheetToRows(ws: XLSX.WorkSheet): Record<string, unknown>[] {
 // Build sheets (write)
 // =========================================================
 
-function readmeSheet(): XLSX.WorkSheet {
+function readmeSheet(nSpecies: number, nSalts?: number): XLSX.WorkSheet {
+  // Los conteos salen del catálogo, no fijos: la plantilla de una config en base 066
+  // trae 23 especies y 243 sales, y decir "17 / 137" ahí seria mentira impresa.
+  const sal = nSalts ? `${nSalts} sales` : 'sales del catalogo';
   const rows = [
     ['Plantilla de Configuracion DINAMICA — AdInfinitum'],
     [],
     ['Hoja', 'Descripcion'],
     [SHEET.simulation, 'n_days, start_date, y modulacion de flujo de la cascada.'],
-    [SHEET.brine, 'Salmuera inicial: 17 especies en %w/w (composicion). La masa diaria sale de average_flow_ton_day. No borre ni renombre especies.'],
+    [SHEET.brine, `Salmuera inicial: ${nSpecies} especies en %w/w (composicion). La masa diaria sale de average_flow_ton_day. No borre ni renombre especies.`],
     [SHEET.preconPonds, 'Pozas Pz1-Pz7. Incluye control_mode (ALTURA/FLUJO_FIJO) y campos especificos.'],
-    [SHEET.preconFactors, 'Factores de inhibicion preconcentracion: 137 sales (dll_index, name, factor).'],
+    [SHEET.preconFactors, `Factores de inhibicion preconcentracion: ${sal} (dll_index, name, factor).`],
     [SHEET.climate, 'Serie climatica diaria: day, evap_mm_day, temp_C. Una fila por dia.'],
     [SHEET.encalado, 'Parametros encalado dinamico (clave/valor). use_CaCl2 acepta TRUE/FALSE.'],
-    [SHEET.encaladoFactors, 'Factores de inhibicion encalado: 137 sales (dll_index, name, factor).'],
+    [SHEET.encaladoFactors, `Factores de inhibicion encalado: ${sal} (dll_index, name, factor).`],
     [SHEET.postlimingPonds, 'Pozas Pz10-Pz18. control_mode CASCADE/BUFFER/FLUJO_FIJO.'],
     [SHEET.postlimingParams, 'Parametros postliming + listas (validation_window y salts_allowed coma-separadas).'],
-    [SHEET.postlimingFactors, 'Factores de inhibicion postliming: 137 sales.'],
+    [SHEET.postlimingFactors, `Factores de inhibicion postliming: ${sal}.`],
     [],
     ['Notas'],
     ['- Las hojas no presentes en el archivo se ignoran al importar.'],
@@ -177,12 +187,17 @@ function simulationSheet(cfg: DynamicConfig): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
-function brineSheet(brine: Record<string, number>): XLSX.WorkSheet {
+function brineSheet(
+  brine: Record<string, number>,
+  species: string[] | undefined,
+): XLSX.WorkSheet {
   // Se exporta como composición: el motor dinámico normaliza el brine y toma el caudal
   // de average_flow_ton_day. asPercentBasis convierte configuraciones antiguas en t/d.
+  // Las especies salen del catálogo de la base declarada; las que la config todavía no
+  // tiene (las 6 que agrega la 066) salen en cero, listas para llenar.
   const pct = asPercentBasis(brine);
   const rows: (string | number)[][] = [['Especie', '%w/w']];
-  for (const sp of BRINE_SPECIES_ORDER) {
+  for (const sp of (species && species.length ? species : BRINE_SPECIES_ORDER)) {
     rows.push([sp, pct[sp] ?? 0]);
   }
   return XLSX.utils.aoa_to_sheet(rows);
@@ -285,9 +300,47 @@ function sequenceSheet(seq: DosificacionConfig[]): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
-function factorsSheet(factors: SaltFactor[]): XLSX.WorkSheet {
+/** Factor que le toca a una sal que existe en el catálogo destino pero no en la tabla.
+ *
+ *  Es el MAYORITARIO de la tabla, no 1.0 — la misma regla que aplica el backend al
+ *  reindexar (`aqsol_migration.adapt_salt_factor_list`). Una tabla donde 132 de 137
+ *  sales están inhibidas expresa "inhibir todo salvo estas"; sacar las nuevas en 1.0
+ *  invertiría esa intención, y peor: al reimportar la plantilla ese 1.0 se persistiría.
+ */
+function defaultFactorFor(factors: SaltFactor[]): number {
+  if (!factors.length) return 1;
+  const conteo = new Map<number, number>();
+  for (const f of factors) {
+    conteo.set(f.precipitation_factor, (conteo.get(f.precipitation_factor) ?? 0) + 1);
+  }
+  let mejor = 1;
+  let max = -1;
+  for (const [valor, n] of conteo) {
+    if (n > max) {
+      max = n;
+      mejor = valor;
+    }
+  }
+  return mejor;
+}
+
+function factorsSheet(
+  factors: SaltFactor[],
+  catalogSalts: ExcelCatalog['salts'] | undefined,
+): XLSX.WorkSheet {
   const rows: (string | number)[][] = [['dll_index', 'name', 'precipitation_factor']];
-  factors.forEach((f) => rows.push([f.dll_index, f.name, f.precipitation_factor]));
+  if (!catalogSalts || !catalogSalts.length) {
+    factors.forEach((f) => rows.push([f.dll_index, f.name, f.precipitation_factor]));
+    return XLSX.utils.aoa_to_sheet(rows);
+  }
+  // Con catálogo la hoja se arma DESDE él: una fila por sal de la base declarada, en su
+  // orden e índices. El emparejado es por nombre porque el dll_index de una misma sal
+  // cambia entre versiones (es lo que hace `migrate_faktor` en el backend).
+  const porNombre = new Map(factors.map((f) => [f.name, f.precipitation_factor]));
+  const relleno = defaultFactorFor(factors);
+  catalogSalts.forEach((s) => {
+    rows.push([s.dll_index, s.name, porNombre.get(s.name) ?? relleno]);
+  });
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
@@ -295,13 +348,21 @@ function factorsSheet(factors: SaltFactor[]): XLSX.WorkSheet {
 // Build workbook + download
 // =========================================================
 
-export function buildDynamicWorkbook(cfg: DynamicConfig): XLSX.WorkBook {
+export function buildDynamicWorkbook(
+  cfg: DynamicConfig,
+  catalog?: ExcelCatalog,
+): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, readmeSheet(), SHEET.readme);
+  const salts = catalog?.salts;
+  XLSX.utils.book_append_sheet(
+    wb,
+    readmeSheet(catalog?.species?.length ?? BRINE_SPECIES_ORDER.length, salts?.length),
+    SHEET.readme,
+  );
   XLSX.utils.book_append_sheet(wb, simulationSheet(cfg), SHEET.simulation);
-  XLSX.utils.book_append_sheet(wb, brineSheet(cfg.brine), SHEET.brine);
+  XLSX.utils.book_append_sheet(wb, brineSheet(cfg.brine, catalog?.species), SHEET.brine);
   XLSX.utils.book_append_sheet(wb, preconPondsSheet(cfg.precon.ponds), SHEET.preconPonds);
-  XLSX.utils.book_append_sheet(wb, factorsSheet(cfg.precon.factors ?? []), SHEET.preconFactors);
+  XLSX.utils.book_append_sheet(wb, factorsSheet(cfg.precon.factors ?? [], salts), SHEET.preconFactors);
   XLSX.utils.book_append_sheet(wb, climateSheet(cfg.climate), SHEET.climate);
   XLSX.utils.book_append_sheet(wb, encaladoSheet(cfg.encalado.config), SHEET.encalado);
   XLSX.utils.book_append_sheet(
@@ -309,15 +370,19 @@ export function buildDynamicWorkbook(cfg: DynamicConfig): XLSX.WorkBook {
     sequenceSheet(cfg.encalado.config.secuencia_dosificaciones ?? []),
     SHEET.encaladoSequence,
   );
-  XLSX.utils.book_append_sheet(wb, factorsSheet(cfg.encalado.factors), SHEET.encaladoFactors);
+  XLSX.utils.book_append_sheet(wb, factorsSheet(cfg.encalado.factors, salts), SHEET.encaladoFactors);
   XLSX.utils.book_append_sheet(wb, postlimingPondsSheet(cfg.postliming.ponds), SHEET.postlimingPonds);
   XLSX.utils.book_append_sheet(wb, postlimingParamsSheet(cfg.postliming.config), SHEET.postlimingParams);
-  XLSX.utils.book_append_sheet(wb, factorsSheet(cfg.postliming.factors), SHEET.postlimingFactors);
+  XLSX.utils.book_append_sheet(wb, factorsSheet(cfg.postliming.factors, salts), SHEET.postlimingFactors);
   return wb;
 }
 
-export function downloadDynamicExcel(cfg: DynamicConfig, filename: string): void {
-  const wb = buildDynamicWorkbook(cfg);
+export function downloadDynamicExcel(
+  cfg: DynamicConfig,
+  filename: string,
+  catalog?: ExcelCatalog,
+): void {
+  const wb = buildDynamicWorkbook(cfg, catalog);
   XLSX.writeFile(wb, filename);
 }
 

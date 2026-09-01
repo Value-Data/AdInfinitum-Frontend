@@ -1,11 +1,11 @@
 // Utilidad compartida para la tabla "Masa ingreso salmuera de pozo" (feed inicial).
 // Se usa en la vista estática/dinámica, en los reportes PDF y en los Excel.
 
-// Orden de especies para la tabla de salmuera de pozo (ingreso).
-export const WELL_BRINE_SPECIES = [
-  'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'H+', 'Cl-', 'HSO4-',
-  'SO4--', 'OH-', 'CO2(aq)', 'HCO3-', 'CO3--', 'H3BO3', 'B4O7--', 'BO2-',
-];
+import { CANONICAL_SPECIES_ORDER } from './species';
+
+// Orden de especies para la tabla de salmuera de pozo (ingreso). Las que agregue el
+// motor (066) se anexan más abajo, al armar las filas contra la salmuera real.
+export const WELL_BRINE_SPECIES = CANONICAL_SPECIES_ORDER;
 
 export interface WellBrineFeedRow {
   species: string;
@@ -26,14 +26,19 @@ export interface WellBrineFeed {
  *
  * - `dynamic`: el brine vive en `snapshot.dynamic_config.brine` (composición) y el
  *   flujo en `precon.average_flow_ton_day` (o `simulation.average_flow_ton_day`).
- * - `static`: el brine vive en `snapshot.brine` como `{especie: t/d}` directamente,
- *   por lo que el flujo total = suma de sus valores.
+ * - `static`: `snapshot.brine` es composición en %w/w y el flujo está en
+ *   `snapshot.brine_total_flow`. En snapshots anteriores a la migración 008 el brine
+ *   venía en t/d y sin caudal declarado; ahí el flujo sigue siendo la suma.
+ *
+ * `flowOverride` permite mostrar el ingreso de un día concreto cuando el cronograma
+ * define caudal por día: la composición es la misma, cambia la escala.
  *
  * Devuelve `null` si no hay datos suficientes (para no renderizar la tabla).
  */
 export function resolveWellBrineFeed(
   snapshot: Record<string, unknown> | null | undefined,
   mode: 'dynamic' | 'static',
+  flowOverride?: number | null,
 ): WellBrineFeed | null {
   if (!snapshot) return null;
 
@@ -48,13 +53,23 @@ export function resolveWellBrineFeed(
       ((dc?.simulation as Record<string, unknown> | undefined)?.average_flow_ton_day as number);
   } else {
     brine = snapshot.brine as Record<string, number> | undefined;
+    // Sin esto el flujo salía como la suma de la composición, o sea 100 t/d fijos.
+    const declarado = snapshot.brine_total_flow as number | undefined;
+    if (typeof declarado === 'number' && Number.isFinite(declarado) && declarado > 0) {
+      flow = declarado;
+    }
+  }
+
+  if (flowOverride != null && Number.isFinite(flowOverride) && flowOverride > 0) {
+    flow = flowOverride;
   }
 
   if (!brine) return null;
   const total = Object.values(brine).reduce((s, v) => s + (Number(v) || 0), 0);
   if (total <= 0) return null;
 
-  // Estático (o sin flujo declarado): el brine ya está en t/d → el flujo es su suma.
+  // Sin flujo declarado: es un snapshot antiguo con el brine en t/d, y su suma ES el
+  // caudal. Se mantiene para que las ejecuciones viejas sigan mostrando su ingreso.
   if (flow == null || !Number.isFinite(flow) || flow <= 0) flow = total;
 
   const species = [
@@ -78,8 +93,9 @@ export function resolveWellBrineFeed(
 export function buildWellBrineFeedAoa(
   snapshot: Record<string, unknown> | null | undefined,
   mode: 'dynamic' | 'static',
+  flowOverride?: number | null,
 ): unknown[][] {
-  const feed = resolveWellBrineFeed(snapshot, mode);
+  const feed = resolveWellBrineFeed(snapshot, mode, flowOverride);
   if (!feed) return [['(sin datos de ingreso de salmuera)']];
   const aoa: unknown[][] = [
     ['Masa ingreso salmuera de pozo'],

@@ -3,6 +3,7 @@ import SulfateRemovalTable, { type StreamId, type StreamValues } from './Sulfate
 import { useT } from '../i18n/LanguageContext';
 import { fmtNum, getDecimalsOverride, formatEs } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
+import { CANONICAL_SPECIES_ORDER } from '../utils/species';
 
 interface EncaladoData {
   [key: string]: unknown;
@@ -14,12 +15,8 @@ interface Props {
   temperature_C?: number;
 }
 
-const SPECIES_ORDER = [
-  'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'H+',
-  'Cl-', 'HSO4-', 'SO4--', 'OH-',
-  'CO2(aq)', 'HCO3-', 'CO3--',
-  'H3BO3', 'B4O7--', 'BO2-',
-];
+// Orden base; más abajo se le anexan las especies extra que traiga el resultado.
+const SPECIES_ORDER = CANONICAL_SPECIES_ORDER;
 
 function fmt(v: unknown, dec = 2): string {
   if (v == null) return '-';

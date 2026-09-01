@@ -8,9 +8,18 @@ import { useT } from '../i18n/LanguageContext';
 interface Props {
   projectId: string;
   onExecutionCreated: () => void;
+  /** Bloquea el lanzamiento cuando la configuración no es ejecutable. */
+  disabled?: boolean;
+  /** Motivo del bloqueo, se muestra junto al botón. */
+  disabledReason?: string;
 }
 
-export default function RunSimulationPanel({ projectId, onExecutionCreated }: Props) {
+export default function RunSimulationPanel({
+  projectId,
+  onExecutionCreated,
+  disabled = false,
+  disabledReason,
+}: Props) {
   const t = useT();
   const [executionType, setExecutionType] = useState<ExecutionType>('proceso_completo');
   // 027 es el motor validado; 066 se elige explícitamente para comparar.
@@ -97,7 +106,8 @@ export default function RunSimulationPanel({ projectId, onExecutionCreated }: Pr
         <button
           className="btn btn-primary"
           onClick={handleRun}
-          disabled={submitting}
+          disabled={submitting || disabled}
+          title={disabled ? disabledReason : undefined}
         >
           {submitting ? (
             <>
@@ -114,6 +124,12 @@ export default function RunSimulationPanel({ projectId, onExecutionCreated }: Pr
           )}
         </button>
       </div>
+
+      {disabled && disabledReason && (
+        <p className="text-sm mt-2" style={{ color: 'var(--color-danger)' }} role="alert">
+          {disabledReason}
+        </p>
+      )}
 
       {error && (
         <p className="text-sm mt-2" style={{ color: 'var(--color-danger)' }}>

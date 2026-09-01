@@ -28,7 +28,8 @@ export interface StaticDailyResult {
   date_label: string;
   temperature_C: number;
   evap_rate_mm_day: number;
-  result: Record<string, unknown>;
+  // Un día que reventó viene sin resultado; el componente ya lo trata como vacío.
+  result: Record<string, unknown> | null;
 }
 
 /**

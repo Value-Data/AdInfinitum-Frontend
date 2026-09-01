@@ -145,7 +145,9 @@ export default function ExecutionList({ projectId }: Props) {
                   key={exec.id}
                   className="cursor-pointer"
                   onClick={() => {
-                    if (exec.status === 'completed') {
+                    // Una fallida con parciales también se abre: la página muestra el
+                    // aviso y el tramo resuelto. Antes solo se llegaba escribiendo la URL.
+                    if (exec.status === 'completed' || exec.has_partial_results) {
                       navigate(`/executions/${exec.id}`);
                     }
                   }}
@@ -158,12 +160,13 @@ export default function ExecutionList({ projectId }: Props) {
                   <td className="font-mono text-sm">{getDuration(exec)}</td>
                   <td>
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      {exec.status === 'completed' && (
+                      {(exec.status === 'completed' || exec.has_partial_results) && (
                         <button
                           className="btn btn-outline btn-sm"
                           onClick={() => navigate(`/executions/${exec.id}`)}
+                          title={exec.has_partial_results ? t('execres_partial_title') : undefined}
                         >
-                          {t('view')}
+                          {exec.has_partial_results ? `${t('view')} (${t('execres_partial')})` : t('view')}
                         </button>
                       )}
                       {isAdmin && (

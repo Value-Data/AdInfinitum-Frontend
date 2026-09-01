@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import BrineEditor from './BrineEditor';
 import PondEditor from './PondEditor';
 import EncaladoConfigForm from './EncaladoConfigForm';
 import DailyScheduleEditor from './DailyScheduleEditor';
 import type { EncaladoConfig, PondConfig, DailyScheduleItem } from '../types';
+import { speciesWithExtras } from '../utils/species';
+import { getAqsolCatalog } from '../services/api';
 import { useT } from '../i18n/LanguageContext';
 
 interface Props {
@@ -26,7 +28,53 @@ export default function ParameterSnapshot({ snapshot }: Props) {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const brine = (snapshot.brine as Record<string, number>) || {};
+  // Los snapshots anteriores a la migración 008 guardan la salmuera en ton/d y sin
+  // caudal total. Se convierten a composición + caudal solo para mostrarlos, que es lo
+  // que el editor espera ahora; el snapshot en sí es inmutable y se deja como está.
+  const rawBrine = (snapshot.brine as Record<string, number>) || {};
+  const rawTotal = snapshot.brine_total_flow as number | undefined;
+  const { brine, brineTotal } = useMemo(() => {
+    if (rawTotal !== undefined && rawTotal !== null) {
+      return { brine: rawBrine, brineTotal: rawTotal };
+    }
+    const suma = Object.values(rawBrine).reduce(
+      (s, v) => s + (typeof v === 'number' ? v : 0),
+      0,
+    );
+    if (suma <= 0) return { brine: rawBrine, brineTotal: 0 };
+    const pct: Record<string, number> = {};
+    for (const [k, v] of Object.entries(rawBrine)) {
+      pct[k] = (typeof v === 'number' ? v : 0) / suma * 100;
+    }
+    return { brine: pct, brineTotal: suma };
+  }, [rawBrine, rawTotal]);
+
+  // Las filas salen del catálogo de la versión con que corrió la ejecución, igual que
+  // en el editor de configuración. Sin esto BrineEditor caía al orden canónico de 17 y
+  // una ejecución en 066 no mostraba las 6 especies que agrega esa base — ni siquiera
+  // en cero, que es como entraron al motor si no se les cargó valor.
+  const snapshotVersion =
+    typeof snapshot.aqsol_version === 'string' ? snapshot.aqsol_version : null;
+  const [catalogSpecies, setCatalogSpecies] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!snapshotVersion) {
+      setCatalogSpecies(null);
+      return;
+    }
+    let cancelado = false;
+    getAqsolCatalog(snapshotVersion)
+      .then((c) => { if (!cancelado) setCatalogSpecies(c.species); })
+      .catch(() => { if (!cancelado) setCatalogSpecies(null); });
+    return () => { cancelado = true; };
+  }, [snapshotVersion]);
+
+  // Si el catálogo no llega (ejecución vieja sin versión, o la API falla), se cae al
+  // orden canónico más lo que traiga el snapshot: nunca se pierde una especie.
+  const brineSpecies = useMemo(
+    () => speciesWithExtras([brine], catalogSpecies ?? undefined),
+    [brine, catalogSpecies],
+  );
   const preconPonds = (snapshot.precon_ponds as PondConfig[]) || [];
   const preconFaktor = (snapshot.precon_faktor as number[]) || [];
   const encaladoConfig = (snapshot.encalado_config as EncaladoConfig) || null;
@@ -71,7 +119,13 @@ export default function ParameterSnapshot({ snapshot }: Props) {
   return (
     <div>
       <Section sectionKey="brine" title={t('section_brine')}>
-        <BrineEditor value={brine} onChange={() => {}} readOnly />
+        <BrineEditor
+          value={brine}
+          onChange={() => {}}
+          totalFlow={brineTotal}
+          readOnly
+          species={brineSpecies}
+        />
       </Section>
 
       <Section sectionKey="precon_ponds" title={t('section_precon_ponds')}>

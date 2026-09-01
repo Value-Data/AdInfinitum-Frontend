@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type {
+  AqsolCatalog,
   DynamicConfig,
   Execution,
   ExecutionFile,
@@ -8,6 +9,7 @@ import type {
 import {
   createExecution,
   downloadExecutionFile,
+  getAqsolCatalog,
   getExecution,
   getExecutions,
   getProject,
@@ -87,8 +89,27 @@ export default function DynamicModePanel({
   const [sourceExecId, setSourceExecId] = useState<string>('');
   const [nDays, setNDays] = useState<number>(1460);
   const [runTag, setRunTag] = useState<string>('baseline');
-  // 027 es el motor validado; 066 se elige explicitamente para comparar.
-  const [aqsolVersion, setAqsolVersion] = useState<AqsolVersion>('027');
+  // El motor sale de la config guardada (no del draft: lanzar exige no tener cambios
+  // sin guardar), así los factores que se editan y el catálogo con que se corre son
+  // siempre el mismo. 027 es el validado; 066 se elige en Configuración para comparar.
+  const aqsolVersion: AqsolVersion = config?.aqsol_version ?? '027';
+  const aqsolLabel =
+    AQSOL_VERSIONS.find((v) => v.value === aqsolVersion)?.label ?? aqsolVersion;
+
+  // Catálogo de la base que está editándose: alimenta la plantilla Excel. Sigue al
+  // draft, no a la config guardada, para que cambiar la base se refleje al toque.
+  const draftBasis: AqsolVersion = draftConfig?.aqsol_version ?? aqsolVersion;
+  const [catalog, setCatalog] = useState<AqsolCatalog | null>(null);
+  useEffect(() => {
+    let cancelado = false;
+    getAqsolCatalog(draftBasis)
+      // Sin catálogo la plantilla cae a las listas de la 027: se degrada, no rompe.
+      .then((c) => !cancelado && setCatalog(c))
+      .catch(() => !cancelado && setCatalog(null));
+    return () => {
+      cancelado = true;
+    };
+  }, [draftBasis]);
   const [launching, setLaunching] = useState(false);
   const [activeTab, setActiveTab] = useState<DynTabKey>(isAdmin ? 'config' : 'executions');
   const [projectName, setProjectName] = useState<string>('proyecto');
@@ -310,7 +331,10 @@ export default function DynamicModePanel({
   const handleDownloadExcel = () => {
     if (!draftConfig) return;
     const safe = projectName.replace(/[^a-z0-9-_]+/gi, '_');
-    downloadDynamicExcel(draftConfig, `config_dinamico_${safe}.xlsx`);
+    // Catálogo de la base elegida en el editor (no de la guardada): al pasar de 027 a
+    // 066 la plantilla sale con 23 especies y 243 sales sin esperar a Guardar, igual
+    // que la del estático (ver ProjectDetailPage.handleDownloadTemplate).
+    downloadDynamicExcel(draftConfig, `config_dinamico_${safe}.xlsx`, catalog ?? undefined);
     setSaveMsg(t('dynpanel_excel_downloaded'));
   };
 
@@ -566,25 +590,27 @@ export default function DynamicModePanel({
                     onChange={(e) => setRunTag(e.target.value)}
                   />
                 </div>
+                {/* El motor no se elige acá: lo define la base AQSOL de la config, que
+                    es la que determina cuántas sales tiene cada tabla de factores.
+                    Elegirlo por corrida permitía ejecutar con un catálogo distinto al de
+                    los factores cargados. Se muestra para saber con qué se va a correr. */}
                 <div>
                   <label
                     className="block text-xs font-medium mb-1"
-                    title={t('aqsol_version_tip')}
+                    title={t('dynpanel_aqsol_from_config_tip')}
                   >
                     {t('aqsol_version_pick')}
                   </label>
-                  <select
-                    className="input w-full"
-                    value={aqsolVersion}
-                    onChange={(e) => setAqsolVersion(e.target.value as AqsolVersion)}
-                    title={t('aqsol_version_tip')}
+                  <div
+                    className="input w-full flex items-center justify-between"
+                    style={{ background: 'var(--color-bg)' }}
+                    title={t('dynpanel_aqsol_from_config_tip')}
                   >
-                    {AQSOL_VERSIONS.map((v) => (
-                      <option key={v.value} value={v.value}>
-                        {v.label}
-                      </option>
-                    ))}
-                  </select>
+                    <span className="font-mono">{aqsolLabel}</span>
+                    <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                      {t('dynpanel_aqsol_from_config')}
+                    </span>
+                  </div>
                 </div>
               </div>
               <button className="btn btn-primary" onClick={handleLaunch} disabled={launching}>
@@ -653,9 +679,15 @@ export default function DynamicModePanel({
                         {e.source_execution_id ? e.source_execution_id.slice(0, 8) : '-'}
                       </td>
                       <td className="flex gap-1">
-                        {e.status === 'completed' && (
-                          <button className="btn btn-outline btn-sm" onClick={() => { setSelectedExecId(e.id); setChainRootId(null); }}>
-                            {t('view')}
+                        {/* Una etapa que se cortó conserva los días completos: se puede
+                            abrir igual, con el aviso de parcial adentro. */}
+                        {(e.status === 'completed' || e.has_partial_results) && (
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => { setSelectedExecId(e.id); setChainRootId(null); }}
+                            title={e.has_partial_results ? t('execres_partial_title') : undefined}
+                          >
+                            {e.has_partial_results ? `${t('view')} (${t('execres_partial')})` : t('view')}
                           </button>
                         )}
                         {e.status === 'completed' && e.source_execution_id && (

@@ -26,15 +26,22 @@ function hoja(cfg: Parameters<typeof buildWorkbook>[0], nombre: string) {
   return XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[nombre]);
 }
 
+/** Filas de especie de la hoja Salmuera, sin la fila del caudal total. */
+function especies(cfg: Parameters<typeof buildWorkbook>[0]) {
+  return hoja(cfg, 'Salmuera').filter(
+    (r) => !String(r['Especie'] ?? '').toLowerCase().startsWith('flujo total'),
+  );
+}
+
 describe('Excel de config estatica — especies segun la base de catalogo', () => {
   it('sin species explicitas exporta las 17 de la 027', () => {
-    const filas = hoja({ brine: BRINE }, 'Salmuera');
+    const filas = especies({ brine: BRINE });
     expect(filas).toHaveLength(17);
     expect(filas.map((r) => r['Especie'])).not.toContain('Ba++');
   });
 
   it('con el catalogo 066 exporta las 23, incluidas las nuevas', () => {
-    const filas = hoja({ brine: BRINE, species: ESPECIES_066 }, 'Salmuera');
+    const filas = especies({ brine: BRINE, species: ESPECIES_066 });
     expect(filas).toHaveLength(23);
     const nombres = filas.map((r) => r['Especie']);
     for (const nueva of ['Ba++', 'Sr++', 'NO3-', 'NH4+']) {
@@ -43,9 +50,9 @@ describe('Excel de config estatica — especies segun la base de catalogo', () =
   });
 
   it('las especies sin valor salen en cero, no ausentes', () => {
-    const filas = hoja({ brine: BRINE, species: ESPECIES_066 }, 'Salmuera');
+    const filas = especies({ brine: BRINE, species: ESPECIES_066 });
     const sr = filas.find((r) => r['Especie'] === 'Sr++')!;
-    expect(Number(sr['Valor (ton/dia)'])).toBe(0);
+    expect(Number(sr['%w/w'])).toBe(0);
   });
 
   it('el round-trip conserva las especies nuevas', async () => {

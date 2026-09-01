@@ -4,20 +4,21 @@ import { useT } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
 import { getDecimalsOverride, formatEs } from '../utils/numberFormat';
 import { boronFrom } from '../utils/boron';
+import { speciesWithExtras } from '../utils/species';
 import { useDecimals } from '../context/DecimalsContext';
 
 interface Props {
   stageLabel: string;
   result: SolverResult;
   temperature_C?: number;
+  /**
+   * Sales con Faktor <= 1 (habilitadas) segun el catalogo de la version de AQSOL de la
+   * ejecucion. Se listan aunque precipiten 0: sin esto, "inhibida y nunca evaluada" y
+   * "habilitada que no llego a saturacion" se ven igual — ambas ausentes — y no hay
+   * forma de distinguirlas mirando la tabla.
+   */
+  enabledSalts?: string[];
 }
-
-const SPECIES = [
-  'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'H+',
-  'Cl-', 'HSO4-', 'SO4--', 'OH-',
-  'CO2(aq)', 'HCO3-', 'CO3--',
-  'H3BO3', 'B4O7--', 'BO2-',
-];
 
 function formatNum(v: number | undefined | null, digits = 4): string {
   if (v === undefined || v === null || Number.isNaN(v)) return '-';
@@ -132,11 +133,17 @@ function MatrixSubTable({
   );
 }
 
-export default function PondDetailBreakdown({ stageLabel, result, temperature_C }: Props) {
+export default function PondDetailBreakdown({
+  stageLabel,
+  result,
+  temperature_C,
+  enabledSalts,
+}: Props) {
   const t = useT();
   useDecimals();
   const ponds = result.ponds || [];
   const [liquidView, setLiquidView] = useState<'abs' | 'pct'>('abs');
+  const [showZeroSalts, setShowZeroSalts] = useState(false);
 
   if (ponds.length === 0) {
     return (
@@ -159,7 +166,21 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
       if (typeof v === 'number' && v > 0) saltSet.add(name);
     });
   });
-  const saltNames = Array.from(saltSet).sort();
+  // Las habilitadas que no precipitaron van detras de un toggle, apagado por defecto:
+  // con un Faktor permisivo son decenas de filas en cero que tapan las pocas que si
+  // precipitan. La comparacion es normalizada porque el catalogo 027 guarda el punto
+  // medio con mojibake y el 066 con el caracter limpio; sin esto la misma sal entraria
+  // dos veces.
+  const normSalt = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
+  const seen = new Set(Array.from(saltSet, normSalt));
+  const zeroSalts = (enabledSalts || []).filter((name) => {
+    if (seen.has(normSalt(name))) return false;
+    seen.add(normSalt(name));
+    return true;
+  });
+  const saltNames = Array.from(
+    showZeroSalts ? new Set([...saltSet, ...zeroSalts]) : saltSet,
+  ).sort();
 
   // Total precipitated per pond (for %w/w)
   const totalSolidsByPond = ponds.map((p) => {
@@ -172,10 +193,16 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
     );
   });
 
+  // Especies de la corrida: las canonicas mas las que agregue el motor. Con la lista
+  // fija de 17, una corrida 066 no mostraba Ba++, Sr++, NO3-, NH4+, NH3(aq) ni
+  // NH2COO-, y ademas el total de liquido las dejaba fuera, asi que los %w/w de esta
+  // tabla no cerraban contra la de Composicion.
+  const species = speciesWithExtras(ponds.map((p) => p.aqsol_result?.eq_liquid));
+
   // Total liquid flow per pond across the rendered species (sum of eq_liquid)
   const liquidTotalsByPond = ponds.map((p) => {
     const eq = p.aqsol_result?.eq_liquid || {};
-    return SPECIES.reduce((acc, sp) => acc + (eq[sp] ?? 0), 0);
+    return species.reduce((acc, sp) => acc + (eq[sp] ?? 0), 0);
   });
 
   const liquidToggle = (
@@ -253,7 +280,7 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
             ? t('ponddetail_transfer_caption_abs')
             : t('ponddetail_transfer_caption_pct')
         }
-        rowLabels={[...SPECIES, 'B']}
+        rowLabels={[...species, 'B']}
         headerLabel={t('comp_species')}
         ponds={ponds}
         titleRight={liquidToggle}
@@ -275,10 +302,33 @@ export default function PondDetailBreakdown({ stageLabel, result, temperature_C 
       {/* Precipitated salts absolute */}
       <MatrixSubTable
         title={`${t('ponddetail_precip_salts_comp')} (ton/d)`}
-        caption={t('ponddetail_precip_salts_caption')}
+        caption={
+          showZeroSalts
+            ? `${t('ponddetail_precip_salts_caption')} ${t('ponddetail_enabled_zero_note')}`
+            : t('ponddetail_precip_salts_caption')
+        }
         rowLabels={saltNames}
         headerLabel={t('salts_salt')}
         ponds={ponds}
+        titleRight={
+          zeroSalts.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setShowZeroSalts((v) => !v)}
+              className="px-2 py-1 text-xs font-medium rounded"
+              style={{
+                border: '1px solid var(--color-border, #d1d5db)',
+                backgroundColor: showZeroSalts ? 'var(--color-primary)' : 'var(--color-surface)',
+                color: showZeroSalts ? '#fff' : 'var(--color-text)',
+                cursor: 'pointer',
+              }}
+            >
+              {showZeroSalts
+                ? t('ponddetail_hide_enabled_zero')
+                : `${t('ponddetail_show_enabled_zero')} (${zeroSalts.length})`}
+            </button>
+          ) : undefined
+        }
         getValue={(label, p) => p.aqsol_result?.precipitated_salts?.[label] ?? 0}
       />
 

@@ -5,7 +5,9 @@ import type { TranslationKey } from '../i18n/translations';
 import { useT } from '../i18n/LanguageContext';
 import { fmtNum } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
-import { getExecution } from '../services/api';
+import { readDailyResult, pozaDelError, type DailyResultRow } from '../utils/dailyResult';
+import { getExecution, getAqsolCatalog } from '../services/api';
+import type { AqsolCatalog } from '../types';
 import { exportExecutionToExcel } from '../utils/exportExecutionExcel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import StatusBadge from '../components/common/StatusBadge';
@@ -67,6 +69,27 @@ function extractSingleDayTemperature(
   const selectedDays = parameters_snapshot.selected_days as number[] | undefined;
   const idx = selectedDays && selectedDays.length > 0 ? selectedDays[0] : 0;
   return schedule[idx]?.temperature_C ?? schedule[0]?.temperature_C;
+}
+
+/**
+ * Nombres de las sales habilitadas (Faktor <= 1) de una etapa.
+ *
+ * El Faktor se indexa por `dll_index` de fase solida directamente, sin offset por las
+ * especies acuosas (ver engine/species.py:build_faktor). Las posiciones sobrantes al
+ * final del array no corresponden a ninguna sal y quedan fuera al recorrer el catalogo.
+ */
+function enabledSaltNames(
+  catalog: AqsolCatalog | null,
+  faktor: unknown,
+): string[] {
+  if (!catalog || !Array.isArray(faktor)) return [];
+  const f = faktor as unknown[];
+  return catalog.salts
+    .filter((s) => {
+      const v = f[s.dll_index];
+      return typeof v === 'number' && Number.isFinite(v) && v <= 1;
+    })
+    .map((s) => s.name);
 }
 
 /**
@@ -147,17 +170,14 @@ function extractStages(
 }
 
 /** Build a summary table for multi-day results */
-function DailySummaryTable({ dailyResults }: {
-  dailyResults: Array<{
-    day: number;
-    date_label: string;
-    temperature_C: number;
-    evap_rate_mm_day: number;
-    result: Record<string, unknown>;
-  }>;
-}) {
+function DailySummaryTable({ dailyResults }: { dailyResults: DailyResultRow[] }) {
   const t = useT();
   useDecimals();
+  // La columna de caudal solo aparece si el cronograma lo define por día. En una
+  // corrida con caudal único sería una columna con el mismo número repetido.
+  const hayCaudalPorDia = dailyResults.some(
+    (dr) => typeof dr.brine_total_flow === 'number' && Number.isFinite(dr.brine_total_flow),
+  );
   return (
     <div className="card overflow-hidden mb-6">
       <h4 className="text-sm font-semibold px-4 pt-3 mb-2" style={{ color: 'var(--color-text)' }}>
@@ -170,6 +190,7 @@ function DailySummaryTable({ dailyResults }: {
               <th>{t('schedule_day')}</th>
               <th>{t('schedule_temp_short')}</th>
               <th>{t('schedule_evap_short')}</th>
+              {hayCaudalPorDia && <th>{t('schedule_brine_flow')}</th>}
               <th>{t('execres_li_in')}</th>
               <th>{t('execres_li_out')}</th>
               <th>{t('execres_recovery_pct')}</th>
@@ -180,26 +201,84 @@ function DailySummaryTable({ dailyResults }: {
           </thead>
           <tbody>
             {dailyResults.map((dr, i) => {
-              const pc = dr.result || {};
-              const precon = pc.precon as SolverResult | undefined;
-              const postliming = pc.postliming as SolverResult | undefined;
-              const lastStage = postliming || precon;
-              const errorStage = pc.error_stage as string | undefined;
+              // readDailyResult cubre las tres formas del día: proceso completo,
+              // SolverResult directo (solo preconcentración) y día nulo. Antes se leía
+              // `pc.precon` a mano, así que en una corrida de solo preconcentración
+              // todas las columnas de litio salían en "-", y un día nulo se marcaba
+              // como OK porque su error_stage vive dentro del resultado que no existe.
+              const dia = readDailyResult(dr);
+              const precon = dia.precon;
+              const lastStage = dia.last;
+              // Un día que reventó no dice en qué etapa fue —no hay resultado donde
+              // mirar—, así que la etapa se muestra solo cuando existe y el mensaje
+              // completo va al tooltip, para no ensanchar la columna.
+              const etapaFallada = dr.result != null ? dia.error : undefined;
+              const errorDetalle = dia.error;
+              // La poza va en el badge, no solo en el tooltip: en una corrida de 365
+              // días, pasar el mouse fila por fila para ver dónde se cortó cada una no
+              // es una forma razonable de leer un resultado.
+              const pozaFallada = pozaDelError(dia.error);
+              // El motor no aborta cuando una poza no converge: avisa por `warnings` y
+              // sigue, propagando la última estimación a la poza siguiente. Sin esto el
+              // día salía con el mismo "OK" verde que uno limpio, y en una corrida de
+              // 365 días nadie va a leer los warnings del log del servidor.
+              const sinConverger = ((dia.last?.ponds || dia.precon?.ponds || []) as Array<{
+                converged?: boolean;
+                config?: { name?: string };
+              }>)
+                .filter((p) => p.converged === false)
+                .map((p) => p.config?.name || '?');
 
               return (
                 <tr key={i}>
                   <td className="font-medium">{dr.date_label || `${t('schedule_day')} ${dr.day + 1}`}</td>
                   <td className="font-mono text-sm">{fmtNum(dr.temperature_C, 1)}</td>
                   <td className="font-mono text-sm">{fmtNum(dr.evap_rate_mm_day, 3)}</td>
+                  {hayCaudalPorDia && (
+                    <td className="font-mono text-sm">
+                      {typeof dr.brine_total_flow === 'number'
+                        ? fmtNum(dr.brine_total_flow, 2)
+                        : '-'}
+                    </td>
+                  )}
                   <td className="font-mono text-sm">{fmtNum(precon?.li_in, 4) || '-'}</td>
                   <td className="font-mono text-sm">{fmtNum(lastStage?.li_out, 4) || '-'}</td>
                   <td className="font-mono text-sm">{(fmtNum(lastStage?.li_recovery_pct, 2) || '-')}%</td>
                   <td className="font-mono text-sm">{fmtNum(lastStage?.total_evaporation, 1) || '-'}</td>
                   <td className="font-mono text-sm">{fmtNum(lastStage?.total_salt, 1) || '-'}</td>
                   <td>
-                    {errorStage ? (
-                      <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#fee2e2', color: 'var(--color-danger)' }}>
-                        {t('error')}: {errorStage}
+                    {dia.failed ? (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{ backgroundColor: '#fee2e2', color: 'var(--color-danger)' }}
+                        title={errorDetalle}
+                      >
+                        {t('error')}
+                        {pozaFallada
+                          ? `: ${pozaFallada}`
+                          : etapaFallada
+                            ? `: ${etapaFallada}`
+                            : ''}
+                      </span>
+                    ) : dia.partial ? (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{ backgroundColor: '#fed7aa', color: '#9a3412' }}
+                        title={`${t('execres_partial_tip')}: ${errorDetalle ?? ''}`}
+                      >
+                        {t('execres_partial')}
+                        {pozaFallada ? `: ${pozaFallada}` : ''}
+                        {dia.pondsCompleted != null && dia.pondsTotal != null
+                          ? ` (${dia.pondsCompleted}/${dia.pondsTotal})`
+                          : ''}
+                      </span>
+                    ) : sinConverger.length > 0 ? (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{ backgroundColor: '#fef3c7', color: 'var(--color-warning, #92400e)' }}
+                        title={`${t('execres_not_converged_tip')}: ${sinConverger.join(', ')}`}
+                      >
+                        {t('execres_not_converged')}: {sinConverger.join(', ')}
                       </span>
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#dcfce7', color: 'var(--color-success)' }}>
@@ -399,6 +478,7 @@ export default function ExecutionResultsPage() {
   const [viewMode, setViewMode] = useState<'day' | 'average'>('average');
   const [reportOpen, setReportOpen] = useState(false);
   const [reportErr, setReportErr] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<AqsolCatalog | null>(null);
   const staticChartsRef = useRef<HTMLDivElement>(null);
 
   const fetchExecution = useCallback(async () => {
@@ -417,10 +497,61 @@ export default function ExecutionResultsPage() {
     fetchExecution();
   }, [fetchExecution]);
 
+  // Catalogo de la version de AQSOL con que corrio ESTA ejecucion (no la configurada
+  // hoy en la instancia): es lo que permite traducir posiciones del Faktor a nombres
+  // de sal para saber cuales estaban habilitadas. Si falla, la tabla cae al
+  // comportamiento previo — solo las sales que precipitaron.
+  useEffect(() => {
+    const stamp = (execution?.results as Record<string, unknown> | null)?.aqsol as
+      | { configured?: string; version?: string }
+      | undefined;
+    const version = stamp?.configured || stamp?.version;
+    if (!version) {
+      setCatalog(null);
+      return;
+    }
+    let cancelled = false;
+    getAqsolCatalog(version)
+      .then((c) => {
+        if (!cancelled) setCatalog(c);
+      })
+      .catch(() => {
+        if (!cancelled) setCatalog(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [execution]);
+
   const handleExport = () => {
     if (!execution || !id) return;
     setExporting(true);
     try {
+      // El balance global por dia se arma aca y no en el exportador: el mapeo de
+      // resultados a las 16 corrientes vive en esta pagina. Se calcula al exportar y
+      // no en cada render, que con 365 dias seria caro y casi siempre al pedo.
+      const encaladoTempSnap =
+        ((execution.parameters_snapshot?.encalado_config as Record<string, unknown> | undefined)
+          ?.temperature_C as number | undefined) ?? undefined;
+      const dailyStreams =
+        isMultiDay && dailyResults
+          ? dailyResults.map((dr) => {
+              const dia = readDailyResult(dr);
+              return {
+                day: dr.day,
+                date_label: dr.date_label,
+                streams: buildGlobalStreams(
+                  dia.precon,
+                  dia.encalado,
+                  dia.postliming,
+                  dr.temperature_C,
+                  dr.temperature_C,
+                  encaladoTempSnap,
+                ),
+              };
+            })
+          : undefined;
+
       const blob = exportExecutionToExcel({
         execution,
         stages: stagesToShow,
@@ -430,6 +561,7 @@ export default function ExecutionResultsPage() {
         viewMode,
         validDaysCount: nValid,
         dailyResults: isMultiDay ? dailyResults : undefined,
+        dailyStreams,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -490,19 +622,47 @@ export default function ExecutionResultsPage() {
   }
 
   const results = execution.results as Record<string, unknown> | null;
+  // Ejecución fallida que conservó el tren hasta la poza del error (ver
+  // services/daily_flow_runner.solve_conservando_parcial).
+  const esParcial = execution.status === 'failed' && results?.partial === true;
+  const parcialHechas = results?.ponds_completed as number | undefined;
+  const parcialTotal = results?.ponds_total as number | undefined;
+  // Caudal de ingreso que corresponde a lo que se está mirando. Con caudal por día, el
+  // ingreso deja de ser único: en vista de un día es el de ese día, y en promedio es el
+  // promedio de los días que produjeron resultado — el mismo criterio con que se
+  // promedian las demás tablas. Sin caudales por día queda undefined y manda el de la
+  // configuración.
+  const feedFlowShown = (() => {
+    const filas = (results?.daily_results as Array<Record<string, unknown>> | undefined) || [];
+    const flujos = filas
+      .map((f) => f.brine_total_flow)
+      .filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0);
+    if (flujos.length === 0) return undefined;
+    if (viewMode === 'day') {
+      const f = filas[selectedDay]?.brine_total_flow;
+      return typeof f === 'number' && f > 0 ? f : undefined;
+    }
+    return flujos.reduce((s, v) => s + v, 0) / flujos.length;
+  })();
+
+  const preconEnabledSalts = enabledSaltNames(
+    catalog,
+    execution.parameters_snapshot?.precon_faktor,
+  );
+  const postlimingEnabledSalts = enabledSaltNames(
+    catalog,
+    execution.parameters_snapshot?.postliming_faktor,
+  );
   const typeLabels: Record<string, string> = {
     proceso_completo: t('runsim_proceso_completo'),
     preconcentracion: t('runsim_preconcentracion'),
   };
 
   // Detect multi-day
-  const dailyResults = results?.daily_results as Array<{
-    day: number;
-    date_label: string;
-    temperature_C: number;
-    evap_rate_mm_day: number;
-    result: Record<string, unknown>;
-  }> | undefined;
+  // DailyResultRow contempla `result: null` y `error_msg`, que es como el backend
+  // guarda un día que reventó. El tipo anterior los ignoraba y el motivo del fallo
+  // nunca llegaba a la tabla.
+  const dailyResults = results?.daily_results as DailyResultRow[] | undefined;
   const isMultiDay = dailyResults && Array.isArray(dailyResults) && dailyResults.length > 0;
   const numDays = isMultiDay ? dailyResults.length : 1;
 
@@ -512,8 +672,16 @@ export default function ExecutionResultsPage() {
   let encaladoData: Record<string, unknown> | null = null;
 
   // Valid days (no error_stage) used as the denominator for averaging.
+  //
+  // El `dr.result` de un día que reventó viene en null, y sin el chequeo de existencia
+  // ese día pasaba el filtro: no tiene error_stage porque no tiene nada. Después el
+  // promedio hacía `dr.result.precon` y la vista entera se caía con "Cannot read
+  // properties of null (reading 'precon')" — una ejecución multi-día con un solo día
+  // fallado quedaba imposible de abrir, aunque el resto de los días estuvieran bien.
   const validDays = isMultiDay
-    ? dailyResults.filter((dr) => !(dr.result as { error_stage?: string })?.error_stage)
+    ? dailyResults.filter(
+        (dr) => dr.result != null && !(dr.result as { error_stage?: string }).error_stage,
+      )
     : [];
   const nValid = validDays.length;
   const labelSuffix =
@@ -823,8 +991,31 @@ export default function ExecutionResultsPage() {
         )}
       </div>
 
+      {/* Resultados parciales: la ejecución falló, pero el backend conservó el tren
+          resuelto hasta la poza que reventó. Se muestran con un aviso muy visible —
+          leer una recuperación de litio calculada sobre 5 de 9 pozas como si fuera el
+          proceso completo sería peor que no mostrar nada. */}
+      {esParcial && (
+        <div
+          className="mb-4 p-3 text-sm"
+          style={{
+            backgroundColor: '#fef3c7',
+            color: 'var(--color-warning, #92400e)',
+            borderRadius: 'var(--radius)',
+            border: '1px solid #fbbf24',
+          }}
+          role="alert"
+        >
+          <strong>{t('execres_partial_title')}</strong>{' '}
+          {parcialHechas != null && parcialTotal != null
+            ? `${parcialHechas}/${parcialTotal} ${t('execres_partial_ponds')}. `
+            : ''}
+          {t('execres_partial_body')}
+        </div>
+      )}
+
       {/* Result Tabs */}
-      {execution.status === 'completed' && results && (
+      {(execution.status === 'completed' || esParcial) && results && (
         <>
           {/* Multi-day: summary table + view mode toggle + day selector */}
           {isMultiDay && (
@@ -933,7 +1124,11 @@ export default function ExecutionResultsPage() {
             const postlimingDaysYear = (snap.postliming_days_year as number | undefined) ?? 365;
             return (
               <>
-                <WellBrineFeedTable snapshot={snap} mode="static" />
+                <WellBrineFeedTable
+                  snapshot={snap}
+                  mode="static"
+                  flowOverride={feedFlowShown}
+                />
                 <GlobalBalanceTable
                   streams={streamsForExport}
                   preconDaysYear={preconDaysYear}
@@ -963,6 +1158,7 @@ export default function ExecutionResultsPage() {
                       stageLabel={s.label}
                       result={s.result}
                       temperature_C={s.temperature_C}
+                      enabledSalts={preconEnabledSalts}
                     />
                   </div>
                 ))}
@@ -989,6 +1185,7 @@ export default function ExecutionResultsPage() {
                       stageLabel={s.label}
                       result={s.result}
                       temperature_C={s.temperature_C}
+                      enabledSalts={postlimingEnabledSalts}
                     />
                   </div>
                 ))}

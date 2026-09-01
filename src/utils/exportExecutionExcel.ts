@@ -9,6 +9,8 @@
 import * as XLSX from 'xlsx';
 import { boronFrom } from './boron';
 import { buildWellBrineFeedAoa } from './wellBrineFeed';
+import { speciesWithExtras } from './species';
+import { readDailyResult, type DailyResultRow } from './dailyResult';
 import type {
   ExecutionResult,
   PondResult,
@@ -33,34 +35,20 @@ export interface ExportInput {
   isMultiDay: boolean;
   viewMode: 'average' | 'day';
   validDaysCount: number;
-  dailyResults?: Array<{
+  dailyResults?: DailyResultRow[];
+  /**
+   * Balance global resuelto por día. Lo arma la página, que es donde vive el mapeo de
+   * resultados a las 16 corrientes; acá solo se vuelca. Solo en corridas multi-día.
+   */
+  dailyStreams?: Array<{
     day: number;
     date_label: string;
-    temperature_C: number;
-    evap_rate_mm_day: number;
-    result: Record<string, unknown>;
+    streams: Partial<Record<GlobalStreamId, GlobalStreamValues>>;
   }>;
 }
 
-/**
- * Especies a listar: el orden canonico primero y despues cualquier otra que el motor
- * haya devuelto. La 066 agrega Ba++, Sr++, NO3-, NH4+ y demas; con la lista fija no
- * aparecian nunca en las tablas de composicion.
- */
-function speciesPresentes(fuentes: (Record<string, number> | undefined)[]): string[] {
-  const extra = new Set<string>();
-  for (const f of fuentes) {
-    if (f) for (const k of Object.keys(f)) if (!SPECIES_ORDER.includes(k)) extra.add(k);
-  }
-  return [...SPECIES_ORDER, ...Array.from(extra).sort()];
-}
-
-const SPECIES_ORDER = [
-  'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'H+',
-  'Cl-', 'HSO4-', 'SO4--', 'OH-',
-  'CO2(aq)', 'HCO3-', 'CO3--',
-  'H3BO3', 'B4O7--', 'BO2-',
-];
+// Las especies a listar salen de utils/species.ts: orden canonico primero y despues
+// cualquier otra que el motor haya devuelto (la 066 agrega Ba++, Sr++, NO3-, NH4+…).
 
 // ------- sheet-name sanitisation (Excel rules) -------
 function safeSheetName(name: string): string {
@@ -367,7 +355,7 @@ function buildPondDetailSheet(s: StageData): unknown[][] {
   // Section 2: Composition
   aoa.push(['QUIMICA FLUJO DE TRASPASO (ton/d)']);
   aoa.push(['Especie', ...colLabels]);
-  for (const sp of speciesPresentes(ponds.map((p) => aq(p).eq_liquid as Record<string, number>))) {
+  for (const sp of speciesWithExtras(ponds.map((p) => aq(p).eq_liquid as Record<string, number>))) {
     aoa.push([
       sp,
       ...ponds.map((p) => {
@@ -503,7 +491,7 @@ export function buildEncaladoSheet(enc: Record<string, unknown>): unknown[][] {
   ];
   aoa.push(['COMPOSICION POR ETAPA (ton/d)']);
   aoa.push(['Especie', ...compCols.map((c) => c.label)]);
-  const species = speciesPresentes(compCols.map((c) => c.data as Record<string, number>));
+  const species = speciesWithExtras(compCols.map((c) => c.data as Record<string, number>));
   for (const sp of species) {
     aoa.push([
       sp,
@@ -641,12 +629,10 @@ function buildResumenDiarioSheet(
     'Error',
   ]);
   for (const dr of dailyResults) {
-    const pc = dr.result || {};
-    const precon = pc.precon as SolverResult | undefined;
-    const postliming = pc.postliming as SolverResult | undefined;
-    const last = postliming || precon;
-    const errorStage = (pc as { error_stage?: string }).error_stage;
-    const errorMsg = (pc as { error_msg?: string }).error_msg;
+    // readDailyResult resuelve las tres formas que puede tener un dia, incluida la de
+    // solo preconcentracion, donde el resultado ES el SolverResult y no viene envuelto
+    // en `precon`. Buscando `pc.precon` a mano, esas columnas salian todas vacias.
+    const { precon, last, failed, error } = readDailyResult(dr);
     aoa.push([
       dr.day + 1,
       dr.date_label,
@@ -657,9 +643,175 @@ function buildResumenDiarioSheet(
       last?.li_recovery_pct ?? '',
       last?.total_evaporation ?? '',
       last?.total_salt ?? '',
-      errorStage ? 'Error' : 'OK',
-      errorMsg ?? '',
+      failed ? 'Error' : 'OK',
+      error ?? '',
     ]);
+  }
+  return aoa;
+}
+
+// -------- Hojas por dia (multi-dia) --------
+//
+// Las hojas Global y Preconcentracion muestran una sola foto: el promedio o el dia
+// elegido en pantalla. Estas tres despliegan lo mismo para los 365 dias, en formato
+// largo (una fila por dia y por corriente/poza) en vez de una hoja por dia, que con un
+// anio entero daria 365 pestanas inmanejables.
+
+function buildGlobalPorDiaSheet(
+  dailyStreams: NonNullable<ExportInput['dailyStreams']>,
+): unknown[][] {
+  const aoa: unknown[][] = [[
+    'Día', 'Fecha', 'ID', 'Corriente',
+    'Masa total (ton/d)', 'Líquidos (ton/d)', 'Sólidos (ton/d)', 'Temperatura (°C)',
+  ]];
+  for (const d of dailyStreams) {
+    for (const id of GLOBAL_STREAM_ORDER) {
+      const v = d.streams[id];
+      if (!v) continue;
+      aoa.push([
+        d.day + 1, d.date_label, `P_${id}`, GLOBAL_STREAM_NAMES[id],
+        v.total_mass_day ?? '', v.liquids_day ?? '', v.solids_day ?? '', v.temperature ?? '',
+      ]);
+    }
+  }
+  return aoa;
+}
+
+/** Etapas con pozas de un día, etiquetadas para poder distinguirlas en la hoja. */
+function etapasConPozas(dr: DailyResultRow): Array<{ etapa: string; result: SolverResult }> {
+  const { precon, postliming } = readDailyResult(dr);
+  const out: Array<{ etapa: string; result: SolverResult }> = [];
+  if (precon) out.push({ etapa: 'Preconcentración', result: precon });
+  if (postliming) out.push({ etapa: 'Post-liming', result: postliming });
+  return out;
+}
+
+function nombrePoza(p: PondResult, i: number): string {
+  const cfg = p.config || ({} as PondResult['config']);
+  const name = cfg.name || `Poza ${i + 1}`;
+  return cfg.number != null ? `P${cfg.number} - ${name}` : name;
+}
+
+function buildQuimicaPorDiaSheet(dailyResults: DailyResultRow[]): unknown[][] {
+  // Las especies se resuelven sobre TODOS los dias: si un dia trae una que otro no,
+  // la columna igual existe y queda en blanco donde no aplica.
+  const fuentes: Array<Record<string, number> | undefined> = [];
+  for (const dr of dailyResults) {
+    for (const { result } of etapasConPozas(dr)) {
+      for (const p of result.ponds || []) {
+        fuentes.push((p.aqsol_result as unknown as Record<string, unknown>)?.eq_liquid as
+          Record<string, number> | undefined);
+      }
+    }
+  }
+  const species = speciesWithExtras(fuentes);
+
+  const aoa: unknown[][] = [['Día', 'Fecha', 'Etapa', 'Poza', ...species, 'B']];
+  for (const dr of dailyResults) {
+    for (const { etapa, result } of etapasConPozas(dr)) {
+      (result.ponds || []).forEach((p, i) => {
+        const eq = ((p.aqsol_result as unknown as Record<string, unknown>)?.eq_liquid ??
+          {}) as Record<string, number>;
+        aoa.push([
+          dr.day + 1, dr.date_label, etapa, nombrePoza(p, i),
+          ...species.map((sp) => eq[sp] ?? 0),
+          boronFrom(eq),
+        ]);
+      });
+    }
+  }
+  return aoa;
+}
+
+/** Sales que precipitan en algun punto de la corrida, en orden alfabetico. */
+function salesDeLaCorrida(dailyResults: DailyResultRow[]): string[] {
+  const set = new Set<string>();
+  for (const dr of dailyResults) {
+    for (const { result } of etapasConPozas(dr)) {
+      for (const p of result.ponds || []) {
+        const salts = ((p.aqsol_result as unknown as Record<string, unknown>)
+          ?.precipitated_salts ?? {}) as Record<string, number>;
+        for (const [name, v] of Object.entries(salts)) {
+          if (typeof v === 'number' && v > 0) set.add(name);
+        }
+      }
+    }
+  }
+  return Array.from(set).sort();
+}
+
+/** Total precipitado de una poza: el del motor si viene, si no la suma de las sales. */
+function totalSolidos(p: PondResult): number {
+  const aq = (p.aqsol_result as unknown as Record<string, unknown>) || {};
+  const directo = aq.total_solids_g;
+  if (typeof directo === 'number' && directo > 0) return directo;
+  const salts = (aq.precipitated_salts ?? {}) as Record<string, number>;
+  return Object.values(salts).reduce(
+    (a, v) => a + (typeof v === 'number' && v > 0 ? v : 0),
+    0,
+  );
+}
+
+/**
+ * Desglose de sales precipitadas por dia y poza. `pct` da la misma tabla en %w/w
+ * sobre el total precipitado de esa poza en ese dia.
+ *
+ * En "Metricas por dia" solo esta el total; esto abre que sal es cada tonelada.
+ */
+function buildSalesPorDiaSheet(dailyResults: DailyResultRow[], pct: boolean): unknown[][] {
+  const sales = salesDeLaCorrida(dailyResults);
+  const aoa: unknown[][] = [[
+    'Día', 'Fecha', 'Etapa', 'Poza',
+    ...sales,
+    pct ? 'Total (%)' : 'Total (ton/d)',
+  ]];
+  for (const dr of dailyResults) {
+    for (const { etapa, result } of etapasConPozas(dr)) {
+      (result.ponds || []).forEach((p, i) => {
+        const salts = ((p.aqsol_result as unknown as Record<string, unknown>)
+          ?.precipitated_salts ?? {}) as Record<string, number>;
+        const total = totalSolidos(p);
+        aoa.push([
+          dr.day + 1, dr.date_label, etapa, nombrePoza(p, i),
+          ...sales.map((s) => {
+            const v = salts[s] ?? 0;
+            if (!pct) return v;
+            return total > 0 ? (v / total) * 100 : 0;
+          }),
+          pct ? (total > 0 ? 100 : 0) : total,
+        ]);
+      });
+    }
+  }
+  return aoa;
+}
+
+function buildMetricasPorDiaSheet(dailyResults: DailyResultRow[]): unknown[][] {
+  const num = (v: unknown): number | '' =>
+    typeof v === 'number' && Number.isFinite(v) ? v : '';
+
+  const aoa: unknown[][] = [[
+    'Día', 'Fecha', 'Etapa', 'Poza', 'Temperatura (°C)', 'Evaporación (mm/d)',
+    'Sales precipitadas (ton/d)', 'Masa líquido impregnado (ton/d)', 'Evaporación (ton/d)',
+    'Infiltración (ton/d)', 'Dilución (ton/d)', 'Flujo salida (ton/d)',
+    'Densidad líquida (kg/m³)', 'Densidad sólida (kg/m³)', 'pH', 'Actividad de agua (aw)',
+    'Fuerza iónica', 'Iteraciones', 'Convergió',
+  ]];
+  for (const dr of dailyResults) {
+    for (const { etapa, result } of etapasConPozas(dr)) {
+      (result.ponds || []).forEach((p, i) => {
+        const aq = (p.aqsol_result as unknown as Record<string, unknown>) || {};
+        aoa.push([
+          dr.day + 1, dr.date_label, etapa, nombrePoza(p, i),
+          num(dr.temperature_C), num(dr.evap_rate_mm_day),
+          num(p.salt_precipitated), num(p.entrainment), num(p.evaporation),
+          num(p.leakage), num(p.dilution), num(p.outlet_flow),
+          num(aq.density_liquid), num(aq.density_solid), num(aq.pH),
+          num(aq.water_activity), num(aq.ionic_strength),
+          num(p.iterations), p.converged ? 'Sí' : 'No',
+        ]);
+      });
+    }
   }
   return aoa;
 }
@@ -705,7 +857,11 @@ function buildParametrosSheet(snapshot: Record<string, unknown> | null): unknown
 // ============================================================
 // MAIN
 // ============================================================
-export function exportExecutionToExcel(input: ExportInput): Blob {
+/**
+ * Arma el workbook. Separado de la descarga para poder inspeccionarlo en los tests sin
+ * pasar por Blob, que en jsdom no expone `arrayBuffer()`.
+ */
+export function buildExecutionWorkbook(input: ExportInput): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
 
   addSheet(wb, 'Resumen', buildResumenSheet(input));
@@ -739,6 +895,14 @@ export function exportExecutionToExcel(input: ExportInput): Blob {
 
   if (input.isMultiDay && input.dailyResults) {
     addSheet(wb, 'Resumen Diario', buildResumenDiarioSheet(input.dailyResults));
+    // Detalle completo dia por dia, no solo la foto de la vista actual.
+    addSheet(wb, 'Metricas por dia', buildMetricasPorDiaSheet(input.dailyResults));
+    addSheet(wb, 'Quimica por dia', buildQuimicaPorDiaSheet(input.dailyResults));
+    addSheet(wb, 'Sales por dia', buildSalesPorDiaSheet(input.dailyResults, false));
+    addSheet(wb, 'Sales por dia %', buildSalesPorDiaSheet(input.dailyResults, true));
+    if (input.dailyStreams && input.dailyStreams.length > 0) {
+      addSheet(wb, 'Global por dia', buildGlobalPorDiaSheet(input.dailyStreams));
+    }
   }
 
   addSheet(
@@ -747,7 +911,14 @@ export function exportExecutionToExcel(input: ExportInput): Blob {
     buildParametrosSheet(input.execution.parameters_snapshot ?? null),
   );
 
-  const arrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  return wb;
+}
+
+export function exportExecutionToExcel(input: ExportInput): Blob {
+  const arrayBuffer = XLSX.write(buildExecutionWorkbook(input), {
+    type: 'array',
+    bookType: 'xlsx',
+  });
   return new Blob([arrayBuffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });

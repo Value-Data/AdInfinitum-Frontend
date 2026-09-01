@@ -12,12 +12,15 @@ const fmt = (n: number | undefined | null, digits = 2): string =>
 export default function WellBrineFeedTable({
   snapshot,
   mode,
+  flowOverride,
 }: {
   snapshot?: Record<string, unknown> | null;
   mode: 'dynamic' | 'static';
+  /** Caudal del día que se está viendo, cuando el cronograma lo define por día. */
+  flowOverride?: number | null;
 }) {
   const t = useT();
-  const feed = resolveWellBrineFeed(snapshot, mode);
+  const feed = resolveWellBrineFeed(snapshot, mode, flowOverride);
   if (!feed) return null;
 
   return (

@@ -19,6 +19,7 @@ import { useT } from '../i18n/LanguageContext';
 import { downloadExecutionFile } from '../services/api';
 import { scaleResults } from '../utils/dynamicScale';
 import { boronFrom } from '../utils/boron';
+import { CANONICAL_SPECIES_ORDER } from '../utils/species';
 import { downloadChartsZip } from '../utils/downloadCharts';
 import { useDayDateAxis, DayDateToggle, DayStepSelect, XAxisModeProvider, ScrollableChart } from '../utils/chartDateAxis';
 
@@ -342,14 +343,6 @@ export function TablaCompacta({ results }: { results: DynamicCascadeOrPostliming
 // ============================================================
 // Charts (Section 3.4)
 // ============================================================
-// All species available in the daily_series (matches backend _TABLE_SPECIES order)
-const ALL_CHART_SPECIES = [
-  'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'H+',
-  'Cl-', 'HSO4-', 'SO4--', 'OH-',
-  'CO2(aq)', 'HCO3-', 'CO3--',
-  'H3BO3', 'B4O7--', 'BO2-',
-];
-
 function ChartsCascadePostliming({
   results,
   executionId,
@@ -359,8 +352,15 @@ function ChartsCascadePostliming({
 }) {
   const t = useT();
   const { pond_names, daily_series, default_chart_species } = results;
+  // Las especies graficables son las que el motor puso en la serie diaria: 17 con la
+  // 027 y 23 con la 066. Antes esto era una copia fija de la lista del backend, así
+  // que las que agrega la 066 no tenían casilla ni gráfico. El fallback cubre
+  // ejecuciones viejas guardadas sin `table_species`.
+  const allChartSpecies = results.table_species?.length
+    ? results.table_species
+    : CANONICAL_SPECIES_ORDER;
   // Por default, todas las especies/iones seleccionadas para ver todos los gráficos.
-  const [selectedSpecies, setSelectedSpecies] = useState<string[]>(ALL_CHART_SPECIES);
+  const [selectedSpecies, setSelectedSpecies] = useState<string[]>(allChartSpecies);
 
   // Pivot daily_series to wide: rows = days, cols = pond names
   const pivot = useMemo(() => {
@@ -372,14 +372,14 @@ function ChartsCascadePostliming({
         row[`${name}__inflow_ton`] = s.inflow_ton;
         row[`${name}__height_m`] = s.height_m;
         row[`${name}__salt_precipitated_ton`] = s.salt_precipitated_ton;
-        for (const sp of ALL_CHART_SPECIES) {
+        for (const sp of allChartSpecies) {
           const key = `${sp}_pct`;
           row[`${name}__${sp}_pct`] = (s as unknown as Record<string, number>)[key] ?? 0;
         }
       }
     }
     return Array.from(dayMap.values()).sort((a, b) => a.day - b.day);
-  }, [pond_names, daily_series]);
+  }, [pond_names, daily_series, allChartSpecies]);
 
   // Toggle Días/Fechas del eje X (usa la fecha de la serie diaria).
   const dayDates = useMemo(() => {
@@ -455,7 +455,7 @@ function ChartsCascadePostliming({
       <div className="card p-3 mb-4">
         <h4 className="text-sm font-semibold mb-2">{t('composition_per_pond')}</h4>
         <div className="flex flex-wrap gap-2">
-          {ALL_CHART_SPECIES.map((sp) => {
+          {allChartSpecies.map((sp) => {
             const active = selectedSpecies.includes(sp);
             return (
               <button
@@ -478,6 +478,28 @@ function ChartsCascadePostliming({
       <ChartSalesPerPond results={results} executionId={executionId} />
     </div>
   );
+}
+
+/** Agregados del día que comparten el prefijo `salt_` con las sales, pero no son sales.
+ *  `salt_accumulated_ton` es el inventario acumulado en la poza (crece monótono hasta
+ *  decenas de miles de toneladas) y `salt_precipitated_ton` es el total del día, o sea
+ *  la suma de las demás series. Los escribe el runner en el CSV por poza
+ *  (dynamic_runner._write_pond_csv). */
+const COLUMNAS_AGREGADAS = ['salt_accumulated_ton', 'salt_precipitated_ton'];
+
+/**
+ * Columnas de sal del CSV por poza: `salt_<NOMBRE>_ton`, sin los agregados.
+ *
+ * El filtro por prefijo y sufijo tomaba también los agregados y los graficaba como si
+ * fueran dos sales mas, "accumulated" y "precipitated". El acumulado, ademas, aplastaba
+ * la escala: cientos de toneladas por dia de las sales reales contra decenas de miles
+ * del inventario.
+ */
+export function saltColumnsFromHeader(header: string[]): { h: string; i: number }[] {
+  return header
+    .map((h, i) => ({ h, i }))
+    .filter(({ h }) => h.startsWith('salt_') && h.endsWith('_ton'))
+    .filter(({ h }) => !COLUMNAS_AGREGADAS.includes(h));
 }
 
 function ChartSalesPerPond({
@@ -519,9 +541,7 @@ function ChartSalesPerPond({
         const header = lines[0].split(',');
         const dayIdx = header.indexOf('day');
         const dateIdx = header.indexOf('date');
-        const saltCols = header
-          .map((h, i) => ({ h, i }))
-          .filter(({ h }) => h.startsWith('salt_') && h.endsWith('_ton'));
+        const saltCols = saltColumnsFromHeader(header);
         const rows: Record<string, number>[] = [];
         const dds: { day: number; date?: string }[] = [];
         for (let li = 1; li < lines.length; li++) {
@@ -859,6 +879,32 @@ export default function DynamicResultsView({ executionId, results, files, snapsh
   return (
     <XAxisModeProvider>
     <div>
+      {/* Resultados parciales: la etapa se cortó, pero el backend conservó los días
+          completos anteriores. Aviso muy visible — leer un promedio anual calculado
+          sobre 137 de 1460 días como si fuera la corrida entera sería peor que no
+          mostrar nada. Mismo criterio que el estático en ExecutionResultsPage. */}
+      {results.partial && (
+        <div
+          className="mb-3 p-3 text-sm"
+          style={{
+            backgroundColor: '#fef3c7',
+            color: 'var(--color-warning, #92400e)',
+            borderRadius: 'var(--radius)',
+            border: '1px solid #fbbf24',
+          }}
+          role="alert"
+        >
+          <strong>{t('execres_partial_title')}</strong>{' '}
+          {results.days_completed != null && results.days_total != null
+            ? `${results.days_completed}/${results.days_total} ${t('dynres_partial_days')}. `
+            : ''}
+          {t('dynres_partial_body')}
+          {results.error_msg && (
+            <span className="block mt-1 font-mono text-xs">{results.error_msg}</span>
+          )}
+        </div>
+      )}
+
       {/* Scale factor control (Section 3.5) */}
       <div
         className="card p-3 mb-3 flex flex-wrap items-end gap-3"

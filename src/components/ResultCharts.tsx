@@ -36,15 +36,6 @@ const REFERENCE_SPECIES: Array<{ name: string; color: string }> = [
   { name: 'H3BO3', color: '#059669' },
 ];
 
-// Especies usadas para calcular el total de líquido por poza (mismo conjunto
-// que la tabla de Química de flujo de traspaso para que los % sean consistentes).
-const LIQUID_TOTAL_SPECIES = [
-  'H2O', 'Li+', 'Na+', 'K+', 'Mg++', 'Ca++', 'H+',
-  'Cl-', 'HSO4-', 'SO4--', 'OH-',
-  'CO2(aq)', 'HCO3-', 'CO3--',
-  'H3BO3', 'B4O7--', 'BO2-',
-];
-
 // Paleta para series de sales precipitadas.
 const SALT_PALETTE = [
   '#0891b2', '#db2777', '#8b5cf6', '#ea580c', '#059669',
@@ -58,10 +49,13 @@ export default function ResultCharts({ stageLabel, result }: Props) {
   const ponds = result.ponds || [];
   const [concentrationView, setConcentrationView] = useState<'abs' | 'pct'>('abs');
 
-  // Total de líquido por poza (suma de las 17 especies) para conversión a %.
+  // Total de líquido por poza para la conversión a %: se suma todo lo que trae
+  // eq_liquid, que son exactamente las especies del catálogo del motor (17 en la 027,
+  // 23 en la 066). Antes se sumaba una lista fija de 17 y en una corrida 066 el
+  // denominador quedaba corto, así que los % no coincidían con los de las tablas.
   const liquidTotalsByPond = ponds.map((p) => {
     const eq = p.aqsol_result?.eq_liquid ?? {};
-    return LIQUID_TOTAL_SPECIES.reduce((acc, sp) => acc + (eq[sp] ?? 0), 0);
+    return Object.values(eq).reduce((acc, v) => acc + (v ?? 0), 0);
   });
 
   // Concentration comparison: Li+ (reference) vs other main species on dual axis

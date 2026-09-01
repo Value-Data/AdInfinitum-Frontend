@@ -16,7 +16,7 @@ import {
   getProjectConfigDefaults,
 } from '../services/api';
 import { useT } from '../i18n/LanguageContext';
-import BrineEditor from '../components/BrineEditor';
+import BrineEditor, { brineCloses } from '../components/BrineEditor';
 import PondEditor from '../components/PondEditor';
 import SaltFactorEditor from '../components/SaltFactorEditor';
 import EncaladoConfigForm from '../components/EncaladoConfigForm';
@@ -104,8 +104,10 @@ export default function ProjectDetailPage() {
   const [refreshExecKey, setRefreshExecKey] = useState(0);
   const [mode, setMode] = useState<ProjectMode>('static');
 
-  // Local config state for editing
+  // Local config state for editing.
+  // `brine` es composición en %w/w; el caudal vive aparte en `brineTotalFlow`.
   const [brine, setBrine] = useState<Record<string, number>>({});
+  const [brineTotalFlow, setBrineTotalFlow] = useState<number>(0);
   const [preconPonds, setPreconPonds] = useState<PondConfig[]>([]);
   const [preconFaktor, setPreconFaktor] = useState<number[]>([]);
   const [encaladoConfig, setEncaladoConfig] = useState<EncaladoConfig>(DEFAULT_ENCALADO);
@@ -153,6 +155,7 @@ export default function ProjectDetailPage() {
         ]);
         setConfig(cfg);
         setBrine(cfg.brine || {});
+        setBrineTotalFlow(cfg.brine_total_flow ?? 0);
         setAqsolBasis((cfg.aqsol_version as AqsolVersion) || '027');
         setEntrBasis((cfg.entrainment_basis as EntrainmentBasis) || 'wet');
         setPreconPonds(cfg.precon_ponds || []);
@@ -191,6 +194,7 @@ export default function ProjectDetailPage() {
     downloadExcel(
       {
         brine,
+        brine_total_flow: brineTotalFlow,
         precon_ponds: preconPonds,
         precon_faktor: preconFaktor,
         encalado_config: encaladoConfig,
@@ -224,6 +228,9 @@ export default function ProjectDetailPage() {
       const applied: string[] = [];
       if (parsed.brine) {
         setBrine(parsed.brine);
+        // Una plantilla antigua (en ton/d) llega ya convertida a % + caudal por el
+        // parser, así que el caudal viene definido en ambos formatos.
+        if (parsed.brine_total_flow !== undefined) setBrineTotalFlow(parsed.brine_total_flow);
         applied.push(t('projdetail_applied_brine'));
       }
       if (parsed.precon_ponds) {
@@ -279,6 +286,7 @@ export default function ProjectDetailPage() {
     try {
       const defaults = await getProjectConfigDefaults(id);
       setBrine(defaults.brine);
+      setBrineTotalFlow(defaults.brine_total_flow ?? 0);
       setPreconPonds(defaults.precon_ponds);
       setPreconFaktor(defaults.precon_faktor);
       setEncaladoConfig(defaults.encalado_config as unknown as EncaladoConfig);
@@ -305,6 +313,12 @@ export default function ProjectDetailPage() {
     return () => { cancelado = true; };
   }, [aqsolBasis]);
 
+  // La salmuera de pozo es la entrada de las etapas estáticas: si su composición no
+  // cierra en 100%, el ton/día por especie no corresponde al caudal declarado. El
+  // backend lo rechaza igual (422); acá se bloquea antes para que el usuario vea el
+  // motivo junto a la tabla y no como un error al guardar.
+  const brineOk = brineCloses(brine) && brineTotalFlow > 0;
+
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
@@ -314,6 +328,7 @@ export default function ProjectDetailPage() {
         aqsol_version: aqsolBasis,
         entrainment_basis: entrBasis,
         brine,
+        brine_total_flow: brineTotalFlow,
         precon_ponds: preconPonds,
         precon_faktor: preconFaktor,
         encalado_config: {
@@ -531,7 +546,13 @@ export default function ProjectDetailPage() {
                   : ''}
               </p>
             </div>
-            <BrineEditor value={brine} onChange={setBrine} species={catalog?.species} />
+            <BrineEditor
+              value={brine}
+              onChange={setBrine}
+              totalFlow={brineTotalFlow}
+              onTotalFlowChange={setBrineTotalFlow}
+              species={catalog?.species}
+            />
           </SectionHeader>
 
           <SectionHeader
@@ -606,7 +627,11 @@ export default function ProjectDetailPage() {
             isOpen={openSections.schedule}
             onToggle={() => toggleSection('schedule')}
           >
-            <DailyScheduleEditor value={dailySchedule} onChange={setDailySchedule} />
+            <DailyScheduleEditor
+              value={dailySchedule}
+              onChange={setDailySchedule}
+              defaultFlow={brineTotalFlow}
+            />
           </SectionHeader>
 
           {/* Save button */}
@@ -614,7 +639,8 @@ export default function ProjectDetailPage() {
             <button
               className="btn btn-primary"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || !brineOk}
+              title={brineOk ? undefined : t('brine_sum_error')}
             >
               {saving ? (
                 <>
@@ -642,6 +668,8 @@ export default function ProjectDetailPage() {
           {/* Run Simulation Panel */}
           <RunSimulationPanel
             projectId={project.id}
+            disabled={!brineOk}
+            disabledReason={t('brine_sum_error')}
             onExecutionCreated={() => {
               setActiveTab('executions');
               setRefreshExecKey((k) => k + 1);
