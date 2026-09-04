@@ -13,11 +13,8 @@ import type { SolverResult } from '../types';
 import { useT } from '../i18n/LanguageContext';
 import { useDayDateAxis, ScrollableChart } from '../utils/chartDateAxis';
 import { formatEs } from '../utils/numberFormat';
+import { CHART_COLORS } from '../utils/chartColors';
 
-const CHART_COLORS = [
-  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-];
 
 // Ticks del eje Y con coma decimal.
 const fmtAxisEs = (v: number | string): string =>

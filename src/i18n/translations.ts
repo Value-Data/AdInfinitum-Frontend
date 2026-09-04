@@ -30,6 +30,7 @@ export const TRANSLATIONS = {
   // --- Project Detail Mode toggle ---
   static_mode: { es: 'Modo Estático', en: 'Static Mode' },
   dynamic_mode: { es: 'Modo Dinámico', en: 'Dynamic Mode' },
+  inventario_mode: { es: 'Modo con Inventario', en: 'Inventory Mode' },
   configuration: { es: 'Configuración', en: 'Configuration' },
   executions: { es: 'Ejecuciones', en: 'Executions' },
 
@@ -665,6 +666,8 @@ export const TRANSLATIONS = {
   dyncfg_tip_control_precon: { es: 'Modo de operación de la poza. Por Altura: ajusta el flujo de salida para mantener la altura objetivo. Buffer (flujo fijo): acumula hasta la altura de arranque y luego entrega un caudal fijo y constante.', en: 'Pond operating mode. By Height: adjusts the outflow to keep the target height. Buffer (fixed flow): accumulates up to the startup height and then delivers a fixed, constant flow rate.' },
   dyncfg_th_flow_target: { es: 'Flujo Target (T/D)', en: 'Target Flow (T/D)' },
   dyncfg_tip_flow_target: { es: 'Caudal constante que entrega la poza en modo "Buffer (flujo fijo)".', en: 'Constant flow rate the pond delivers in "Buffer (fixed flow)" mode.' },
+  dyncfg_th_max_h: { es: 'H Máx (m)', en: 'Max H (m)' },
+  dyncfg_tip_max_h: { es: 'Altura máxima que admite la poza. Por encima de ella el modelo marca operación degradada. Vacío = sin tope.', en: 'Maximum height the pond admits. Above it the model flags degraded operation. Empty = no cap.' },
   dyncfg_th_floor_h: { es: 'Floor H (m)', en: 'Floor H (m)' },
   dyncfg_tip_floor_h: { es: 'Altura mínima de seguridad: la poza no entrega flujo que la haga caer por debajo de este nivel.', en: 'Minimum safety height: the pond does not deliver flow that would drop it below this level.' },
   dyncfg_th_startup_h: { es: 'H Arranque (m)', en: 'Startup H (m)' },
@@ -778,6 +781,82 @@ export const TRANSLATIONS = {
     es: 'Catálogo AQSOL en que se guardan la salmuera y los factores de esta configuración, y motor con que se ejecutan las corridas del modelo dinámico. Define qué especies y sales podés editar: 17 y 137 en la 027, 23 y 242 en la 066. Cambiarlo cambia las tablas de factores y con qué se corre; las especies nuevas aparecen en cero.',
     en: 'AQSOL catalog storing this configuration brine and factors, and the engine used for dynamic model runs. Defines which species and salts you can edit: 17 and 137 in 027, 23 and 242 in 066. Changing it changes both the factor tables and what runs; new species appear as zero.',
   },
+  // --- Modo con inventario (motor Mariana) ---
+  invmode_scenario: { es: 'Escenario', en: 'Scenario' },
+  invmode_scenario_hint: {
+    es: 'Cada escenario es un conjunto cerrado —pozas, alimentación, clima, factores e inventario inicial— validado como un todo. Se elige uno, no se editan sus piezas por separado. Los marcados con ● arrancan con las pozas cargadas.',
+    en: 'Each scenario is a closed set — ponds, feed, climate, factors and starting inventory — validated as a whole. You pick one; its pieces are not edited separately. Those marked ● start with the ponds already loaded.',
+  },
+  invmode_start: { es: 'Inicio', en: 'Start' },
+  invmode_legacy_results: {
+    es: 'Esta ejecución se guardó con el formato de resultados anterior, que no incluía las tablas anuales ni los KPIs, así que no hay de dónde calcularlas. Los archivos de la corrida siguen disponibles abajo. Para ver la vista completa, volvé a lanzar la ejecución.',
+    en: 'This run was saved with the previous results format, which did not include the annual tables or the KPIs, so there is nothing to compute them from. The run files are still available below. To see the full view, launch the run again.',
+  },
+  invmode_launch: { es: 'Lanzar corrida', en: 'Launch run' },
+  invmode_launch_hint: {
+    es: 'El horizonte por defecto es el del escenario. Una corrida larga tarda varios minutos: queda en segundo plano y la lista se actualiza sola.',
+    en: 'The default horizon is the scenario one. A long run takes several minutes: it goes to the background and the list refreshes itself.',
+  },
+  invmode_no_runs: { es: 'Todavía no hay corridas de este modo.', en: 'No runs in this mode yet.' },
+  invmode_saved: { es: 'Escenario guardado.', en: 'Scenario saved.' },
+  invmode_unsaved: { es: 'Sin guardar', en: 'Unsaved' },
+  invmode_engine_missing: {
+    es: 'El motor con inventario no está instalado en este backend.',
+    en: 'The inventory engine is not installed in this backend.',
+  },
+  // --- Editor del escenario con inventario ---
+  invcfg_stage_block_missing: { es: 'Este escenario se guardó antes de que el modo incluyera esta etapa. Volvé a elegir el escenario arriba para cargar sus valores por defecto.', en: 'This scenario was saved before the mode included this stage. Pick the scenario again above to load its default values.' },
+  invcfg_section_ponds: { es: 'Pozas', en: 'Ponds' },
+  invcfg_section_feed: { es: 'Alimentación', en: 'Feed' },
+  invcfg_section_inventory: { es: 'Inventario inicial', en: 'Starting inventory' },
+  invcfg_section_climate: { es: 'Clima', en: 'Climate' },
+  invcfg_section_factors: { es: 'Factores de inhibición', en: 'Inhibition factors' },
+  invcfg_days_max: { es: 'Horizonte (días)', en: 'Horizon (days)' },
+  invcfg_control: { es: 'Control', en: 'Control' },
+  invcfg_add_pond: { es: 'Agregar poza', en: 'Add pond' },
+  invcfg_remove_pond: { es: 'Quitar poza', en: 'Remove pond' },
+  invcfg_default_heights: { es: 'Alturas por defecto', en: 'Default heights' },
+  invcfg_default_heights_tip: {
+    es: 'Pone 0,20 m de altura objetivo en todas las pozas y 0,92 m en la última, con 1 m de altura máxima. El escenario cargado trae las alturas del inventario real, que son distintas: esto las reemplaza por la geometría de operación nominal.',
+    en: 'Sets 0.20 m target height on every pond and 0.92 m on the last one, with 1 m maximum. The loaded scenario carries the real inventory heights, which differ: this replaces them with the nominal operating geometry.',
+  },
+  invcfg_flowrate: { es: 'Caudal (t/d)', en: 'Flow rate (t/d)' },
+  invcfg_species_count: { es: 'Especies', en: 'Species' },
+  invcfg_sim_hint: {
+    es: 'La fecha de inicio ancla el año climático típico: el día 1 de la simulación toma el clima de ese día del calendario. El horizonte se puede acortar al lanzar sin tocar el escenario.',
+    en: 'The start date anchors the typical climate year: simulation day 1 takes the climate of that calendar day. The horizon can be shortened at launch without touching the scenario.',
+  },
+  invcfg_ponds_hint: {
+    es: 'Las pozas se resuelven en cascada, en el orden de la tabla: la salida de una alimenta a la siguiente. Una poza nueva copia a la última y arranca vacía salvo que le cargues inventario.',
+    en: 'Ponds are solved as a cascade, in table order: each one feeds the next. A new pond copies the last one and starts empty unless you give it inventory.',
+  },
+  invcfg_feed_hint: {
+    es: 'Composición en %w/w de la salmuera de alimentación; el caudal es su escala. La suma tiene que dar 100.',
+    en: 'Feed brine composition in %w/w; the flow rate is its scale. The sum must be 100.',
+  },
+  invcfg_inventory_tip: {
+    es: 'Estado de cada poza el día 1: desde qué altura, masa y composición arranca. Es lo que distingue a este modo — sin inventario la cascada empieza vacía y tarda años simulados en llegar a régimen.',
+    en: 'State of each pond on day 1: the height, mass and composition it starts from. This is what sets this mode apart — without inventory the cascade starts empty and takes simulated years to reach steady state.',
+  },
+  invcfg_inventory_hint: {
+    es: 'Solo se edita la altura y el porcentaje de cada componente. La masa líquida se deriva de la geometría (altura × área × densidad) y se recalcula al cambiar la altura; la densidad y la actividad de agua vienen del escenario. Una poza sin altura arranca vacía.',
+    en: 'Only height and the percentage of each component are edited. Liquid mass derives from geometry (height × area × density) and is recomputed when height changes; density and water activity come from the scenario. A pond with no height starts empty.',
+  },
+  invcfg_aqsol_tip: {
+    es: 'La entrega del motor Mariana viene solo en AQSOL027 (17 especies, 137 sales). No hay variante 066 para este modo, así que la base queda fija: ofrecer la opción daría una corrida que falla al ejecutar.',
+    en: 'The Mariana engine delivery only ships AQSOL027 (17 species, 137 salts). There is no 066 variant for this mode, so the basis is fixed: offering the option would produce a run that fails at execution.',
+  },
+  invcfg_climate_hint: {
+    es: 'La serie se repite en ciclo mientras dure la simulación, así que puede tener cualquier largo. Con un año típico de 365 días, además, el día 1 toma el clima del día calendario de la fecha de inicio. La tabla, la carga masiva y el CSV son los mismos del modo dinámico.',
+    en: 'The series cycles for as long as the simulation runs, so it can have any length. With a 365-day typical year, day 1 also takes the climate of the start date calendar day. The table, bulk load and CSV are the same as the dynamic mode.',
+  },
+  invmode_stage: { es: 'Etapa', en: 'Stage' },
+  source_execution: { es: 'Corrida de origen', en: 'Source run' },
+  invcfg_excel_download: { es: 'Descargar plantilla Excel', en: 'Download Excel template' },
+  invcfg_excel_import: { es: 'Importar Excel', en: 'Import Excel' },
+  invcfg_excel_imported: { es: 'Hojas aplicadas', en: 'Sheets applied' },
+  invmode_created: { es: 'Creada', en: 'Created' },
+  invmode_pond: { es: 'Poza', en: 'Pond' },
   dynpanel_aqsol_from_config: { es: 'según Configuración', en: 'from Configuration' },
   dynpanel_aqsol_from_config_tip: {
     es: 'El motor del modelo dinámico se elige en Configuración → Salmuera → Base AQSOL, porque es el que define cuántas sales tiene cada tabla de factores. Cambiarlo ahí cambia con qué se ejecuta.',

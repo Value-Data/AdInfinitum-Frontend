@@ -5,6 +5,8 @@ import type {
   ExecutionCreate,
   ExecutionResult,
   ExecutionStatusResponse,
+  InventarioConfig,
+  InventarioEscenario,
   LoginRequest,
   Project,
   ProjectConfig,
@@ -214,6 +216,25 @@ export async function createExecution(
 
 export async function getAqsolCatalog(version: string): Promise<AqsolCatalog> {
   const { data } = await api.get<AqsolCatalog>(`/projects/aqsol/catalog/${version}`);
+  return data;
+}
+
+/**
+ * Escenario con sus datos adentro (pozas, feed, clima, factores, inventario), que es
+ * lo que el editor necesita para mostrar tablas. Sin `path` devuelve el de referencia.
+ */
+export async function getInventarioEscenarioExpandido(
+  path?: string,
+): Promise<InventarioConfig> {
+  const { data } = await api.get<InventarioConfig>('/projects/inventario/escenarios/expandido', {
+    params: path ? { path } : undefined,
+  });
+  return data;
+}
+
+/** Escenarios que trae el motor con inventario, para elegir uno como punto de partida. */
+export async function getInventarioEscenarios(): Promise<InventarioEscenario[]> {
+  const { data } = await api.get<InventarioEscenario[]>('/projects/inventario/escenarios');
   return data;
 }
 

@@ -24,13 +24,14 @@ import DailyScheduleEditor from '../components/DailyScheduleEditor';
 import ExecutionList from '../components/ExecutionList';
 import RunSimulationPanel from '../components/RunSimulationPanel';
 import DynamicModePanel from '../components/DynamicModePanel';
+import InventarioModePanel from '../components/InventarioModePanel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { downloadExcel, parseWorkbookFile } from '../utils/configExcel';
 import type { AqsolCatalog, AqsolVersion, EntrainmentBasis } from '../types';
 import { AQSOL_VERSIONS } from '../types';
 
 type TabKey = 'config' | 'executions';
-type ProjectMode = 'static' | 'dynamic';
+type ProjectMode = 'static' | 'dynamic' | 'inventario';
 
 const DEFAULT_ENCALADO: EncaladoConfig = {
   availability_days_year: 328.5,
@@ -420,12 +421,27 @@ export default function ProjectDetailPage() {
           >
             {t('dynamic_mode')}
           </button>
+          <button
+            className="px-3 py-1.5"
+            style={{
+              background: mode === 'inventario' ? 'var(--color-primary)' : 'transparent',
+              color: mode === 'inventario' ? '#fff' : 'var(--color-text)',
+            }}
+            onClick={() => setMode('inventario')}
+          >
+            {t('inventario_mode')}
+          </button>
         </div>
       </div>
 
       {/* Dynamic mode: replace tabs with DynamicModePanel */}
       {mode === 'dynamic' && (
         <DynamicModePanel projectId={project.id} isAdmin={isAdmin} />
+      )}
+
+      {/* Modo con inventario: mismo trato que el dinámico, panel propio */}
+      {mode === 'inventario' && (
+        <InventarioModePanel projectId={project.id} isAdmin={isAdmin} />
       )}
 
       {/* Static mode: existing tabs */}

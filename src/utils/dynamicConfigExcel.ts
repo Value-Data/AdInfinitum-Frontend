@@ -26,7 +26,7 @@ import { asPercentBasis } from './brineComposition';
  *  `salt_names` en configExcel.ts del estático. */
 export type ExcelCatalog = Pick<AqsolCatalog, 'species' | 'salts'>;
 
-const SHEET = {
+export const SHEET = {
   readme: 'Instrucciones',
   simulation: 'Simulacion',
   brine: 'Salmuera',
@@ -228,7 +228,7 @@ function preconPondsSheet(ponds: DynamicPondConfig[]): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
-function postlimingPondsSheet(ponds: DynamicPostlimingPondConfig[]): XLSX.WorkSheet {
+export function postlimingPondsSheet(ponds: DynamicPostlimingPondConfig[]): XLSX.WorkSheet {
   const rows: (string | number | null)[][] = [POSTLIMING_PONDS_HEADER];
   ponds.forEach((p) => {
     rows.push([
@@ -259,7 +259,7 @@ function climateSheet(climate: DynamicConfig['climate']): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
-function encaladoSheet(cfg: DynamicEncaladoParams): XLSX.WorkSheet {
+export function encaladoSheet(cfg: DynamicEncaladoParams): XLSX.WorkSheet {
   const rows: (string | number | boolean | null)[][] = [['parametro', 'valor']];
   for (const key of ENCALADO_FIELDS) {
     const v = cfg[key];
@@ -268,7 +268,7 @@ function encaladoSheet(cfg: DynamicEncaladoParams): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
-function postlimingParamsSheet(p: DynamicPostlimingParams): XLSX.WorkSheet {
+export function postlimingParamsSheet(p: DynamicPostlimingParams): XLSX.WorkSheet {
   const rows: (string | number | boolean | null)[][] = [['parametro', 'valor']];
   rows.push(['n_days_max', p.n_days_max]);
   rows.push(['temperature_C', p.temperature_C]);
@@ -283,7 +283,7 @@ function postlimingParamsSheet(p: DynamicPostlimingParams): XLSX.WorkSheet {
 }
 
 // v2: secuencia_dosificaciones as a dedicated sheet (ordered rows).
-function sequenceSheet(seq: DosificacionConfig[]): XLSX.WorkSheet {
+export function sequenceSheet(seq: DosificacionConfig[]): XLSX.WorkSheet {
   const rows: (string | number | boolean)[][] = [
     ['orden', 'reactivo', 'objetivo', 'factor_exceso', 'concentracion_solucion', 'enabled'],
   ];
@@ -324,7 +324,7 @@ function defaultFactorFor(factors: SaltFactor[]): number {
   return mejor;
 }
 
-function factorsSheet(
+export function factorsSheet(
   factors: SaltFactor[],
   catalogSalts: ExcelCatalog['salts'] | undefined,
 ): XLSX.WorkSheet {
@@ -489,7 +489,7 @@ function parsePreconPonds(ws: XLSX.WorkSheet): DynamicPondConfig[] {
     });
 }
 
-function parsePostlimingPonds(ws: XLSX.WorkSheet): DynamicPostlimingPondConfig[] {
+export function parsePostlimingPonds(ws: XLSX.WorkSheet): DynamicPostlimingPondConfig[] {
   const rows = sheetToRows(ws);
   return rows
     .filter((r) => String(r['name'] ?? '').trim() !== '')
@@ -537,7 +537,7 @@ function parseClimate(ws: XLSX.WorkSheet, existing: DynamicConfig['climate']): D
   return { series_start_date: startDate, evaporation_mm_day: evap, temperature_C: temp };
 }
 
-function parseEncalado(ws: XLSX.WorkSheet): DynamicEncaladoParams {
+export function parseEncalado(ws: XLSX.WorkSheet): DynamicEncaladoParams {
   const rows = sheetToRows(ws);
   const out: Record<string, unknown> = {};
   // H-20: los 3 flags V3 se IGNORAN al importar (el backend los fuerza a los
@@ -562,7 +562,7 @@ function parseEncalado(ws: XLSX.WorkSheet): DynamicEncaladoParams {
   return out as unknown as DynamicEncaladoParams;
 }
 
-function parseSequence(ws: XLSX.WorkSheet): DosificacionConfig[] {
+export function parseSequence(ws: XLSX.WorkSheet): DosificacionConfig[] {
   const rows = sheetToRows(ws);
   // Sort by 'orden' if present so user-edited row order in Excel is respected.
   const sorted = [...rows].sort(
@@ -579,7 +579,7 @@ function parseSequence(ws: XLSX.WorkSheet): DosificacionConfig[] {
     }));
 }
 
-function parsePostlimingParams(ws: XLSX.WorkSheet): DynamicPostlimingParams {
+export function parsePostlimingParams(ws: XLSX.WorkSheet): DynamicPostlimingParams {
   const rows = sheetToRows(ws);
   const out: Partial<DynamicPostlimingParams> = {};
   rows.forEach((r) => {
@@ -632,7 +632,7 @@ function parsePostlimingParams(ws: XLSX.WorkSheet): DynamicPostlimingParams {
   };
 }
 
-function parseFactors(ws: XLSX.WorkSheet): SaltFactor[] {
+export function parseFactors(ws: XLSX.WorkSheet): SaltFactor[] {
   const rows = sheetToRows(ws);
   return rows
     .filter((r) => String(r['name'] ?? '').trim() !== '')

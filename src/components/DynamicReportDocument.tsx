@@ -24,6 +24,7 @@ import WellBrineFeedTable from './WellBrineFeedTable';
 import { resolveWellBrineFeed } from '../utils/wellBrineFeed';
 import { displayPondName } from '../utils/dynamicDisplayNames';
 import { useT } from '../i18n/LanguageContext';
+import { CHART_COLORS } from '../utils/chartColors';
 
 // Width of the offscreen report container (px). Charts use a fixed size so they
 // render synchronously (no ResponsiveContainer measurement) and html2canvas can
@@ -31,10 +32,6 @@ import { useT } from '../i18n/LanguageContext';
 const CHART_W = 900;
 const CHART_H = 240;
 
-const CHART_COLORS = [
-  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-];
 
 export type ReportStageInput =
   | {

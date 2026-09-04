@@ -33,11 +33,10 @@ import { downloadDynamicResultsExcel } from '../utils/dynamicResultsExcel';
 import { getDecimalsOverride, formatEs } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
 import WellBrineFeedTable from './WellBrineFeedTable';
+import { CHART_COLORS } from '../utils/chartColors';
+import ExecutionFilesTable from './common/ExecutionFilesTable';
+import PartialRunBanner from './common/PartialRunBanner';
 
-const CHART_COLORS = [
-  '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-  '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-];
 
 type Props = {
   executionId: string;
@@ -71,7 +70,10 @@ function fmtSci(n: number | undefined | null): string {
 // ============================================================
 export function KpiCards({ results }: { results: DynamicResults }) {
   const t = useT();
-  const k = results.kpis;
+  // Una ejecución guardada con un formato anterior puede no traer KPIs. Se dibujan
+  // las casillas vacías en vez de reventar la vista entera: el resto de la pestaña
+  // —y las descargas— siguen sirviendo.
+  const k = results.kpis ?? ({} as DynamicResults['kpis']);
   return (
     <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
       <Card title={t('recovery_li')} value={`${fmt(k.recovery_li_pct, 2)}%`} sub={t('last_year')} />
@@ -795,42 +797,6 @@ export function ChartsEncalado({ results }: { results: DynamicEncaladoResults })
 // ============================================================
 // Files tab
 // ============================================================
-function FilesTab({ executionId, files }: { executionId: string; files: ExecutionFile[] }) {
-  const t = useT();
-  const handleDownload = async (name: string) => {
-    const blob = await downloadExecutionFile(executionId, name);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  return (
-    <table>
-      <thead>
-        <tr>
-          <th>{t('dynres_file')}</th>
-          <th>{t('dynres_size')}</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {files.map((f) => (
-          <tr key={f.name}>
-            <td className="font-mono text-xs">{f.name}</td>
-            <td className="font-mono text-xs">{formatEs(f.size_bytes / 1024, 1)} KB</td>
-            <td>
-              <button className="btn btn-outline btn-sm" onClick={() => handleDownload(f.name)}>
-                {t('download')}
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
 
 // ============================================================
 // Main view with tabs
@@ -848,9 +814,14 @@ export default function DynamicResultsView({ executionId, results, files, snapsh
     [results, scaleFactor],
   );
 
-  const isCascadeOrPost = scaledResults.stage !== 'encalado';
+  // Las tablas anuales necesitan los agregados. Una ejecución vieja puede no
+  // traerlos; en ese caso se ocultan esas pestañas en vez de romper al abrirlas.
+  const isCascadeOrPost =
+    scaledResults.stage !== 'encalado' &&
+    !!(scaledResults as DynamicCascadeOrPostlimingResults).annual_aggregates;
   const cp = isCascadeOrPost ? (scaledResults as DynamicCascadeOrPostlimingResults) : null;
-  const enc = !isCascadeOrPost ? (scaledResults as DynamicEncaladoResults) : null;
+  const enc =
+    scaledResults.stage === 'encalado' ? (scaledResults as DynamicEncaladoResults) : null;
 
   const applyScale = () => {
     const v = parseFloat(scaleInput);
@@ -879,31 +850,7 @@ export default function DynamicResultsView({ executionId, results, files, snapsh
   return (
     <XAxisModeProvider>
     <div>
-      {/* Resultados parciales: la etapa se cortó, pero el backend conservó los días
-          completos anteriores. Aviso muy visible — leer un promedio anual calculado
-          sobre 137 de 1460 días como si fuera la corrida entera sería peor que no
-          mostrar nada. Mismo criterio que el estático en ExecutionResultsPage. */}
-      {results.partial && (
-        <div
-          className="mb-3 p-3 text-sm"
-          style={{
-            backgroundColor: '#fef3c7',
-            color: 'var(--color-warning, #92400e)',
-            borderRadius: 'var(--radius)',
-            border: '1px solid #fbbf24',
-          }}
-          role="alert"
-        >
-          <strong>{t('execres_partial_title')}</strong>{' '}
-          {results.days_completed != null && results.days_total != null
-            ? `${results.days_completed}/${results.days_total} ${t('dynres_partial_days')}. `
-            : ''}
-          {t('dynres_partial_body')}
-          {results.error_msg && (
-            <span className="block mt-1 font-mono text-xs">{results.error_msg}</span>
-          )}
-        </div>
-      )}
+      <PartialRunBanner results={results} />
 
       {/* Scale factor control (Section 3.5) */}
       <div
@@ -1020,7 +967,7 @@ export default function DynamicResultsView({ executionId, results, files, snapsh
           />
         </div>
       )}
-      {tab === 'archivos' && <FilesTab executionId={executionId} files={files} />}
+      {tab === 'archivos' && <ExecutionFilesTable executionId={executionId} files={files} />}
     </div>
     </XAxisModeProvider>
   );
