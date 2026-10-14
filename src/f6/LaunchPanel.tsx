@@ -5,9 +5,9 @@
  * la etapa anterior con resultados; una continuación es una ejecución del mismo tipo y
  * un día hasta su último día completo.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  apiError, EXECUTION_TYPES_V2, isDynamicType, launchExecution, SOURCE_OF,
+  apiError, EXECUTION_TYPES_V2, getSection, isDynamicType, launchExecution, SOURCE_OF,
   type ExecutionSummary, type ExecutionTypeV2, type LaunchRequest, type SectionState,
 } from '../services/apiV2';
 import { useT } from '../i18n/LanguageContext';
@@ -44,7 +44,7 @@ export function needsSource(tipo: ExecutionTypeV2, secciones: SectionState[]): b
 
 export function buildLaunchRequest(f: {
   tipo: ExecutionTypeV2; runTag: string; source: string; continuar: string; dia: string;
-  inicio: string; dias: string; reintento: boolean; timeout: string;
+  inicio: string; dias: string; reintento: boolean; timeout: string; escenarios?: number[];
 }, secciones: SectionState[]): LaunchRequest {
   const req: LaunchRequest = { execution_type: f.tipo, run_tag: f.runTag || 'baseline' };
   if (needsSource(f.tipo, secciones) && f.source) req.source_execution_id = f.source;
@@ -56,6 +56,7 @@ export function buildLaunchRequest(f: {
   if ((f.tipo === 'dynamic_precon' || f.tipo === 'dynamic_postliming') && f.dias) {
     req.n_days = Number(f.dias);
   }
+  if (f.escenarios && f.escenarios.length) req.selected_scenarios = [...f.escenarios].sort((a, b) => a - b);
   if (isDynamicType(f.tipo)) {
     req.temperature_retry = f.reintento;
     if (f.timeout) req.dll_timeout_s = Number(f.timeout);
@@ -81,6 +82,16 @@ export default function LaunchPanel({
   const [dias, setDias] = useState('');
   const [reintento, setReintento] = useState(false);
   const [timeout, setTimeoutS] = useState('300');
+  // Escenarios de la precon del estático, para correr solo algunos (vacío = todos).
+  const [escenariosPrecon, setEscenariosPrecon] = useState<string[]>([]);
+  const [elegidos, setElegidos] = useState<number[]>([]);
+  useEffect(() => {
+    if (tipo !== 'static_full' && tipo !== 'static_precon') { setEscenariosPrecon([]); return; }
+    getSection(projectId, 'precon_static').then((s) => {
+      const filas = ((s?.data as unknown as { scenarios?: { label: string }[] })?.scenarios) ?? [];
+      setEscenariosPrecon(filas.map((f) => f.label));
+    }).catch(() => setEscenariosPrecon([]));
+  }, [tipo, projectId]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,7 +115,7 @@ export default function LaunchPanel({
     setError(null);
     try {
       const e = await launchExecution(projectId, buildLaunchRequest(
-        { tipo, runTag, source, continuar, dia, inicio, dias, reintento, timeout }, sections));
+        { tipo, runTag, source, continuar, dia, inicio, dias, reintento, timeout, escenarios: elegidos }, sections));
       onLaunched(e);
     } catch (err) {
       const e = apiError(err);
@@ -189,6 +200,22 @@ export default function LaunchPanel({
           </>
         )}
       </div>
+      {escenariosPrecon.length > 1 && (
+        <div className="mt-3 text-sm" data-testid="launch-scenarios">
+          <span className="label">{t('f6_scenarios_to_run')}</span>
+          <div className="flex flex-wrap gap-3">
+            {escenariosPrecon.map((nombre, i) => (
+              <label key={i} className="flex items-center gap-1">
+                <input type="checkbox" checked={elegidos.includes(i + 1)}
+                       onChange={(e) => setElegidos(e.target.checked ? [...elegidos, i + 1]
+                         : elegidos.filter((p) => p !== i + 1))} />
+                {nombre}
+              </label>
+            ))}
+          </div>
+          <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_scenarios_all_hint')}</span>
+        </div>
+      )}
       {error && <p className="text-sm mt-3" style={{ color: '#b91c1c' }} data-testid="launch-error">{error}</p>}
       <div className="flex justify-end mt-3">
         <button className="btn btn-primary" onClick={lanzar} disabled={enviando}>

@@ -257,6 +257,10 @@ export async function cancelExecution(id: string): Promise<ExecutionStatus> {
   return data;
 }
 
+export async function deleteExecutionV2(id: string): Promise<void> {
+  await api.delete(`/executions/${id}`);
+}
+
 export async function reuploadExecution(id: string): Promise<{ upload_status: string }> {
   const { data } = await api.post<{ upload_status: string }>(`/executions/${id}/reupload`);
   return data;

@@ -31,3 +31,31 @@ describe('gráficos', () => {
     expect(thin([1, 2, 3], 500)).toEqual([1, 2, 3]);
   });
 });
+
+import { fillEmpty, normalizePct, seriesAverage } from '../../src/f6/SectionEditorPage';
+import { duration } from '../../src/f6/ProjectPage';
+import { buildLaunchRequest } from '../../src/f6/LaunchPanel';
+
+describe('herramientas recuperadas de la versión anterior', () => {
+  it('normalizar la composición a 100 sin cambiar proporciones', () => {
+    const n = normalizePct({ H2O: 90, Li: 5, Na: 5.5 });
+    expect(Object.values(n).reduce((a, b) => a + b, 0)).toBeCloseTo(100, 10);
+    expect(n.Li / n.Na).toBeCloseTo(5 / 5.5, 12);
+  });
+  it('promedio y relleno de una serie con días vacíos', () => {
+    expect(seriesAverage([1, null, 3])).toBe(2);
+    expect(seriesAverage([null])).toBeNull();
+    expect(fillEmpty([1, null, 3], 7)).toEqual([1, 7, 3]);
+  });
+  it('duración de una corrida', () => {
+    expect(duration('2026-10-14T10:00:00', '2026-10-14T11:05:30')).toBe('1 h 05 min');
+    expect(duration('2026-10-14T10:00:00', '2026-10-14T10:03:20')).toBe('3 min 20 s');
+    expect(duration(null, null)).toBe('–');
+  });
+  it('los escenarios elegidos van ordenados; ninguno = todos', () => {
+    const base = { tipo: 'static_full' as const, runTag: 'r', source: '', continuar: '', dia: '',
+                   inicio: '', dias: '', reintento: false, timeout: '300' };
+    expect(buildLaunchRequest({ ...base, escenarios: [3, 1] }, []).selected_scenarios).toEqual([1, 3]);
+    expect(buildLaunchRequest({ ...base, escenarios: [] }, []).selected_scenarios).toBeUndefined();
+  });
+});

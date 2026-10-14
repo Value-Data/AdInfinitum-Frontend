@@ -5,9 +5,9 @@
  * no recalcula nada.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  apiError, cancelExecution, downloadChainReport, downloadReport, getChain, getChainReport,
+  apiError, cancelExecution, deleteExecutionV2, downloadChainReport, downloadReport, getChain, getChainReport,
   getExecutionDetail, getExecutionLog, getExecutionStatusV2, getReport, isDynamicType,
   reuploadExecution, saveBlob,
   type ExecutionDetail, type ExecutionStatus, type ReportQuery,
@@ -186,6 +186,8 @@ export default function ExecutionPage() {
   const [estado, setEstado] = useState<ExecutionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [confirmarBorrado, setConfirmarBorrado] = useState(false);
+  const navigate = useNavigate();
 
   const cargar = useCallback(async () => {
     try {
@@ -226,6 +228,17 @@ export default function ExecutionPage() {
       setAviso(apiError(err).message);
     }
   };
+  const borrar = async () => {
+    if (!confirmarBorrado) { setConfirmarBorrado(true); return; }
+    try {
+      await deleteExecutionV2(id);
+      navigate(`/projects/${detail.project_id}?tab=executions`);
+    } catch (err) {
+      setAviso(apiError(err).message);
+      setConfirmarBorrado(false);
+    }
+  };
+  const motor = isDynamicType(detail.execution_type) ? 'dynamic' : 'static';
   const resubir = async () => {
     try {
       await reuploadExecution(id);
@@ -249,9 +262,24 @@ export default function ExecutionPage() {
         <span className="text-sm font-mono" style={{ color: 'var(--color-text-secondary)' }}>
           {detail.run_tag} · AQSOL {detail.aqsol_version ?? '–'}
         </span>
+        <div className="flex-1" />
+        {isAdmin && !activa && (
+          <button className="btn btn-outline" onClick={borrar} data-testid="delete-execution"
+                  style={confirmarBorrado ? { borderColor: '#dc2626', color: '#b91c1c' } : undefined}>
+            {confirmarBorrado ? t('f6_delete_confirm') : t('delete')}
+          </button>
+        )}
       </div>
       <div className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
-        {detail.sections?.map((s) => `${t(`f6_stage_${s.section}` as never)} v${s.version_no}`).join(' · ')}
+        {detail.sections?.map((s, i) => (
+          <React.Fragment key={s.section}>
+            {i > 0 && ' · '}
+            <Link to={`/projects/${detail.project_id}/sections/${s.section}_${motor}?version=${s.version_no}`}
+                  style={{ color: 'var(--color-primary)' }} title={t('f6_view_config_used')}>
+              {t(`f6_stage_${s.section}` as never)} v{s.version_no}
+            </Link>
+          </React.Fragment>
+        ))}
         {detail.start_date && ` · ${t('f6_start_date')}: ${detail.start_date}`}
         {detail.n_days != null && ` · ${detail.n_days} ${t('f6_days')}`}
         {detail.source_execution_id && (

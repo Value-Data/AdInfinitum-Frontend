@@ -3,12 +3,13 @@
  *   - dinámico: las series diarias del período (`GET /executions/{id}/series`);
  *   - todos: barras por poza o por escenario, desde las tablas del reporte.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import JSZip from 'jszip';
 import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '../services/api';
-import { apiError, type ReportQuery } from '../services/apiV2';
+import { apiError, saveBlob, type ReportQuery } from '../services/apiV2';
 import type { Report, ReportTable } from '../types/report';
 import { isStaticReport } from '../types/report';
 import { useT } from '../i18n/LanguageContext';
@@ -31,9 +32,50 @@ interface DailySeries {
   groups: SeriesGroup[];
 }
 
+/** Un gráfico (SVG de recharts) como PNG, con fondo blanco y su título arriba. */
+async function svgToPng(svg: SVGSVGElement, titulo: string): Promise<Blob> {
+  const { width, height } = svg.getBoundingClientRect();
+  const copia = svg.cloneNode(true) as SVGSVGElement;
+  copia.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  copia.setAttribute('width', String(width));
+  copia.setAttribute('height', String(height));
+  const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(copia)],
+    { type: 'image/svg+xml;charset=utf-8' }));
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, mal) => {
+      const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = url;
+    });
+    const escala = 2, cabecera = 28;
+    const canvas = document.createElement('canvas');
+    canvas.width = width * escala; canvas.height = (height + cabecera) * escala;
+    const ctx = canvas.getContext('2d')!;
+    ctx.scale(escala, escala);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height + cabecera);
+    ctx.fillStyle = '#1f2937'; ctx.font = 'bold 13px sans-serif'; ctx.fillText(titulo, 8, 18);
+    ctx.drawImage(img, 0, cabecera, width, height);
+    return await new Promise<Blob>((ok) => canvas.toBlob((b) => ok(b!), 'image/png'));
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Todos los gráficos de un contenedor, como PNG en un zip. */
+export async function downloadChartsZip(contenedor: HTMLElement, nombre: string): Promise<void> {
+  const zip = new JSZip();
+  const paneles = Array.from(contenedor.querySelectorAll<HTMLElement>('[data-chart-title]'));
+  for (const [i, p] of paneles.entries()) {
+    const svg = p.querySelector<SVGSVGElement>('svg.recharts-surface');
+    if (!svg) continue;
+    const titulo = p.dataset.chartTitle ?? `grafico_${i + 1}`;
+    const archivo = `${String(i + 1).padStart(2, '0')}_${titulo.replace(/[^\w\-]+/g, '_').slice(0, 60)}.png`;
+    zip.file(archivo, await svgToPng(svg, titulo));
+  }
+  saveBlob(await zip.generateAsync({ type: 'blob' }), `${nombre}.zip`);
+}
+
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="card p-3 mb-4">
+    <div className="card p-3 mb-4" data-chart-title={title}>
       <h4 className="text-sm font-semibold mb-2">{title}</h4>
       <div style={{ width: '100%', height: 280 }}>
         <ResponsiveContainer>{children as React.ReactElement}</ResponsiveContainer>
@@ -54,6 +96,8 @@ export function DailyCharts({ executionId, query }: { executionId: string; query
   const { label } = useLabels();
   const [data, setData] = useState<DailySeries | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [eje, setEje] = useState<'date' | 'day'>('date');
+  const caja = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let vivo = true;
     const params = Object.fromEntries(Object.entries({
@@ -68,7 +112,7 @@ export function DailyCharts({ executionId, query }: { executionId: string; query
   const grupos = useMemo(() => (data?.groups ?? []).map((g) => ({
     ...g,
     rows: thin(data!.dates.map((fecha, i) => {
-      const fila: Record<string, string | number | null> = { date: fecha };
+      const fila: Record<string, string | number | null> = { date: fecha, day: i + 1 };
       g.series.forEach((s) => { fila[s.key] = s.values[i]; });
       return fila;
     })),
@@ -77,14 +121,29 @@ export function DailyCharts({ executionId, query }: { executionId: string; query
   if (error) return <p className="text-sm mb-4" style={{ color: '#b91c1c' }}>{error}</p>;
   if (!data) return null;
   return (
-    <section className="mb-6" data-testid="daily-charts">
-      <h3 className="text-base font-semibold mb-2">{t('f6_charts_daily')}</h3>
+    <section className="mb-6" data-testid="daily-charts" ref={caja}>
+      <div className="flex flex-wrap items-center gap-3 mb-2">
+        <h3 className="text-base font-semibold">{t('f6_charts_daily')}</h3>
+        <div className="flex gap-1" role="tablist">
+          {(['date', 'day'] as const).map((k) => (
+            <button key={k} role="tab" aria-selected={eje === k}
+                    className={`btn btn-sm ${eje === k ? 'btn-primary' : 'btn-outline'}`} onClick={() => setEje(k)}>
+              {k === 'date' ? t('f6_axis_dates') : t('f6_axis_days')}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1" />
+        <button className="btn btn-outline btn-sm"
+                onClick={() => caja.current && downloadChartsZip(caja.current, `graficos_${data.stage}`)}>
+          {t('f6_download_charts')}
+        </button>
+      </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
         {grupos.map((g) => (
           <Panel key={g.key} title={`${t(`f6_series_${g.key}` as never)} (${g.unit})`}>
             <LineChart data={g.rows} margin={{ top: 5, right: 16, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} minTickGap={30} />
+              <XAxis dataKey={eje} tick={{ fontSize: 10 }} minTickGap={30} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => formatCell(v)} width={70} />
               <Tooltip formatter={(v: number) => formatCell(v)} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -132,13 +191,21 @@ function TableBars({ table, unidades, title }: { table: ReportTable; unidades: s
 /** Barras desde el reporte: comparativa de escenarios o el balance por poza de cada etapa. */
 export function ReportCharts({ report, scenario = 0 }: { report: Report; scenario?: number }) {
   const t = useT();
+  const caja = useRef<HTMLDivElement>(null);
   const etapas = isStaticReport(report) ? (report.scenarios[scenario]?.stages ?? []) : report.stages;
   const tablas = etapas.flatMap((s) => s.tables.filter((tb) => tb.row_kind === 'pond'));
   const comparativa = isStaticReport(report) ? report.comparison : null;
   if (!comparativa && tablas.length === 0) return null;
   return (
-    <section className="mb-6" data-testid="report-charts">
-      <h3 className="text-base font-semibold mb-2">{t('f6_charts')}</h3>
+    <section className="mb-6" data-testid="report-charts" ref={caja}>
+      <div className="flex items-center gap-3 mb-2">
+        <h3 className="text-base font-semibold">{t('f6_charts')}</h3>
+        <div className="flex-1" />
+        <button className="btn btn-outline btn-sm"
+                onClick={() => caja.current && downloadChartsZip(caja.current, 'graficos_reporte')}>
+          {t('f6_download_charts')}
+        </button>
+      </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
         {comparativa && <TableBars table={comparativa} unidades={['%']} />}
         {comparativa && <TableBars table={comparativa} unidades={['t/d']} />}

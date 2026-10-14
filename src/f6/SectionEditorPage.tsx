@@ -8,16 +8,17 @@
  * informe del backend marca campo y fila.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import {
-  apiError, getAqsolCatalogV2, getDictionary, getProjectV2, getSection, saveSection,
+  apiError, getAqsolCatalogV2, getDictionary, getProjectV2, getSection, getSectionVersions, saveSection,
   validateSection,
   type DictionaryEntry, type SectionKind, type ValidationIssue, type ValidationReport,
 } from '../services/apiV2';
 import { useLanguage, useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { IssueList } from './ConfigPanel';
+import { formatDateTime } from './common';
 import {
   addDays, buildSchema, cleanPayload, coerce, hiddenTopLevel, isScalar, isVisible, issuesAt,
   parsePaste, seriesColumns, type EnumChoice, type SectionSchema,
@@ -80,6 +81,24 @@ function CellInput({ entry, value, onChange, choices, invalid, disabled, testId,
            onBlur={() => { setFoco(false); onChange(coerce(entry, texto)); }}
            onKeyDown={(e) => { if (e.key === 'Enter') onChange(coerce(entry, texto)); }} />
   );
+}
+
+/** La composición escalada para que sume 100 (las proporciones no cambian). */
+export function normalizePct(comp: Record<string, number>): Record<string, number> {
+  const suma = Object.values(comp).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+  if (!(suma > 0)) return comp;
+  return Object.fromEntries(Object.entries(comp).map(([k, v]) => [k, (v * 100) / suma]));
+}
+
+/** Promedio de una serie sin contar los días vacíos. */
+export function seriesAverage(valores: (number | null | undefined)[]): number | null {
+  const n = valores.filter((v): v is number => typeof v === 'number');
+  return n.length ? n.reduce((a, b) => a + b, 0) / n.length : null;
+}
+
+/** La serie con `valor` en los días vacíos. */
+export function fillEmpty(valores: (number | null)[], valor: number): number[] {
+  return valores.map((v) => (v === null || v === undefined ? valor : v));
 }
 
 /** Las columnas que identifican la fila van primero: nombre, designación, tipo, área. */
@@ -307,9 +326,17 @@ function KeyValueEditor({ title, keys, value, onChange, unit, testId, issues, fi
         ))}
       </div>
       {unit === '%p/p' && (
-        <p className="text-xs mt-2" style={{ color: Math.abs(suma - 100) > 0.01 ? '#b91c1c' : 'var(--color-text-secondary)' }}>
-          {t('total')}: {suma.toFixed(4)} %
-        </p>
+        <div className="flex items-center gap-3 mt-2">
+          <p className="text-xs" style={{ color: Math.abs(suma - 100) > 0.01 ? '#b91c1c' : 'var(--color-text-secondary)' }}>
+            {t('total')}: {suma.toFixed(4)} %
+          </p>
+          {suma > 0 && Math.abs(suma - 100) > 1e-9 && (
+            <button className="btn btn-outline btn-sm" data-testid={`${testId}-normalize`}
+                    onClick={() => onChange(normalizePct(actual as Record<string, number>))}>
+              {t('f6_normalize')}
+            </button>
+          )}
+        </div>
       )}
     </section>
   );
@@ -373,6 +400,25 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
     if (salta && !inicio && /^\d{4}-\d{2}-\d{2}$/.test(filas[0][0])) nuevo.series_start_date = filas[0][0];
     onChange(nuevo);
   };
+  const [rellenoCol, setRellenoCol] = useState(cols[0] ?? '');
+  const [rellenoValor, setRellenoValor] = useState('');
+  const borrarDia = (i: number) => {
+    const nuevo: Obj = { ...serie };
+    cols.forEach((c) => { nuevo[c] = lista(c).filter((_, j) => j !== i); });
+    if (porDia) nuevo.composition_pct_by_day = comps().filter((_, j) => j !== i);
+    // Si se borra el primer día, la serie empieza al día siguiente.
+    if (i === 0 && inicio) nuevo.series_start_date = addDays(inicio, 1);
+    onChange(nuevo);
+  };
+  const vaciar = () => {
+    const nuevo: Obj = { series_start_date: serie.series_start_date };
+    onChange(nuevo);
+  };
+  const rellenar = () => {
+    const v = coerce(entradas.find((e) => e.field === rellenoCol) ?? entradas[0], rellenoValor);
+    if (typeof v !== 'number') return;
+    onChange({ ...serie, [rellenoCol]: fillEmpty(lista(rellenoCol), v) });
+  };
   const agregar = (k: number) => {
     const nuevo: Obj = { ...serie };
     cols.forEach((c) => { nuevo[c] = [...lista(c), ...Array(k).fill(null)]; });
@@ -394,7 +440,18 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
         <button className="btn btn-outline btn-sm" onClick={() => agregar(1)}>{t('add')}</button>
         <button className="btn btn-outline btn-sm" onClick={() => agregar(365)}>+365</button>
         <PasteBox onPaste={pegar} />
+        {n > 0 && <button className="btn btn-outline btn-sm" onClick={vaciar}>{t('f6_clear_series')}</button>}
       </div>
+      {n > 0 && (
+        <div className="flex flex-wrap items-end gap-2 mb-2 text-xs" title={t('f6_fill_hint')}>
+          <select className="input" style={{ width: 'auto' }} value={rellenoCol} onChange={(e) => setRellenoCol(e.target.value)}>
+            {entradas.map((e) => <option key={e.field} value={e.field}>{headerOf(e)}</option>)}
+          </select>
+          <input className="input" style={{ width: 100 }} value={rellenoValor} placeholder="0"
+                 onChange={(e) => setRellenoValor(e.target.value)} />
+          <button className="btn btn-outline btn-sm" onClick={rellenar}>{t('f6_fill')}</button>
+        </div>
+      )}
       <IssueList issues={issues.filter((i) => i.field.startsWith('series'))} kind="error" />
       <div className="overflow-x-auto">
         <table className="text-xs">
@@ -403,6 +460,7 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
               <th>{t('f6_date')}</th>
               {entradas.map((e) => <th key={e.key} title={tooltipOf(e)}>{headerOf(e)}</th>)}
               {porDia && species.map((sp) => <th key={sp} style={{ textTransform: 'none' }}>{sp} (%p/p)</th>)}
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -419,9 +477,23 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
                     <CellInput entry={entradas[0]} value={(comps()[i] ?? {})[sp]} onChange={(v) => setEspecie(i, sp, v)} />
                   </td>
                 ))}
+                <td>
+                  <button className="btn btn-outline btn-sm" aria-label={t('delete')} onClick={() => borrarDia(i)}>✕</button>
+                </td>
               </tr>
             ))}
           </tbody>
+          {n > 0 && (
+            <tfoot>
+              <tr>
+                <td className="font-semibold">{t('f6_average')}</td>
+                {entradas.map((e) => {
+                  const p = seriesAverage(lista(e.field));
+                  return <td key={e.key} className="font-mono font-semibold">{p === null ? '–' : displayNumber(p)}</td>;
+                })}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
       {n > PAGE && (
@@ -479,6 +551,11 @@ function ReagentsEditor({ schema, value, onChange, issues }: {
 // ---------------------------------------------------------------------------
 export default function SectionEditorPage() {
   const { id = '', kind = 'precon_static' } = useParams<{ id: string; kind: SectionKind }>();
+  const [search] = useSearchParams();
+  const navigate = useNavigate();
+  // ?version=N: una versión guardada, de solo lectura (la que usó una ejecución).
+  const pedida = search.get('version') ? Number(search.get('version')) : null;
+  const [historial, setHistorial] = useState<{ version_no: number; created_at: string; source_kind: string }[]>([]);
   const t = useT();
   const { lang } = useLanguage();
   const [entries, setEntries] = useState<DictionaryEntry[] | null>(null);
@@ -495,8 +572,13 @@ export default function SectionEditorPage() {
     let vivo = true;
     (async () => {
       try {
-        const [proyecto, dic, seccion] = await Promise.all([
-          getProjectV2(id), getDictionary(lang, { kind }), getSection(id, kind)]);
+        const [proyecto, dic, ultima, versiones] = await Promise.all([
+          getProjectV2(id), getDictionary(lang, { kind }), getSection(id, kind),
+          getSectionVersions(id, kind).catch(() => [])]);
+        const seccion = pedida && ultima && pedida !== ultima.version_no
+          ? (await api.get<typeof ultima>(`/projects/${id}/sections/${kind}/versions/${pedida}`)).data
+          : ultima;
+        if (vivo) setHistorial(versiones as never);
         const catalogo = await getAqsolCatalogV2(proyecto.aqsol_version);
         let datos: Obj;
         if (seccion) {
@@ -516,7 +598,7 @@ export default function SectionEditorPage() {
       }
     })();
     return () => { vivo = false; };
-  }, [id, kind, lang]);
+  }, [id, kind, lang, pedida]);
 
   const schema = useMemo(() => buildSchema(entries ?? []), [entries]);
   if (error) return <div className="card p-4">{error}</div>;
@@ -601,9 +683,21 @@ export default function SectionEditorPage() {
         <span className="text-sm font-mono" style={{ color: 'var(--color-text-secondary)' }}>
           {version ? `v${version}` : t('f6_section_empty')}
         </span>
+        {historial.length > 0 && (
+          <select className="input" style={{ width: 'auto' }} value={pedida ?? ''} data-testid="section-history"
+                  onChange={(e) => navigate(e.target.value ? `?version=${e.target.value}` : '?')}>
+            <option value="">{t('f6_latest_version')}</option>
+            {historial.map((v) => (
+              <option key={v.version_no} value={v.version_no}>
+                v{v.version_no} · {formatDateTime(v.created_at)} · {v.source_kind}
+              </option>
+            ))}
+          </select>
+        )}
         <div className="flex-1" />
         <button className="btn btn-outline" onClick={validar} disabled={ocupado}>{t('f6_validate')}</button>
-        <button className="btn btn-primary" onClick={guardar} disabled={ocupado} data-testid="save-section">
+        <button className="btn btn-primary" onClick={guardar} disabled={ocupado} data-testid="save-section"
+                title={pedida && historial[0] && pedida !== historial[0].version_no ? t('f6_save_from_old') : undefined}>
           {t('f6_save_version')}
         </button>
       </div>
