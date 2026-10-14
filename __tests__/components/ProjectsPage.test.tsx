@@ -49,7 +49,7 @@ vi.mock('../../src/services/api', () => ({
       last_execution_status: null,
     },
   ]),
-  createProject: vi.fn(),
+
 }));
 
 import ProjectsPage from '../../src/pages/ProjectsPage';

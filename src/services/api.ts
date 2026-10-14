@@ -1,19 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type {
-  Execution,
-  AqsolCatalog,
-  ExecutionCreate,
-  ExecutionResult,
-  ExecutionStatusResponse,
-  InventarioConfig,
-  InventarioEscenario,
   LoginRequest,
   Project,
-  ProjectConfig,
-  ProjectConfigDefaults,
-  ProjectConfigUpdate,
-  ProjectCreate,
-  ProjectUpdate,
   TokenResponse,
   UserCreate,
   UserResponse,
@@ -170,133 +158,11 @@ export async function getProjects(): Promise<Project[]> {
   return data;
 }
 
-export async function createProject(
-  projectData: ProjectCreate,
-): Promise<Project> {
-  const { data } = await api.post<Project>('/projects', projectData);
-  return data;
-}
-
-export async function getProject(id: string): Promise<Project> {
-  const { data } = await api.get<Project>(`/projects/${id}`);
-  return data;
-}
-
-export async function updateProject(
-  id: string,
-  projectData: ProjectUpdate,
-): Promise<Project> {
-  const { data } = await api.put<Project>(`/projects/${id}`, projectData);
-  return data;
-}
-
-export async function deleteProject(id: string): Promise<void> {
-  await api.delete(`/projects/${id}`);
-}
-
 // ---- Project Config ----
-
-export async function getProjectConfig(
-  projectId: string,
-): Promise<ProjectConfig> {
-  const { data } = await api.get<ProjectConfig>(
-    `/projects/${projectId}/config`,
-  );
-  return data;
-}
-
-export async function updateProjectConfig(
-  projectId: string,
-  configData: ProjectConfigUpdate,
-): Promise<ProjectConfig> {
-  const { data } = await api.put<ProjectConfig>(
-    `/projects/${projectId}/config`,
-    configData,
-  );
-  return data;
-}
-
-export async function getProjectConfigDefaults(
-  projectId: string,
-): Promise<ProjectConfigDefaults> {
-  const { data } = await api.get<ProjectConfigDefaults>(
-    `/projects/${projectId}/config/defaults`,
-  );
-  return data;
-}
 
 // ============================================================
 // Executions
 // ============================================================
-
-export async function getExecutions(
-  projectId: string,
-): Promise<Execution[]> {
-  const { data } = await api.get<Execution[]>(
-    `/projects/${projectId}/executions`,
-  );
-  return data;
-}
-
-export async function createExecution(
-  projectId: string,
-  execData: ExecutionCreate,
-): Promise<Execution> {
-  const { data } = await api.post<Execution>(
-    `/projects/${projectId}/executions`,
-    execData,
-  );
-  return data;
-}
-
-export async function getAqsolCatalog(version: string): Promise<AqsolCatalog> {
-  const { data } = await api.get<AqsolCatalog>(`/projects/aqsol/catalog/${version}`);
-  return data;
-}
-
-/**
- * Escenario con sus datos adentro (pozas, feed, clima, factores, inventario), que es
- * lo que el editor necesita para mostrar tablas. Sin `path` devuelve el de referencia.
- */
-export async function getInventarioEscenarioExpandido(
-  path?: string,
-): Promise<InventarioConfig> {
-  const { data } = await api.get<InventarioConfig>('/projects/inventario/escenarios/expandido', {
-    params: path ? { path } : undefined,
-  });
-  return data;
-}
-
-/** Escenarios que trae el motor con inventario, para elegir uno como punto de partida. */
-export async function getInventarioEscenarios(): Promise<InventarioEscenario[]> {
-  const { data } = await api.get<InventarioEscenario[]>('/projects/inventario/escenarios');
-  return data;
-}
-
-export async function getExecution(id: string): Promise<ExecutionResult> {
-  const { data } = await api.get<ExecutionResult>(`/executions/${id}`);
-  return data;
-}
-
-export async function getExecutionStatus(
-  id: string,
-): Promise<ExecutionStatusResponse> {
-  const { data } = await api.get<ExecutionStatusResponse>(
-    `/executions/${id}/status`,
-  );
-  return data;
-}
-
-export async function deleteExecution(id: string): Promise<void> {
-  await api.delete(`/executions/${id}`);
-}
-
-export async function exportExecution(id: string): Promise<Blob> {
-  const { data } = await api.get(`/executions/${id}/export`, {
-    responseType: 'blob',
-  });
-  return data;
-}
 
 // ---- Dynamic execution artifacts ----
 
