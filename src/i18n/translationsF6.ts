@@ -163,6 +163,11 @@ export const F6_TRANSLATIONS = {
   f6_series_li_pct: { es: 'Li en la salida', en: 'Li in the outflow' },
   f6_series_liming_flows: { es: 'Caudales de la planta', en: 'Plant flows' },
   f6_series_reagents: { es: 'Reactivos', en: 'Reagents' },
+  f6_series_inflow_t_d: { es: 'Caudal de entrada por poza', en: 'Inflow per pond' },
+  f6_series_salt_precipitated_t_d: { es: 'Sal precipitada por poza', en: 'Salt precipitated per pond' },
+  f6_series_height_m: { es: 'Altura de salmuera por poza', en: 'Brine height per pond' },
+  f6_series_density_kg_m3: { es: 'Densidad de la salmuera por poza', en: 'Brine density per pond' },
+  f6_series_composition: { es: 'Composición', en: 'Composition' },
   f6_factors_all: { es: 'Todos', en: 'All' },
   f6_factors_hint: {
     es: 'Sin cargar vale 1: solo se guardan los distintos de 1.',

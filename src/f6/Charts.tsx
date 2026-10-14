@@ -30,6 +30,8 @@ interface DailySeries {
   dates: string[];
   product_pond: string | null;
   groups: SeriesGroup[];
+  /** Composición de la salmuera de cada poza (%p/p), por especie. */
+  composition?: { species: string[]; ponds: Record<string, Record<string, (number | null)[]>> } | null;
 }
 
 /** Un gráfico (SVG de recharts) como PNG, con fondo blanco y su título arriba. */
@@ -97,6 +99,7 @@ export function DailyCharts({ executionId, query }: { executionId: string; query
   const [data, setData] = useState<DailySeries | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [eje, setEje] = useState<'date' | 'day'>('date');
+  const [especies, setEspecies] = useState<string[]>(['Li+']);
   const caja = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let vivo = true;
@@ -109,14 +112,30 @@ export function DailyCharts({ executionId, query }: { executionId: string; query
     return () => { vivo = false; };
   }, [executionId, query.period_start, query.period_end]);
 
-  const grupos = useMemo(() => (data?.groups ?? []).map((g) => ({
-    ...g,
-    rows: thin(data!.dates.map((fecha, i) => {
-      const fila: Record<string, string | number | null> = { date: fecha, day: i + 1 };
-      g.series.forEach((s) => { fila[s.key] = s.values[i]; });
-      return fila;
-    })),
-  })), [data]);
+  const grupos = useMemo(() => {
+    if (!data) return [];
+    // La composición se dibuja como un grupo más por especie elegida: una línea por poza.
+    const comp: (SeriesGroup & { title: string })[] = (data.composition?.species ?? [])
+      .filter((sp) => especies.includes(sp))
+      .map((sp) => ({
+        key: `composition_${sp}`, unit: '%p/p', title: `${t('f6_series_composition')} ${sp}`,
+        series: Object.entries(data.composition!.ponds).map(([pozo, c]) => ({
+          key: pozo, pond: true, values: c[sp] ?? [] })),
+      }));
+    const todos = [
+      ...data.groups.map((g) => ({ ...g, title: t(`f6_series_${g.key}` as never) })),
+      ...comp,
+    ];
+    return todos.filter((g) => g.series.some((s) => s.values.some((v) => v !== null && v !== undefined)))
+      .map((g) => ({
+        ...g,
+        rows: thin(data.dates.map((fecha, i) => {
+          const fila: Record<string, string | number | null> = { date: fecha, day: i + 1 };
+          g.series.forEach((s) => { fila[s.key] = s.values[i] ?? null; });
+          return fila;
+        })),
+      }));
+  }, [data, especies, t]);
 
   if (error) return <p className="text-sm mb-4" style={{ color: '#b91c1c' }}>{error}</p>;
   if (!data) return null;
@@ -132,6 +151,19 @@ export function DailyCharts({ executionId, query }: { executionId: string; query
             </button>
           ))}
         </div>
+        {(data.composition?.species.length ?? 0) > 0 && (
+          <div className="flex flex-wrap items-center gap-1 text-xs" data-testid="species-chips">
+            <span>{t('f6_series_composition')}:</span>
+            {data.composition!.species.map((sp) => (
+              <button key={sp} className={`btn btn-sm ${especies.includes(sp) ? 'btn-primary' : 'btn-outline'}`}
+                      style={{ textTransform: 'none' }}
+                      onClick={() => setEspecies(especies.includes(sp) ? especies.filter((x) => x !== sp)
+                        : [...especies, sp])}>
+                {sp}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex-1" />
         <button className="btn btn-outline btn-sm"
                 onClick={() => caja.current && downloadChartsZip(caja.current, `graficos_${data.stage}`)}>
@@ -140,7 +172,7 @@ export function DailyCharts({ executionId, query }: { executionId: string; query
       </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
         {grupos.map((g) => (
-          <Panel key={g.key} title={`${t(`f6_series_${g.key}` as never)} (${g.unit})`}>
+          <Panel key={g.key} title={`${g.title} (${g.unit})`}>
             <LineChart data={g.rows} margin={{ top: 5, right: 16, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={eje} tick={{ fontSize: 10 }} minTickGap={30} />
