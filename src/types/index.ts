@@ -395,6 +395,8 @@ export interface Project {
   created_at: string;
   updated_at: string;
   last_execution_status: string | null;
+  /** Versión de AQSOL del proyecto (D4): se elige al crearlo y no cambia. */
+  aqsol_version?: AqsolVersion;
 }
 
 export interface ProjectCreate {

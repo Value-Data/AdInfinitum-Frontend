@@ -9,18 +9,14 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "lint": "eslint . --ext ts,tsx"
+    "lint": "eslint . --ext ts,tsx",
+    "gen:api": "python ../AdInfinitum-Backend/scripts/dump_openapi.py openapi.json && openapi-typescript openapi.json -o src/types/api.d.ts"
   },
   "dependencies": {
     "axios": "^1.7.9",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^4.2.1",
-    "jszip": "^3.10.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.1",
-    "recharts": "^2.15.0",
-    "xlsx": "^0.18.5"
+    "react-router-dom": "^6.28.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
@@ -31,6 +27,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "jsdom": "^25.0.1",
+    "openapi-typescript": "^7.4.4",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.7.2",

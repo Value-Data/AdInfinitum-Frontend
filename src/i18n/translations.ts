@@ -3,7 +3,10 @@
    Add new keys here as you internationalize more strings.
    ============================================================ */
 
+import { F6_TRANSLATIONS } from './translationsF6';
+
 export const TRANSLATIONS = {
+  ...F6_TRANSLATIONS,
   // --- Common / Layout ---
   language: { es: 'Idioma', en: 'Language' },
   spanish: { es: 'Español', en: 'Spanish' },

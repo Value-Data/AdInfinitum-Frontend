@@ -8,8 +8,9 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
 import ProjectsPage from './pages/ProjectsPage';
-import ProjectDetailPage from './pages/ProjectDetailPage';
-import ExecutionResultsPage from './pages/ExecutionResultsPage';
+import ProjectPage from './f6/ProjectPage';
+import SectionEditorPage from './f6/SectionEditorPage';
+import ExecutionPage from './f6/ExecutionPage';
 import UsersPage from './pages/UsersPage';
 
 export default function App() {
@@ -27,8 +28,9 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/projects/:id" element={<ProjectDetailPage />} />
-              <Route path="/executions/:id" element={<ExecutionResultsPage />} />
+              <Route path="/projects/:id" element={<ProjectPage />} />
+              <Route path="/projects/:id/sections/:kind" element={<SectionEditorPage />} />
+              <Route path="/executions/:id" element={<ExecutionPage />} />
               <Route
                 path="/users"
                 element={
