@@ -18,14 +18,19 @@ describe('esquema de la sección desde el diccionario', () => {
     entry('ponds.area_m2', { ui_order: 2 }),
     entry('ponds.name', { data_type: 'string', ui_order: 1 }),
     entry('ponds.pond_type', { data_type: 'enum', ui_order: 3 }),
-    entry('ponds.pond_type.fixed_flow', { category: 'enum', parent_key: 'ponds.pond_type', data_type: 'string' }),
-    entry('ponds.pond_type.target_height', { category: 'enum', parent_key: 'ponds.pond_type', data_type: 'string' }),
+    entry('ponds.pond_type.fixed_flow', { category: 'enum', parent_key: 'ponds.pond_type', data_type: 'string',
+                                          label: 'Buffer caudal fijo' }),
+    entry('ponds.pond_type.target_height', { category: 'enum', parent_key: 'ponds.pond_type', data_type: 'string',
+                                             label: 'Por altura objetivo' }),
   ]);
 
   it('da los hijos directos en orden, sin los valores de los enumerados', () => {
     expect(schema.children('').map((e) => e.key)).toEqual(['note', 'ponds']);
     expect(schema.children('ponds').map((e) => e.key)).toEqual(['ponds.name', 'ponds.area_m2', 'ponds.pond_type']);
-    expect(schema.enumValues('ponds.pond_type')).toEqual(['fixed_flow', 'target_height']);
+    // Se elige por la etiqueta del diccionario; se guarda el código.
+    expect(schema.enumValues('ponds.pond_type')).toEqual([
+      { value: 'fixed_flow', label: 'Buffer caudal fijo' },
+      { value: 'target_height', label: 'Por altura objetivo' }]);
   });
 });
 

@@ -97,10 +97,10 @@ export function KpiCards({ kpis }: { kpis: Record<string, number | null> }) {
 }
 
 function StageBlock({ stage }: { stage: StageReport }) {
-  const { label } = useLabels();
+  const t = useT();
   return (
     <section className="mb-6">
-      <h3 className="text-base font-semibold mb-2">{label(`result.${stage.stage}`, stage.stage)}</h3>
+      <h3 className="text-base font-semibold mb-2">{t(`f6_stage_${stage.stage}` as never)}</h3>
       <KpiCards kpis={stage.kpis} />
       {stage.tables.map((t) => <ReportTableView key={t.key} table={t} />)}
     </section>
@@ -118,7 +118,7 @@ function DynamicReportView({ report }: { report: DynamicReport }) {
       </p>
       {Object.keys(report.process_kpis).length > 0 && (
         <section className="mb-6">
-          <h3 className="text-base font-semibold mb-2">{label('result.process', t('f6_process'))}</h3>
+          <h3 className="text-base font-semibold mb-2">{t('f6_process_full')}</h3>
           <KpiCards kpis={report.process_kpis} />
         </section>
       )}

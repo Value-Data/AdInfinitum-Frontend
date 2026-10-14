@@ -20,7 +20,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { IssueList } from './ConfigPanel';
 import {
   addDays, buildSchema, cleanPayload, coerce, hiddenTopLevel, isScalar, isVisible, issuesAt,
-  parsePaste, seriesColumns, type SectionSchema,
+  parsePaste, seriesColumns, type EnumChoice, type SectionSchema,
 } from './sectionModel';
 
 type Obj = Record<string, unknown>;
@@ -30,7 +30,7 @@ const PAGE = 100;
 // Celdas
 // ---------------------------------------------------------------------------
 function CellInput({ entry, value, onChange, choices, invalid, disabled, testId }: {
-  entry: DictionaryEntry; value: unknown; onChange: (v: unknown) => void; choices?: string[];
+  entry: DictionaryEntry; value: unknown; onChange: (v: unknown) => void; choices?: EnumChoice[];
   invalid?: string; disabled?: boolean; testId?: string;
 }) {
   const [texto, setTexto] = useState(value == null ? '' : String(value));
@@ -46,7 +46,7 @@ function CellInput({ entry, value, onChange, choices, invalid, disabled, testId 
               style={estilo} title={invalid} data-testid={testId}
               onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}>
         <option value="">–</option>
-        {choices.map((c) => <option key={c} value={c}>{c}</option>)}
+        {choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
       </select>
     );
   }
@@ -390,7 +390,7 @@ function ReagentsEditor({ schema, value, onChange, issues }: {
   schema: SectionSchema; value: Obj; onChange: (v: Obj) => void; issues: ValidationIssue[];
 }) {
   const t = useT();
-  const reactivos = schema.enumValues('plant.dosing_sequence.reagent');
+  const reactivos = schema.enumValues('plant.dosing_sequence.reagent').map((c) => c.value);
   const pureza = schema.byKey.get('plant.reagents.purity_frac');
   return (
     <section className="card p-3 mb-4" data-testid="reagents-editor">

@@ -5,14 +5,19 @@
  */
 import type { DictionaryEntry, ValidationIssue } from '../services/apiV2';
 
+export interface EnumChoice {
+  value: string;
+  label: string;
+}
+
 export const SCALAR_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'enum', 'date']);
 
 export interface SectionSchema {
   byKey: Map<string, DictionaryEntry>;
   /** Campos hijos directos de `prefix` ('' = la sección), en orden de pantalla. */
   children: (prefix: string) => DictionaryEntry[];
-  /** Valores de un enumerado. */
-  enumValues: (key: string) => string[];
+  /** Valores de un enumerado, con su etiqueta del diccionario (nunca el código a la vista). */
+  enumValues: (key: string) => EnumChoice[];
 }
 
 export function buildSchema(entries: DictionaryEntry[]): SectionSchema {
@@ -25,7 +30,7 @@ export function buildSchema(entries: DictionaryEntry[]): SectionSchema {
         && !e.key.slice(prefix.length + 1).includes('.')))
       .sort((a, b) => (a.ui_order ?? 0) - (b.ui_order ?? 0)),
     enumValues: (key) => entries.filter((e) => e.category === 'enum' && e.parent_key === key)
-      .map((e) => e.field),
+      .map((e) => ({ value: e.field, label: e.label || e.field })),
   };
 }
 
