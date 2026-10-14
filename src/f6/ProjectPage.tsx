@@ -18,6 +18,16 @@ import { RunStatusBadge, executionTypeLabel, formatDateTime } from './common';
 
 const POLL_MS = 5000;
 
+/** Cuánto tardó (o lleva) una corrida: "1 h 05 min", "3 min 20 s". */
+export function duration(desde?: string | null, hasta?: string | null, ahora = Date.now()): string {
+  if (!desde) return '–';
+  const t0 = Date.parse(desde.endsWith('Z') || desde.includes('+') ? desde : `${desde}Z`);
+  const t1 = hasta ? Date.parse(hasta.endsWith('Z') || hasta.includes('+') ? hasta : `${hasta}Z`) : ahora;
+  const s = Math.max(0, Math.round((t1 - t0) / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  return h ? `${h} h ${String(m).padStart(2, '0')} min` : m ? `${m} min ${String(r).padStart(2, '0')} s` : `${r} s`;
+}
+
 function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
   const t = useT();
   if (executions.length === 0) {
@@ -33,6 +43,7 @@ function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
             <th>{t('f6_run_tag')}</th>
             <th>{t('f6_days')}</th>
             <th>{t('f6_created')}</th>
+            <th>{t('f6_duration')}</th>
           </tr>
         </thead>
         <tbody>
@@ -49,6 +60,7 @@ function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
                 {e.n_days != null ? `${e.last_completed_day ?? 0}/${e.n_days}` : '–'}
               </td>
               <td className="font-mono">{formatDateTime(e.created_at)}</td>
+              <td className="font-mono">{duration(e.started_at, e.completed_at)}</td>
             </tr>
           ))}
         </tbody>
