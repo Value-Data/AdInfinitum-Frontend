@@ -11,6 +11,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import ProjectPage from './f6/ProjectPage';
 import SectionEditorPage from './f6/SectionEditorPage';
 import ExecutionPage from './f6/ExecutionPage';
+import PrintReportPage from './f6/PrintReportPage';
 import UsersPage from './pages/UsersPage';
 
 export default function App() {
@@ -26,6 +27,8 @@ export default function App() {
 
           {/* Protected */}
           <Route element={<ProtectedRoute />}>
+            {/* Reporte para imprimir o guardar como PDF: sin la barra lateral. */}
+            <Route path="/executions/:id/print" element={<PrintReportPage />} />
             <Route element={<AppLayout />}>
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectPage />} />

@@ -128,10 +128,43 @@ function DynamicReportView({ report }: { report: DynamicReport }) {
   );
 }
 
-function StaticReportView({ report }: { report: StaticReport }) {
+function ScenarioBlock({ sc }: { sc: StaticReport['scenarios'][number] }) {
+  const t = useT();
+  return (
+    <>
+      {sc.status === 'failed' && (
+        <div className="card p-3 mb-3 text-sm" style={{ borderColor: '#fca5a5' }}>
+          {t('f6_scenario_failed')} ({sc.failed_stage ?? '–'}): {sc.error_message}
+        </div>
+      )}
+      <p className="text-sm mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+        {sc.temperature_C ?? '–'} °C · {sc.evaporation_mm_d ?? '–'} mm/d
+      </p>
+      {Object.keys(sc.process_kpis).length > 0 && <KpiCards kpis={sc.process_kpis} />}
+      {sc.stages.map((s) => <StageBlock key={s.stage} stage={s} />)}
+      {sc.global_balance && <ReportTableView table={sc.global_balance} />}
+    </>
+  );
+}
+
+function StaticReportView({ report, printAll }: { report: StaticReport; printAll?: boolean }) {
   const t = useT();
   const [i, setI] = useState(0);
   const sc = report.scenarios[Math.min(i, report.scenarios.length - 1)];
+  if (printAll) {
+    // Para imprimir: todos los escenarios, uno detrás del otro, cada uno en su página.
+    return (
+      <div>
+        <ReportTableView table={report.comparison} />
+        {report.scenarios.map((s) => (
+          <section key={s.index} className="print-page-break">
+            <h3 className="text-base font-semibold mb-2">{t('f6_scenario')} {s.label}</h3>
+            <ScenarioBlock sc={s} />
+          </section>
+        ))}
+      </div>
+    );
+  }
   return (
     <div>
       <ReportTableView table={report.comparison} />
@@ -146,25 +179,15 @@ function StaticReportView({ report }: { report: StaticReport }) {
               </button>
             ))}
           </div>
-          {sc.status === 'failed' && (
-            <div className="card p-3 mb-3 text-sm" style={{ borderColor: '#fca5a5' }}>
-              {t('f6_scenario_failed')} ({sc.failed_stage ?? '–'}): {sc.error_message}
-            </div>
-          )}
-          <p className="text-sm mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-            {sc.temperature_C ?? '–'} °C · {sc.evaporation_mm_d ?? '–'} mm/d
-          </p>
-          {Object.keys(sc.process_kpis).length > 0 && <KpiCards kpis={sc.process_kpis} />}
-          {sc.stages.map((s) => <StageBlock key={s.stage} stage={s} />)}
-          {sc.global_balance && <ReportTableView table={sc.global_balance} />}
+          <ScenarioBlock sc={sc} />
         </>
       )}
     </div>
   );
 }
 
-export default function ReportView({ report }: { report: Report }) {
+export default function ReportView({ report, printAll }: { report: Report; printAll?: boolean }) {
   return isStaticReport(report)
-    ? <StaticReportView report={report} />
+    ? <StaticReportView report={report} printAll={printAll} />
     : <DynamicReportView report={report} />;
 }

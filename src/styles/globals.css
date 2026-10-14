@@ -190,3 +190,14 @@
 .adinf-fade-in { animation: adinf-fade-in 0.25s ease-out both; }
 .adinf-pop-in { animation: adinf-pop-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .adinf-float { animation: adinf-float 3s ease-in-out infinite; }
+
+/* ===== Reporte para imprimir / PDF (f6/PrintReportPage) ===== */
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+  body { background: #fff !important; }
+  .no-print, .print-report button { display: none !important; }
+  .print-report { max-width: none !important; padding: 0 !important; }
+  .print-page-break { break-before: page; }
+  .print-report .card { break-inside: avoid; box-shadow: none !important; }
+  .print-report table { font-size: 9pt; }
+}
