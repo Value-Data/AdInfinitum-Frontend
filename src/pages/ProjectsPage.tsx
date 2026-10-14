@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { Project } from '../types';
-import { getProjects, createProject } from '../services/api';
+import { getProjects } from '../services/api';
+import { createProjectV2, apiError } from '../services/apiV2';
 import Modal from '../components/common/Modal';
 import StatusBadge from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -19,6 +20,8 @@ export default function ProjectsPage() {
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [creating, setCreating] = useState(false);
+  const [newVersion, setNewVersion] = useState<'027' | '066'>('027');
+  const [createError, setCreateError] = useState<string | null>(null);
   // Show the welcome overlay once per session: either right after an explicit
   // login (flag set by LoginPage) or on the first landing on Projects when the
   // session is already authenticated (persisted token).
@@ -56,13 +59,15 @@ export default function ProjectsPage() {
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      await createProject({ name: newName, description: newDesc || undefined });
+      await createProjectV2({ name: newName, description: newDesc || undefined,
+                              aqsol_version: newVersion });
       setShowCreate(false);
+      setCreateError(null);
       setNewName('');
       setNewDesc('');
       fetchProjects();
-    } catch {
-      // handled
+    } catch (err) {
+      setCreateError(apiError(err).message);
     } finally {
       setCreating(false);
     }
@@ -116,6 +121,7 @@ export default function ProjectsPage() {
               <tr>
                 <th>{t('name')}</th>
                 <th>{t('projects_description')}</th>
+                <th>AQSOL</th>
                 <th>{t('projects_created')}</th>
                 <th>{t('projects_last_execution')}</th>
               </tr>
@@ -133,6 +139,7 @@ export default function ProjectsPage() {
                   <td className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     {project.description || '-'}
                   </td>
+                  <td className="font-mono text-sm">{project.aqsol_version ?? '-'}</td>
                   <td className="font-mono text-sm">{formatDate(project.created_at)}</td>
                   <td>
                     {project.last_execution_status ? (
@@ -178,6 +185,23 @@ export default function ProjectsPage() {
               onChange={(e) => setNewDesc(e.target.value)}
             />
           </div>
+          <div>
+            <label className="label">{t('projects_aqsol_label')}</label>
+            <select
+              className="input"
+              value={newVersion}
+              onChange={(e) => setNewVersion(e.target.value as '027' | '066')}
+            >
+              <option value="027">AQSOL 027</option>
+              <option value="066">AQSOL 066</option>
+            </select>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              {t('projects_aqsol_fixed')}
+            </p>
+          </div>
+          {createError && (
+            <p className="text-sm" style={{ color: 'var(--color-danger, #b91c1c)' }}>{createError}</p>
+          )}
           <div className="flex gap-2 justify-end">
             <button className="btn btn-outline" onClick={() => setShowCreate(false)}>
               {t('cancel')}

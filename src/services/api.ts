@@ -41,18 +41,53 @@ api.interceptors.request.use(
 );
 
 // ---- Response interceptor: handle 401 ----
+// Con un 401 se intenta una vez renovar el token con /auth/refresh y repetir el
+// pedido; si no se puede, se cierra la sesión. Varios pedidos que fallan juntos
+// comparten una sola renovación.
+
+let refreshing: Promise<string | null> | null = null;
+
+async function renewAccessToken(): Promise<string | null> {
+  const refresh = localStorage.getItem('refresh_token');
+  if (!refresh) return null;
+  try {
+    const { data } = await axios.post<TokenResponse>(`${BASE_URL}/auth/refresh`, {
+      refresh_token: refresh,
+    });
+    localStorage.setItem('access_token', data.access_token);
+    if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
+    return data.access_token;
+  } catch {
+    return null;
+  }
+}
+
+function logout(): void {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  // Avoid redirect loops on the login page itself
+  if (!window.location.pathname.includes('/login')) {
+    window.location.href = '/login';
+  }
+}
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      // Clear stored tokens and redirect to login
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      // Avoid redirect loops on the login page itself
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+  async (error: AxiosError) => {
+    const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean })
+      | undefined;
+    const esAuth = original?.url?.includes('/auth/login') || original?.url?.includes('/auth/refresh');
+    if (error.response?.status === 401 && original && !original._retried && !esAuth) {
+      original._retried = true;
+      refreshing = refreshing ?? renewAccessToken().finally(() => { refreshing = null; });
+      const token = await refreshing;
+      if (token) {
+        original.headers.Authorization = `Bearer ${token}`;
+        return api(original);
       }
+      logout();
+    } else if (error.response?.status === 401 && !esAuth) {
+      logout();
     }
     return Promise.reject(error);
   },
