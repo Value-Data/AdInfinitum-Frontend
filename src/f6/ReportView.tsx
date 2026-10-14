@@ -11,6 +11,7 @@ import { fmtNum } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
 import { useLabels, type LabelFn } from './labels';
 import { useT } from '../i18n/LanguageContext';
+import { dmy } from './common';
 
 /** Decimales por defecto: más para valores chicos (fracciones, concentraciones). */
 export function formatCell(v: unknown): string {
@@ -113,7 +114,7 @@ function DynamicReportView({ report }: { report: DynamicReport }) {
   return (
     <div>
       <p className="text-sm mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-        {t('f6_period')}: {report.period.start} – {report.period.end} ({report.period.n_days} {t('f6_days')})
+        {t('f6_period')}: {dmy(report.period.start)} – {dmy(report.period.end)} ({report.period.n_days} {t('f6_days')})
         {report.params.scale_factor !== 1 && ` · ${t('f6_scale_factor')}: ${report.params.scale_factor}`}
       </p>
       {Object.keys(report.process_kpis).length > 0 && (

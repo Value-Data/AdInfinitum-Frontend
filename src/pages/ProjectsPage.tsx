@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { Project } from '../types';
 import { getProjects } from '../services/api';
-import { createProjectV2, apiError } from '../services/apiV2';
+import { createProjectV2, deleteProjectV2, apiError } from '../services/apiV2';
 import Modal from '../components/common/Modal';
 import StatusBadge from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -22,6 +22,18 @@ export default function ProjectsPage() {
   const [creating, setCreating] = useState(false);
   const [newVersion, setNewVersion] = useState<'027' | '066'>('027');
   const [createError, setCreateError] = useState<string | null>(null);
+  // Borrar pide dos clics en el mismo proyecto.
+  const [aBorrar, setABorrar] = useState<string | null>(null);
+  const borrar = async (id: string) => {
+    if (aBorrar !== id) { setABorrar(id); return; }
+    try {
+      await deleteProjectV2(id);
+      setABorrar(null);
+      fetchProjects();
+    } catch (err) {
+      setCreateError(apiError(err).message);
+    }
+  };
   // Show the welcome overlay once per session: either right after an explicit
   // login (flag set by LoginPage) or on the first landing on Projects when the
   // session is already authenticated (persisted token).
@@ -124,6 +136,7 @@ export default function ProjectsPage() {
                 <th>AQSOL</th>
                 <th>{t('projects_created')}</th>
                 <th>{t('projects_last_execution')}</th>
+                {isAdmin && <th />}
               </tr>
             </thead>
             <tbody>
@@ -150,6 +163,15 @@ export default function ProjectsPage() {
                       </span>
                     )}
                   </td>
+                  {isAdmin && (
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <button className="btn btn-outline btn-sm" data-testid={`delete-project-${project.id}`}
+                              style={aBorrar === project.id ? { borderColor: '#dc2626', color: '#b91c1c' } : undefined}
+                              onClick={() => borrar(project.id)}>
+                        {aBorrar === project.id ? t('f6_delete_confirm') : t('delete')}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

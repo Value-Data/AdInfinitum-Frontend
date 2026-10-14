@@ -37,6 +37,12 @@ export function executionTypeLabel(tipo: string, t: (k: TranslationKey) => strin
   return v && v !== clave ? v : tipo;
 }
 
+/** "2024-01-23" → "23-01-2024". */
+export function dmy(iso: unknown): string {
+  const m = typeof iso === 'string' ? iso.match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : String(iso ?? '');
+}
+
 export function formatDateTime(s: string | null | undefined): string {
   if (!s) return '–';
   const d = new Date(s.endsWith('Z') || s.includes('+') ? s : `${s}Z`);
