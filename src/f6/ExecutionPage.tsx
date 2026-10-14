@@ -20,7 +20,7 @@ import { useLanguage, useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import DecimalsSelect from '../components/common/DecimalsSelect';
 import ExecutionFilesTable from '../components/common/ExecutionFilesTable';
-import { RunStatusBadge, executionTypeLabel } from './common';
+import { RunStatusBadge, dmy, executionTypeLabel } from './common';
 import ReportView from './ReportView';
 import { DailyCharts, ReportCharts } from './Charts';
 
@@ -287,7 +287,7 @@ export default function ExecutionPage() {
             </Link>
           </React.Fragment>
         ))}
-        {detail.start_date && ` · ${t('f6_start_date')}: ${detail.start_date}`}
+        {detail.start_date && ` · ${t('f6_start_date')}: ${dmy(detail.start_date)}`}
         {detail.n_days != null && ` · ${detail.n_days} ${t('f6_days')}`}
         {detail.source_execution_id && (
           <> · <Link to={`/executions/${detail.source_execution_id}`} style={{ color: 'var(--color-primary)' }}>

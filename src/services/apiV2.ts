@@ -91,6 +91,10 @@ export async function createProjectV2(body: Schemas['ProjectCreate']): Promise<P
   return data;
 }
 
+export async function deleteProjectV2(id: string): Promise<void> {
+  await api.delete(`/projects/${id}`);
+}
+
 export async function getProjectV2(id: string): Promise<ProjectV2> {
   const { data } = await api.get<ProjectV2>(`/projects/${id}`);
   return data;

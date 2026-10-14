@@ -86,6 +86,8 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+import { dmy } from './common';
+
 /** Una de cada k filas para no dibujar miles de puntos (la tabla del reporte tiene el detalle). */
 export function thin<T>(rows: T[], max = MAX_PUNTOS): T[] {
   if (rows.length <= max) return rows;
@@ -175,9 +177,11 @@ export function DailyCharts({ executionId, query }: { executionId: string; query
           <Panel key={g.key} title={`${g.title} (${g.unit})`}>
             <LineChart data={g.rows} margin={{ top: 5, right: 16, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={eje} tick={{ fontSize: 10 }} minTickGap={30} />
+              <XAxis dataKey={eje} tick={{ fontSize: 10 }} minTickGap={30}
+                     tickFormatter={eje === 'date' ? dmy : undefined} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => formatCell(v)} width={70} />
-              <Tooltip formatter={(v: number) => formatCell(v)} />
+              <Tooltip formatter={(v: number) => formatCell(v)}
+                       labelFormatter={(l) => (eje === 'date' ? dmy(l) : `${t('f6_day')} ${l}`)} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {g.series.map((s, i) => (
                 <Line key={s.key} type="monotone" dataKey={s.key} dot={false} connectNulls

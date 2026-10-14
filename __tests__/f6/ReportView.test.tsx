@@ -45,7 +45,7 @@ describe('reporte del dinámico', () => {
     // Una especie se llama como en el catálogo; una poza, como la nombró el usuario.
     expect(within(t).getByText('Li+ (t/d)')).toBeTruthy();
     expect(within(t).getByText('Pz1')).toBeTruthy();
-    expect(screen.getByText(/2024-01-23 – 2024-02-21/)).toBeTruthy();
+    expect(screen.getByText(/23-01-2024 – 21-02-2024/)).toBeTruthy();
   });
 });
 
