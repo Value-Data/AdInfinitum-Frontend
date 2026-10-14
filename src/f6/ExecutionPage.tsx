@@ -140,6 +140,13 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
         <div className="flex-1" />
         <DecimalsSelect />
         <button className="btn btn-outline" onClick={bajar}>{t('f6_download_xlsx')}</button>
+        <button className="btn btn-outline" data-testid="print-report"
+                onClick={() => window.open(`/executions/${detail.id}/print?${new URLSearchParams(
+                  Object.entries({ ...q, chain: verCadena ? '1' : '' })
+                    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+                    .map(([k, v]) => [k, String(v)])).toString()}`, '_blank')}>
+          {t('f6_print_pdf')}
+        </button>
       </div>
       {cargando && <LoadingSpinner />}
       {error && <div className="card p-3 mb-4 text-sm" style={{ borderColor: '#fca5a5' }}>{error}</div>}

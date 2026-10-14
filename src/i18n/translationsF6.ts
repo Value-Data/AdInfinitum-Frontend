@@ -137,6 +137,13 @@ export const F6_TRANSLATIONS = {
   f6_download_xlsx: { es: 'Bajar Excel', en: 'Download Excel' },
   f6_scenario_failed: { es: 'Escenario fallido', en: 'Failed scenario' },
   f6_charts: { es: 'Gráficos', en: 'Charts' },
+  f6_print_pdf: { es: 'Imprimir / PDF', en: 'Print / PDF' },
+  f6_print_title: { es: 'Reporte de simulación', en: 'Simulation report' },
+  f6_print_generated: { es: 'Generado', en: 'Generated' },
+  f6_print_configuration: { es: 'Configuración usada', en: 'Configuration used' },
+  f6_print_now: { es: 'Imprimir o guardar como PDF', en: 'Print or save as PDF' },
+  f6_scenario: { es: 'Escenario', en: 'Scenario' },
+  f6_project: { es: 'Proyecto', en: 'Project' },
   f6_latest_version: { es: 'Última versión', en: 'Latest version' },
   f6_save_from_old: {
     es: 'Guardar crea una versión nueva con estos datos (no cambia la versión vieja).',
