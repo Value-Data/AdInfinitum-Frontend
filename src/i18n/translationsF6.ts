@@ -136,4 +136,18 @@ export const F6_TRANSLATIONS = {
   f6_project_value: { es: 'el del proyecto', en: "project's" },
   f6_download_xlsx: { es: 'Bajar Excel', en: 'Download Excel' },
   f6_scenario_failed: { es: 'Escenario fallido', en: 'Failed scenario' },
+  f6_charts: { es: 'Gráficos', en: 'Charts' },
+  f6_charts_daily: { es: 'Evolución diaria en el período', en: 'Daily evolution in the period' },
+  f6_series_feed_flow: { es: 'Caudal de alimentación', en: 'Feed flow' },
+  f6_series_outflow_t_d: { es: 'Caudal de salida por poza', en: 'Outflow per pond' },
+  f6_series_brine_mass_t: { es: 'Masa de salmuera por poza', en: 'Brine mass per pond' },
+  f6_series_evaporation_t_d: { es: 'Evaporación por poza', en: 'Evaporation per pond' },
+  f6_series_li_pct: { es: 'Li en la salida', en: 'Li in the outflow' },
+  f6_series_liming_flows: { es: 'Caudales de la planta', en: 'Plant flows' },
+  f6_series_reagents: { es: 'Reactivos', en: 'Reagents' },
+  f6_factors_all: { es: 'Todos', en: 'All' },
+  f6_factors_hint: {
+    es: 'Sin cargar vale 1: solo se guardan los distintos de 1.',
+    en: 'Unset means 1: only factors other than 1 are stored.',
+  },
 } as const;

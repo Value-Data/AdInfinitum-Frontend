@@ -22,6 +22,7 @@ import DecimalsSelect from '../components/common/DecimalsSelect';
 import ExecutionFilesTable from '../components/common/ExecutionFilesTable';
 import { RunStatusBadge, executionTypeLabel } from './common';
 import ReportView from './ReportView';
+import { DailyCharts, ReportCharts } from './Charts';
 
 const ACTIVE = new Set(['pending', 'running']);
 const POLL_MS = 5000;
@@ -142,7 +143,13 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
       </div>
       {cargando && <LoadingSpinner />}
       {error && <div className="card p-3 mb-4 text-sm" style={{ borderColor: '#fca5a5' }}>{error}</div>}
-      {report && !cargando && <ReportView report={report} />}
+      {report && !cargando && (
+        <>
+          {dinamico && !verCadena && <DailyCharts executionId={detail.id} query={q} />}
+          <ReportCharts report={report} />
+          <ReportView report={report} />
+        </>
+      )}
     </section>
   );
 }

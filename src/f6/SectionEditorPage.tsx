@@ -29,10 +29,29 @@ const PAGE = 100;
 // ---------------------------------------------------------------------------
 // Celdas
 // ---------------------------------------------------------------------------
-function CellInput({ entry, value, onChange, choices, invalid, disabled, testId }: {
+/** Un número para leer: hasta 4 decimales (el valor guardado no cambia). */
+export function displayNumber(v: number): string {
+  if (!Number.isFinite(v)) return String(v);
+  const abs = Math.abs(v);
+  const dec = abs !== 0 && abs < 0.01 ? 6 : 4;
+  return String(Number(v.toFixed(dec)));
+}
+
+/** Ícono ⓘ con la ayuda del campo (descripción, unidad, rango y nombre interno). */
+function Tip({ text }: { text: string }) {
+  return (
+    <span className="ml-1 cursor-help select-none align-middle" title={text} aria-label={text}
+          style={{ color: 'var(--color-text-secondary)', fontSize: '0.85em', textTransform: 'none' }}>
+      &#9432;
+    </span>
+  );
+}
+
+function CellInput({ entry, value, onChange, choices, invalid, disabled, testId, placeholder }: {
   entry: DictionaryEntry; value: unknown; onChange: (v: unknown) => void; choices?: EnumChoice[];
-  invalid?: string; disabled?: boolean; testId?: string;
+  invalid?: string; disabled?: boolean; testId?: string; placeholder?: string;
 }) {
+  const [foco, setFoco] = useState(false);
   const [texto, setTexto] = useState(value == null ? '' : String(value));
   useEffect(() => { setTexto(value == null ? '' : String(value)); }, [value]);
   const estilo: React.CSSProperties = invalid ? { borderColor: '#dc2626', background: '#fef2f2' } : {};
@@ -51,12 +70,23 @@ function CellInput({ entry, value, onChange, choices, invalid, disabled, testId 
     );
   }
   return (
-    <input className="input" type={entry.data_type === 'date' ? 'date' : 'text'} value={texto}
-           disabled={disabled} style={{ minWidth: 80, ...estilo }} title={invalid} data-testid={testId}
+    <input className="input" type={entry.data_type === 'date' ? 'date' : 'text'}
+           value={!foco && typeof value === 'number' && texto === String(value) ? displayNumber(value) : texto}
+           placeholder={placeholder}
+           disabled={disabled} style={{ minWidth: 80, ...estilo }}
+           title={invalid ?? (typeof value === 'number' ? String(value) : undefined)} data-testid={testId}
+           onFocus={() => setFoco(true)}
            onChange={(e) => setTexto(e.target.value)}
-           onBlur={() => onChange(coerce(entry, texto))}
+           onBlur={() => { setFoco(false); onChange(coerce(entry, texto)); }}
            onKeyDown={(e) => { if (e.key === 'Enter') onChange(coerce(entry, texto)); }} />
   );
+}
+
+/** Las columnas que identifican la fila van primero: nombre, designación, tipo, área. */
+export function orderColumns(cols: DictionaryEntry[]): DictionaryEntry[] {
+  const primero = ['name', 'label', 'pond', 'designation', 'pond_type', 'area_m2'];
+  const rango = (c: DictionaryEntry) => (primero.includes(c.field) ? primero.indexOf(c.field) : primero.length);
+  return [...cols].sort((a, b) => rango(a) - rango(b) || (a.ui_order ?? 0) - (b.ui_order ?? 0));
 }
 
 function headerOf(e: DictionaryEntry): string {
@@ -82,7 +112,7 @@ function FieldsForm({ schema, prefix, entries, value, onChange, issues }: {
         const problemas = issuesAt(issues, e.key);
         return (
           <label key={e.key} className="text-sm" title={tooltipOf(e)}>
-            <span className="label">{headerOf(e)}</span>
+            <span className="label">{headerOf(e)}<Tip text={tooltipOf(e)} /></span>
             <CellInput entry={e} value={value[e.field]} choices={schema.enumValues(e.key)}
                        invalid={problemas.map((p) => p.message).join(' · ') || undefined}
                        testId={`field-${prefix}${e.field}`}
@@ -125,7 +155,8 @@ function TableEditor({ schema, prefix, rows, onChange, issues, species, title }:
 }) {
   const t = useT();
   const hijos = schema.children(prefix);
-  const columnas = hijos.filter(isScalar);
+  const columnas = orderColumns(hijos.filter(isScalar))
+    .filter((c) => !c.visible_if || rows.some((r) => isVisible(c.visible_if, r)));
   // Una columna por especie para el campo de composición/masas de la fila, si tiene.
   const porEspecie = hijos.find((e) => e.data_type === 'composition' || e.data_type === 'map');
   const [pagina, setPagina] = useState(0);
@@ -175,7 +206,7 @@ function TableEditor({ schema, prefix, rows, onChange, issues, species, title }:
           <thead>
             <tr>
               <th>#</th>
-              {columnas.map((c) => <th key={c.key} title={tooltipOf(c)} className="whitespace-nowrap">{headerOf(c)}</th>)}
+              {columnas.map((c) => <th key={c.key} className="whitespace-nowrap">{headerOf(c)}<Tip text={tooltipOf(c)} /></th>)}
               {porEspecie && species.map((sp) => <th key={sp} className="whitespace-nowrap" style={{ textTransform: 'none' }}>{sp}{porEspecie.unit ? ` (${porEspecie.unit})` : ''}</th>)}
               <th />
             </tr>
@@ -229,26 +260,47 @@ function TableEditor({ schema, prefix, rows, onChange, issues, species, title }:
 // ---------------------------------------------------------------------------
 // Composición por especie y factores por fase
 // ---------------------------------------------------------------------------
-function KeyValueEditor({ title, keys, value, onChange, unit, testId, issues, field }: {
+function KeyValueEditor({ title, keys, value, onChange, unit, testId, issues, field, neutral }: {
   title: string; keys: string[]; value: Obj | null | undefined; onChange: (v: Obj | null) => void;
   unit?: string | null; testId: string; issues: ValidationIssue[]; field: string;
+  /** Valor que vale una clave sin cargar (los factores de precipitación: 1). */
+  neutral?: number;
 }) {
   const t = useT();
   const actual = value ?? {};
+  const [filtro, setFiltro] = useState<'all' | 'eq' | 'gt' | 'lt'>('all');
+  const vale = (k: string) => (typeof actual[k] === 'number' ? (actual[k] as number) : (neutral ?? 0));
+  const visibles = neutral === undefined || filtro === 'all' ? keys : keys.filter((k) =>
+    filtro === 'eq' ? vale(k) === neutral : filtro === 'gt' ? vale(k) > neutral : vale(k) < neutral);
   const suma = Object.values(actual).reduce<number>((a, b) => a + (typeof b === 'number' ? b : 0), 0);
   const entrada: DictionaryEntry = { key: field, entity: '', field, category: 'model', data_type: 'number',
     label: '', required: false, time_variable: false };
   return (
     <section className="card p-3 mb-4" data-testid={testId}>
-      <h4 className="font-semibold text-sm mb-2">{title}</h4>
+      <div className="flex flex-wrap items-center gap-3 mb-2">
+        <h4 className="font-semibold text-sm">{title}</h4>
+        {neutral !== undefined && (
+          <>
+            <select className="input" style={{ width: 'auto' }} value={filtro} data-testid={`${testId}-filter`}
+                    onChange={(e) => setFiltro(e.target.value as 'all' | 'eq' | 'gt' | 'lt')}>
+              <option value="all">{t('f6_factors_all')} ({keys.length})</option>
+              <option value="eq">= {neutral} ({keys.filter((k) => vale(k) === neutral).length})</option>
+              <option value="gt">&gt; {neutral} ({keys.filter((k) => vale(k) > neutral).length})</option>
+              <option value="lt">&lt; {neutral} ({keys.filter((k) => vale(k) < neutral).length})</option>
+            </select>
+            <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_factors_hint')}</span>
+          </>
+        )}
+      </div>
       <IssueList issues={issuesAt(issues, field)} kind="error" />
       <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
-        {keys.map((k) => (
+        {visibles.map((k) => (
           <label key={k} className="text-xs">
             <span className="label" style={{ textTransform: 'none' }}>{k}{unit ? ` (${unit})` : ''}</span>
-            <CellInput entry={entrada} value={actual[k]} testId={`${testId}-${k}`} onChange={(v) => {
+            <CellInput entry={entrada} value={actual[k] ?? neutral} testId={`${testId}-${k}`} onChange={(v) => {
               const n = { ...actual };
-              if (v == null) delete n[k]; else n[k] = v;
+              // Volver al valor neutro es no cargarlo (el backend no guarda los factores 1).
+              if (v == null || v === neutral) delete n[k]; else n[k] = v;
               onChange(Object.keys(n).length ? n : null);
             }} />
           </label>
@@ -527,6 +579,7 @@ export default function SectionEditorPage() {
     }
     if (e.data_type === 'map') {
       return <KeyValueEditor key={e.key} title={e.label} keys={phases} testId={`map-${e.key}`} field={e.key}
+                             neutral={1}
                              issues={issues} value={payload[e.key] as Obj | undefined}
                              onChange={(v) => set(e.key, v ?? {})} />;
     }
