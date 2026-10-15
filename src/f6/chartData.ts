@@ -177,7 +177,30 @@ export function dailyGroups(d: DailySeries, especies: string[], pozaSales: strin
       series: (d.salts!.salts).filter((s) => s in dePoza).map((s) => ({ key: s, salt: true, values: dePoza[s] })),
     });
   }
-  return [...d.groups.map((g) => ({ ...g, origin: 'group' as const })), ...comp, ...sales].filter(conDatos);
+  const grupos = d.groups.map((g) => ({ ...g, origin: 'group' as const }));
+  return ordenBase([...grupos, ...comp, ...sales], d.stage).filter(conDatos);
+}
+
+/**
+ * Los gráficos del reporte de antes van primero y en su orden (`COMPOSICION` = la
+ * composición de cada especie elegida); después los demás, como los manda el backend.
+ * Cascada: entrada por poza, altura, Li %, composición. Planta: Li % de la salida,
+ * composición de la salida, sales (torta), reactivos, flujo de salida, razón SO4/Mg.
+ */
+export const COMPOSICION = '*composition';
+export const BASE_DAILY_ORDER: Record<'cascade' | 'liming', string[]> = {
+  cascade: ['inflow_t_d', 'height_m', 'li_pct', COMPOSICION],
+  liming: ['li_pct', 'outlet_composition_pct', 'salt_cake_t_d', 'reagents', 'liming_flows', 'so4_mg_ratio'],
+};
+
+function ordenBase(grupos: DailyGroup[], stage: string): DailyGroup[] {
+  const orden = BASE_DAILY_ORDER[stage === 'liming' ? 'liming' : 'cascade'];
+  const lugar = (g: DailyGroup) => {
+    const i = orden.indexOf(g.origin === 'composition' ? COMPOSICION : g.origin === 'group' ? g.key : '');
+    return i === -1 ? orden.length : i;
+  };
+  // sort estable: dentro del mismo lugar se conserva el orden del backend.
+  return [...grupos].sort((a, b) => lugar(a) - lugar(b));
 }
 
 /** Pozas con alguna sal en el período (las que tienen sentido en el selector). */

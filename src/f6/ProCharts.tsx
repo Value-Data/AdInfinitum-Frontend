@@ -1,7 +1,6 @@
 /**
  * Gráficos de lectura rápida, desde lo que ya trae el reporte o las series (sin recalcular):
  *   - balance de litio (Sankey) de la salmuera de pozo al producto, por etapa;
- *   - medidores de la recuperación de Li de cada etapa y del proceso;
  *   - mapa de calor poza × día de una variable de las series diarias.
  */
 import React, { useMemo, useState } from 'react';
@@ -9,8 +8,8 @@ import type { DailySeries, StageReport } from '../types/report';
 import { useT } from '../i18n/LanguageContext';
 import { useDecimals } from '../context/DecimalsContext';
 import { dmy } from './common';
-import { heatVariables, liFlows, recoveries } from './chartData';
-import { liSankeyOption, pondHeatmapOption, recoveryGaugesOption } from './chartOptions';
+import { heatVariables, liFlows } from './chartData';
+import { liSankeyOption, pondHeatmapOption } from './chartOptions';
 import { EChart, useChartPrint } from './EChart';
 import { Panel, nombreArchivo, useTools } from './chartPanel';
 
@@ -49,32 +48,6 @@ export function LiSankeyPanel({ stages, dynamic, prefix = '' }: {
         {t('f6_li_unrecovered_hint')}
       </p>
     </>
-  );
-}
-
-/** Recuperación de Li de cada etapa y del proceso, como medidores (las tarjetas de KPIs siguen en el reporte). */
-export function RecoveryPanel({ stages, processKpis, prefix = '' }: {
-  stages: StageReport[]; processKpis: Record<string, number | null>; prefix?: string;
-}) {
-  const t = useT();
-  const { decimals } = useDecimals();
-  const tools = useTools();
-  const print = useChartPrint();
-  const titulo = `${prefix}${t('f6_recovery_panel')} (%)`;
-  const filas = recoveries(stages, processKpis);
-  const option = useMemo(() => recoveryGaugesOption({
-    items: filas.map((f) => ({
-      name: f.key === 'process' ? t('f6_process_full') : t(`f6_stage_${f.key}` as never),
-      value: f.value, highlight: f.key === 'process',
-    })),
-    print, tools, fileName: nombreArchivo(titulo),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [stages, processKpis, print, decimals, t, titulo]);
-  if (filas.length === 0) return null;
-  return (
-    <Panel title={titulo} height={210} wide={filas.length > 2}>
-      <EChart option={option} height={210} />
-    </Panel>
   );
 }
 

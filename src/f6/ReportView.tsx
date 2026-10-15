@@ -12,6 +12,7 @@ import { useDecimals } from '../context/DecimalsContext';
 import { useLabels, type LabelFn } from './labels';
 import { useT } from '../i18n/LanguageContext';
 import { dmy } from './common';
+import { recoveries } from './chartData';
 
 /** Decimales por defecto: más para valores chicos (fracciones, concentraciones). */
 export function formatCell(v: unknown): string {
@@ -121,6 +122,43 @@ export function KpiCards({ kpis }: { kpis: Record<string, number | null> }) {
   );
 }
 
+/**
+ * Recuperación de Li de cada etapa y del proceso (si el reporte la trae) como barras
+ * horizontales de 0 a 100 %, junto a las tarjetas de KPIs (que siguen igual).
+ */
+export function RecoveryBars({ stages, processKpis }: {
+  stages: StageReport[]; processKpis: Record<string, number | null>;
+}) {
+  useDecimals();
+  const t = useT();
+  const filas = recoveries(stages, processKpis);
+  // Con una sola etapa y sin proceso, la tarjeta de KPIs ya lo dice todo.
+  if (filas.length < 2 || !filas.some((f) => f.value !== null)) return null;
+  return (
+    <div className="card p-3 mb-4 pdf-block" data-testid="recovery-bars" style={{ maxWidth: 640 }}>
+      <div className="text-sm font-semibold mb-2">{t('f6_recovery_panel')} (%)</div>
+      {filas.map((f) => {
+        const ancho = f.value === null ? 0 : Math.max(0, Math.min(100, f.value));
+        return (
+          <div key={f.key} className="flex items-center gap-3 text-sm mb-1">
+            <span style={{ width: 190, color: 'var(--color-text-secondary)' }}>
+              {f.key === 'process' ? t('f6_process_full') : t(`f6_stage_${f.key}` as never)}
+            </span>
+            <div className="flex-1 rounded" style={{ height: 10, background: 'var(--color-border)' }}
+                 role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={f.value ?? undefined}>
+              <div className="rounded" style={{ height: 10, width: `${ancho}%`,
+                background: f.key === 'process' ? '#1baf7a' : 'var(--color-primary)' }} />
+            </div>
+            <span className="font-mono text-right" style={{ width: 84 }}>
+              {f.value === null ? '–' : `${formatCell(f.value)} %`}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function StageBlock({ stage }: { stage: StageReport }) {
   const t = useT();
   return (
@@ -147,6 +185,7 @@ function DynamicReportView({ report }: { report: DynamicReport }) {
           <KpiCards kpis={report.process_kpis} />
         </section>
       )}
+      <RecoveryBars stages={report.stages} processKpis={report.process_kpis} />
       {report.stages.map((s) => <StageBlock key={s.stage} stage={s} />)}
       {report.global_balance && <ReportTableView table={report.global_balance} />}
     </div>
@@ -166,6 +205,7 @@ function ScenarioBlock({ sc }: { sc: StaticReport['scenarios'][number] }) {
         {sc.temperature_C ?? '–'} °C · {sc.evaporation_mm_d ?? '–'} mm/d
       </p>
       {Object.keys(sc.process_kpis).length > 0 && <KpiCards kpis={sc.process_kpis} />}
+      <RecoveryBars stages={sc.stages} processKpis={sc.process_kpis} />
       {sc.stages.map((s) => <StageBlock key={s.stage} stage={s} />)}
       {sc.global_balance && <ReportTableView table={sc.global_balance} />}
     </>

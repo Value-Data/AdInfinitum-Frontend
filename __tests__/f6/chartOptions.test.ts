@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   COMPARE_LINE_TYPES, LEGEND_SCROLL_FROM, axisName, axisTooltip, categoryOption, dailyLineOption, legendRows,
-  liSankeyOption, pondHeatmapOption, pondScatterOption, recoveryGaugesOption,
+  dualAxisOption, liSankeyOption, pondHeatmapOption, pondScatterOption,
 } from '../../src/f6/chartOptions';
 import { SERIES_COLORS } from '../../src/f6/chartData';
 import { setDecimalsOverride } from '../../src/utils/numberFormat';
@@ -231,16 +231,25 @@ describe('mapa de calor poza × día', () => {
   });
 });
 
-describe('indicadores de recuperación', () => {
-  it('un medidor por etapa, 0–100 %, sin dato "–"', () => {
-    const o = recoveryGaugesOption({ items: [{ name: 'Precon', value: 82.5 }, { name: 'Planta', value: null },
-      { name: 'Proceso', value: 70, highlight: true }] }) as Any;
-    expect(o.series).toHaveLength(3);
-    expect(o.series.every((s: Any) => s.type === 'gauge' && s.min === 0 && s.max === 100)).toBe(true);
-    expect(o.series[0].detail.formatter()).toBe('82,50 %');
-    expect(o.series[1].detail.formatter()).toBe('–');
-    expect(o.series[1].progress.show).toBe(false);
-    expect(o.series[2].progress.itemStyle.color).not.toBe(o.series[0].progress.itemStyle.color);
+describe('dos ejes Y por poza (como el reporte de antes)', () => {
+  const o = dualAxisOption({ categories: ['P1', 'P2'], tools,
+    left: { name: 'Li+', unit: 't/d', values: [0.1, 0.09], color: '#1baf7a', width: 3 },
+    right: { name: 'Na+', unit: 't/d', values: [6, 2], color: '#eda100' } }) as Any;
+
+  it('Li+ en el eje izquierdo y la otra especie en el derecho, cada eje con su nombre y unidad', () => {
+    expect(o.yAxis).toHaveLength(2);
+    expect(o.yAxis.map((y: Any) => [y.position, y.name])).toEqual([['left', 'Li+ (t/d)'], ['right', 'Na+ (t/d)']]);
+    expect(o.series.map((x: Any) => [x.type, x.name, x.yAxisIndex])).toEqual([['line', 'Li+', 0], ['line', 'Na+', 1]]);
+    expect(o.series[0].lineStyle.width).toBe(3);
+    expect(o.legend.data).toEqual(['Li+', 'Na+']);
+    expect(o.xAxis.data).toEqual(['P1', 'P2']);
+  });
+
+  it('el tooltip pone la unidad de cada serie', () => {
+    const html = o.tooltip.formatter([{ seriesName: 'Li+', value: 0.1, axisValue: 'P1' },
+      { seriesName: 'Na+', value: 6, axisValue: 'P1' }]);
+    expect(html).toContain('0,1000 t/d');
+    expect(html).toContain('6,00 t/d');
   });
 });
 
@@ -259,12 +268,14 @@ describe('ECharts acepta los gráficos nuevos', () => {
     const c = echarts.init(null, null, { renderer: 'svg', ssr: true, width: 700, height: 320 });
     try { c.setOption(option); return c.renderToSVGString(); } finally { c.dispose(); }
   };
-  it('Sankey, mapa de calor y medidores', () => {
+  it('Sankey, mapa de calor y dos ejes', () => {
     expect(dibujar(liSankeyOption({ stages: [{ name: 'Precon', li_in: 10, li_out: 8, lossName: 'Pérdida' }],
       sourceName: 'Pozo', productName: 'Producto', unit: 't', pctLabel: '', print: true }))).toContain('Producto');
     expect(dibujar(pondHeatmapOption({ categories: ['a', 'b'], ponds: ['P1', 'P2'], values: [[1, 2], [3, null]],
       unit: '', productPond: 'P1', axisLabel: (v) => v, tooltipTitle: (v) => v, interval: 'auto', print: true })))
       .toContain('<svg');
-    expect(dibujar(recoveryGaugesOption({ items: [{ name: 'Precon', value: 80 }], print: true }))).toContain('80,00 %');
+    expect(dibujar(dualAxisOption({ categories: ['P1'], print: true,
+      left: { name: 'Li+', unit: 't/d', values: [1], color: '#000' },
+      right: { name: 'Na+', unit: 't/d', values: [2], color: '#111' } }))).toContain('Na+ (t/d)');
   });
 });

@@ -11,6 +11,7 @@ import { apiError, getExecutionSeries, saveBlob, type ReportQuery } from '../ser
 import type { DailySeries, Report, ReportTable, StageReport } from '../types/report';
 import { isStaticReport } from '../types/report';
 import { useT } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 import { useDecimals } from '../context/DecimalsContext';
 import { useLabels } from './labels';
 import { dmy } from './common';
@@ -19,11 +20,11 @@ import {
   pondRows, saltEvolution, saltPonds, seriesUsesOwnName, type DailyGroup, type DayStep, type Row,
 } from './chartData';
 import {
-  categoryOption, dailyLineOption, pondScatterOption, type CategoryInput, type ToolLabels,
+  categoryOption, dailyLineOption, dualAxisOption, pondScatterOption,
 } from './chartOptions';
 import { EChart, useChartPrint } from './EChart';
 import { Panel, Toggle, nombreArchivo, useTools } from './chartPanel';
-import { LiSankeyPanel, PondHeatmap, RecoveryPanel } from './ProCharts';
+import { LiSankeyPanel, PondHeatmap } from './ProCharts';
 import { canvasToBlob, panelCanvas } from './chartImage';
 
 export { GRID } from './chartOptions';
@@ -79,10 +80,34 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
   const poza = pozaSales && pozasConSal.includes(pozaSales) ? pozaSales
     : (data?.product_pond && pozasConSal.includes(data.product_pond) ? data.product_pond : pozasConSal[0] ?? null);
 
-  const grupos = useMemo(() => (data ? dailyGroups(data, especies, poza) : [])
-    .map((g) => ({ ...g, rows: dailyRows(data!, g) })), [data, especies, poza]);
+  // Para imprimir, la composición de todas las especies (como el PDF de antes); en
+  // pantalla, las elegidas con los botones.
+  const especiesVista = print ? (data?.composition?.species ?? especies) : especies;
+  const grupos = useMemo(() => (data ? dailyGroups(data, especiesVista, poza) : [])
+    .map((g) => ({ ...g, rows: dailyRows(data!, g) })),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [data, especiesVista.join('|'), poza]);
 
+  // Los gráficos que estaban en el reporte de antes llevan su título de antes (con la
+  // unidad ya incluida si así se llamaban).
+  const viejo = (g: DailyGroup): { texto: string; conUnidad: boolean } | null => {
+    if (g.origin === 'composition') {
+      return { texto: `${t('dynreport_composition_prefix')} ${g.subject} ${t('dynreport_composition_suffix')}`, conUnidad: false };
+    }
+    if (g.origin !== 'group') return null;
+    const planta = data?.stage === 'liming';
+    const claves: Record<string, [TranslationKey, boolean]> = planta
+      ? { li_pct: ['dynres_enc_li_out', true], outlet_composition_pct: ['dynres_enc_composition_out', true],
+          salt_cake_t_d: ['dynres_enc_total_salts', true], reagents: ['reagent_consumption', true],
+          liming_flows: ['flow_out', true], so4_mg_ratio: ['so4_mg_ratio', true] }
+      : { inflow_t_d: ['inflow_per_pond', false], height_m: ['height_per_pond', false],
+          li_pct: ['li_per_pond_per_day', true] };
+    const c = claves[g.key];
+    return c ? { texto: t(c[0]), conUnidad: c[1] } : null;
+  };
   const titulo = (g: DailyGroup) => {
+    const v0 = viejo(g);
+    if (v0) return v0.texto;
     if (g.origin === 'composition') return `${t('f6_series_composition')} ${g.subject}`;
     if (g.origin === 'salts') return `${t('f6_series_salts_pond')} · ${g.subject}`;
     const k = `f6_series_${g.key}`;
@@ -97,7 +122,7 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
     const marca = eje === 'date' ? (v: string) => dmy(v) : (v: string) => v;
     const cabeza = eje === 'date' ? (v: string) => dmy(v) : (v: string) => `${t('f6_day')} ${v}`;
     return grupos.map((g) => {
-      const nombre = g.unit ? `${titulo(g)} (${g.unit})` : titulo(g);
+      const nombre = g.unit && !viejo(g)?.conUnidad ? `${titulo(g)} (${g.unit})` : titulo(g);
       return {
         key: g.key, title: nombre,
         option: dailyLineOption({
@@ -217,35 +242,47 @@ function TableBars({ table, unidades, title, lines = false }: {
 }
 
 // ---------------------------------------------------------------------------
-// Por poza (estático): lo que mostraba la versión anterior de cada etapa de pozas
+// Por poza (estático): los gráficos del reporte de antes (ResultCharts), en su orden:
+// Li+ vs cada especie (dos ejes), Li+ vs densidad, flujo y actividad de agua (dos ejes),
+// densidad, sales precipitadas y evolución de cada sal.
 // ---------------------------------------------------------------------------
-interface PondLine { key: string; name: string; color: string; unit: string }
+/** Li+ en el reporte de antes: verde y más grueso. */
+const LI_COLOR = '#1baf7a';
+const ESPECIE_COLOR: Record<string, string> = {
+  'Na+': '#eda100', 'K+': '#6250d6', 'Mg++': '#0891b2', 'Ca++': '#eb6834', 'Cl-': '#2a78d6',
+  'SO4--': '#e87ba4', H3BO3: '#008300',
+};
 
-/** Una línea por poza (eje X = pozas de la cascada), con un solo eje Y nombrado con su unidad. */
-function pondLineOption(data: Row[], l: PondLine, kind: 'bars' | 'lines', base: { print: boolean; tools: ToolLabels; fileName: string }) {
-  const serie: CategoryInput = { name: l.name, values: valores(data, l.key), color: l.color };
-  return categoryOption({
-    categories: data.map((r) => r.id), series: [serie], kind, yName: l.name, unit: l.unit,
-    scale: true, legend: false, ...base,
-  });
-}
-
-/** Un panel de una o más magnitudes por poza, una debajo de la otra, con el cursor compartido. */
-function PondPanel({ title, data, lines, height, group }: {
-  title: string; data: Row[]; lines: PondLine[]; height?: number; group?: string;
+/** Una magnitud por poza (eje X = pozas de la cascada), con su eje Y nombrado con la unidad. */
+function PondLinePanel({ title, data, valueKey, name, unit, color }: {
+  title: string; data: Row[]; valueKey: string; name: string; unit: string; color: string;
 }) {
   const { decimals } = useDecimals();
   const tools = useTools();
   const print = useChartPrint();
-  const opciones = useMemo(() => lines.map((l) => pondLineOption(data, l, 'lines',
-    { print, tools, fileName: nombreArchivo(title) })),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [data, lines, print, decimals, title]);
-  return (
-    <Panel title={title} height={height}>
-      {opciones.map((o, i) => <EChart key={i} option={o} height={height ?? 280} group={group} />)}
-    </Panel>
-  );
+  const option = useMemo(() => categoryOption({
+    categories: data.map((r) => r.id), kind: 'lines', yName: name, unit, scale: true, print, tools,
+    fileName: nombreArchivo(title), series: [{ name, values: valores(data, valueKey), color }],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [data, valueKey, name, unit, print, decimals, title]);
+  return <Panel title={title}><EChart option={option} height={280} /></Panel>;
+}
+
+interface EjeSerie { key: string; name: string; unit: string; color: string; width?: number }
+
+/** Dos magnitudes por poza en un gráfico, cada una con su eje Y. */
+function DualAxisPanel({ title, data, left, right, height = 300 }: {
+  title: string; data: Row[]; left: EjeSerie; right: EjeSerie; height?: number;
+}) {
+  const { decimals } = useDecimals();
+  const tools = useTools();
+  const print = useChartPrint();
+  const option = useMemo(() => dualAxisOption({
+    categories: data.map((r) => r.id), print, tools, fileName: nombreArchivo(title),
+    left: { ...left, values: valores(data, left.key) }, right: { ...right, values: valores(data, right.key) },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [data, left.key, right.key, left.name, right.name, left.unit, print, decimals, title]);
+  return <Panel title={title} height={height}><EChart option={option} height={height} /></Panel>;
 }
 
 function StagePondCharts({ stage, mode, prefix }: { stage: StageReport; mode: 'abs' | 'pct'; prefix: string }) {
@@ -259,14 +296,14 @@ function StagePondCharts({ stage, mode, prefix }: { stage: StageReport; mode: 'a
   const pozas = pondRows(stage, mode);
   const sales = saltEvolution(stage);
   const dispersion = pozas.filter((p) => p.liquid_density !== null && p['Li+'] !== null);
-  const [li, otra] = [SERIES_COLORS[0], SERIES_COLORS[1]];
-  const sync = `${prefix}${stage.stage}`;
-  const tituloDispersion = `${nombre} · ${t('f6_chart_li_density')} (Li+ ${unidad})`;
-  const tituloSales = `${nombre} · ${t('f6_chart_salt_evolution')} (t/d)`;
+  const porPoza = t('charts_per_pond');
+  const tituloDispersion = `${nombre} · Li+ (${unidad}) vs ${t('charts_density')} (kg/m3) ${porPoza}`;
+  const tituloSales = `${nombre} · ${t('charts_salt_evolution')} (t/d) — ${sales.salts.length} `
+    + `${sales.salts.length === 1 ? t('charts_salt_singular') : t('charts_salt_plural')}`;
   const opDispersion = useMemo(() => pondScatterOption({
     points: dispersion.map((p) => ({ id: p.id, x: p.liquid_density as number, y: p['Li+'] as number })),
-    xName: t('f6_chart_density'), xUnit: 'kg/m3', yName: 'Li+', yUnit: unidad, seriesName: t('f6_ponds'),
-    color: li, print, tools, fileName: nombreArchivo(tituloDispersion),
+    xName: t('charts_density'), xUnit: 'kg/m3', yName: 'Li+', yUnit: unidad,
+    seriesName: t('charts_ponds'), color: LI_COLOR, print, tools, fileName: nombreArchivo(tituloDispersion),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [stage, mode, print, decimals, t]);
   const opSales = useMemo(() => categoryOption({
@@ -278,29 +315,28 @@ function StagePondCharts({ stage, mode, prefix }: { stage: StageReport; mode: 'a
   return (
     <>
       <h4 className="text-sm font-semibold pdf-block" style={{ gridColumn: '1 / -1' }}>
-        {nombre} · {t('f6_per_pond')}
+        {nombre} · {t('charts_li_vs_components')}
       </h4>
       {species.map((sp) => (
-        <PondPanel key={sp} title={`${nombre} · Li+ vs ${sp} (${unidad})`} height={340} data={rows}
-                   group={`${sync}-${sp}`}
-                   lines={[{ key: 'Li+', name: 'Li+', color: li, unit: unidad },
-                           { key: sp, name: sp, color: otra, unit: unidad }]} />
+        <DualAxisPanel key={sp} title={`${nombre} · Li+ vs ${sp} ${porPoza} (${unidad})`} data={rows}
+                       left={{ key: 'Li+', name: 'Li+', unit: unidad, color: LI_COLOR, width: 3 }}
+                       right={{ key: sp, name: sp, unit: unidad, color: ESPECIE_COLOR[sp] ?? SERIES_COLORS[1] }} />
       ))}
       {dispersion.length > 0 && (
         <Panel title={tituloDispersion}>
-          <EChart option={opDispersion} height={280} />
+          <EChart option={opDispersion} height={300} />
         </Panel>
       )}
-      <PondPanel title={`${nombre} · ${t('f6_chart_flow_activity')}`} height={340} data={pozas} group={`${sync}-flow`}
-                 lines={[{ key: 'outflow_t_d', name: t('f6_chart_outflow'), color: SERIES_COLORS[0], unit: 't/d' },
-                         { key: 'water_activity', name: t('f6_chart_water_activity'), color: SERIES_COLORS[6], unit: '' }]} />
-      <PondPanel title={`${nombre} · ${t('f6_chart_density')} (kg/m3)`} data={pozas}
-                 lines={[{ key: 'liquid_density', name: t('f6_chart_density'), color: SERIES_COLORS[7], unit: 'kg/m3' }]} />
-      <PondPanel title={`${nombre} · ${t('f6_chart_salt_total')} (t/d)`} data={pozas}
-                 lines={[{ key: 'salt_precipitated_t_d', name: t('f6_chart_salt_total'), color: SERIES_COLORS[2], unit: 't/d' }]} />
+      <DualAxisPanel title={`${nombre} · ${t('charts_flow_water_activity')}`} data={pozas}
+                     left={{ key: 'outflow_t_d', name: t('charts_outlet_flow'), unit: 't/d', color: SERIES_COLORS[0] }}
+                     right={{ key: 'water_activity', name: t('props_water_activity'), unit: '', color: SERIES_COLORS[6] }} />
+      <PondLinePanel title={`${nombre} · ${t('charts_density_per_pond')} (kg/m3)`} data={pozas}
+                     valueKey="liquid_density" name={t('charts_density')} unit="kg/m3" color={SERIES_COLORS[7]} />
+      <PondLinePanel title={`${nombre} · ${t('charts_salts_per_pond')} (t/d)`} data={pozas}
+                     valueKey="salt_precipitated_t_d" name={t('charts_precipitated_salts')} unit="t/d" color="#0891b2" />
       {sales.salts.length > 0 && (
-        <Panel title={tituloSales} height={360}>
-          <EChart option={opSales} height={360} />
+        <Panel title={tituloSales} height={380} wide>
+          <EChart option={opSales} height={380} />
         </Panel>
       )}
     </>
@@ -373,24 +409,22 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false }: {
         </button>
       </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
-        {!estatico && <RecoveryPanel stages={report.stages} processKpis={report.process_kpis} />}
-        {!estatico && <LiSankeyPanel stages={report.stages} dynamic />}
+        {/* 1) Los de siempre (reporte de antes): por poza de cada etapa. */}
+        {escenarios.map((sc) => sc.stages.filter(hasPondCharts).map((st) => (
+          <StagePondCharts key={`${sc.index}-${st.stage}`} stage={st} mode={modo}
+                           prefix={`${t('f6_scenario')} ${sc.label} · `} />
+        )))}
+        {/* 2) Comparativa y clima de los escenarios; balance por poza del dinámico. */}
         {comparativa && <TableBars table={comparativa} unidades={['%']} lines={lineas} />}
         {comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas} />}
         {comparativa && <ClimateChart comparison={comparativa} lines={lineas} />}
         {tablas.map((tb, i) => <TableBars key={`${tb.key}-${i}`} table={tb} unidades={['t/d']} lines={lineas} />)}
-        {escenarios.map((sc) => {
-          const prefijo = `${t('f6_scenario')} ${sc.label} · `;
-          return (
-            <React.Fragment key={sc.index}>
-              <RecoveryPanel stages={sc.stages} processKpis={sc.process_kpis} prefix={prefijo} />
-              <LiSankeyPanel stages={sc.stages} dynamic={false} prefix={prefijo} />
-              {sc.stages.filter(hasPondCharts).map((st) => (
-                <StagePondCharts key={`${sc.index}-${st.stage}`} stage={st} mode={modo} prefix={prefijo} />
-              ))}
-            </React.Fragment>
-          );
-        })}
+        {/* 3) Los nuevos: balance de litio. */}
+        {!estatico && <LiSankeyPanel stages={report.stages} dynamic />}
+        {escenarios.map((sc) => (
+          <LiSankeyPanel key={sc.index} stages={sc.stages} dynamic={false}
+                         prefix={`${t('f6_scenario')} ${sc.label} · `} />
+        ))}
       </div>
     </section>
   );

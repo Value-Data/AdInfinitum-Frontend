@@ -5,7 +5,7 @@
  * caja de herramientas. `print`: sin zoom ni herramientas (el papel no las usa).
  */
 import type {
-  BarSeriesOption, EChartsOption, GaugeSeriesOption, HeatmapSeriesOption, LineSeriesOption, SankeySeriesOption,
+  BarSeriesOption, EChartsOption, HeatmapSeriesOption, LineSeriesOption, SankeySeriesOption,
 } from 'echarts';
 import { formatCell } from './ReportView';
 import { seriesStyle } from './chartData';
@@ -61,14 +61,15 @@ export function axisName(name: string, unit: string): string {
 
 interface AxisParam { marker?: string; seriesName?: string; value?: unknown; axisValue?: unknown; name?: string }
 
-/** Tooltip de eje: el título (fecha, día o poza) y cada serie con su valor y unidad. */
-export function axisTooltip(title: (v: string) => string, unit: string) {
+/** Tooltip de eje: el título (fecha, día o poza) y cada serie con su valor y unidad (una
+ * para todas, o la de cada serie por su nombre en los gráficos de dos ejes). */
+export function axisTooltip(title: (v: string) => string, unit: string | ((serie: string) => string)) {
   return (params: unknown): string => {
     const ps = (Array.isArray(params) ? params : [params]) as AxisParam[];
     if (ps.length === 0) return '';
     const cabeza = esc(title(String(ps[0].axisValue ?? ps[0].name ?? '')));
     const filas = ps.map((p) => `${p.marker ?? ''}${esc(p.seriesName ?? '')}`
-      + `<span style="float:right;margin-left:16px;font-weight:600">${esc(withUnit(p.value, unit))}</span>`);
+      + `<span style="float:right;margin-left:16px;font-weight:600">${esc(withUnit(p.value, typeof unit === 'string' ? unit : unit(p.seriesName ?? '')))}</span>`);
     return [`<b>${cabeza}</b>`, ...filas].join('<br/>');
   };
 }
@@ -424,26 +425,42 @@ export function pondHeatmapOption(o: Base & {
 }
 
 // ---------------------------------------------------------------------------
-// Indicadores: recuperación de Li por etapa
+// Dos magnitudes por poza en un gráfico, cada una con su eje Y (como la versión anterior)
 // ---------------------------------------------------------------------------
-/** Un medidor por recuperación (0–100 %), uno al lado del otro; sin dato, "–".
- * `highlight`: la del proceso completo, en otro color. */
-export function recoveryGaugesOption(o: Base & {
-  items: { name: string; value: number | null; highlight?: boolean }[];
+export interface AxisSeriesInput { name: string; unit: string; values: (number | null)[]; color: string; width?: number }
+
+/**
+ * Líneas por poza con dos ejes Y: `left` en el eje izquierdo y `right` en el derecho,
+ * cada eje nombrado con su serie y unidad, y la leyenda con las dos. Es la forma de los
+ * gráficos "Li+ vs especie" y "Flujo y actividad de agua" del reporte de antes.
+ */
+export function dualAxisOption(o: Base & {
+  categories: string[];
+  left: AxisSeriesInput;
+  right: AxisSeriesInput;
 }): EChartsOption {
-  const n = Math.max(1, o.items.length);
-  const series = o.items.map((it, i): GaugeSeriesOption => ({
-    type: 'gauge', min: 0, max: 100, startAngle: 210, endAngle: -30,
-    center: [`${((i + 0.5) / n) * 100}%`, '52%'], radius: '78%',
-    progress: { show: it.value !== null, width: 10, itemStyle: { color: it.highlight ? VERDE_PRODUCTO : AZUL } },
-    axisLine: { lineStyle: { width: 10, color: [[1, GRID]] } },
-    axisTick: { show: false }, splitLine: { show: false }, pointer: { show: false }, axisLabel: { show: false },
-    title: { offsetCenter: [0, '78%'], fontSize: 11, color: TEXTO },
-    detail: {
-      offsetCenter: [0, '5%'], fontSize: 16, fontWeight: 'bold', color: '#1f2937',
-      formatter: () => (it.value === null ? '–' : `${formatCell(it.value)} %`),
+  const linea = (s: AxisSeriesInput, eje: number, simbolo: number): LineSeriesOption => ({
+    type: 'line', name: s.name, data: s.values, yAxisIndex: eje, color: s.color, symbol: 'circle',
+    symbolSize: simbolo, connectNulls: true, smooth: true, smoothMonotone: 'x', lineStyle: { width: s.width ?? 2 },
+  });
+  const eje = (s: AxisSeriesInput, lado: 'left' | 'right') => ({
+    ...valueAxis(s.name, s.unit, true), position: lado,
+    nameTextStyle: { fontSize: FUENTE, color: s.color, align: lado },
+    ...(lado === 'right' ? { splitLine: { show: false } } : {}),
+  });
+  const unidades = new Map([[o.left.name, o.left.unit], [o.right.name, o.right.unit]]);
+  return {
+    animation: false,
+    legend: { top: 0, left: 0, right: o.print ? 0 : 96, itemWidth: 18, itemHeight: 8,
+      textStyle: { fontSize: 11, color: TEXTO }, data: [o.left.name, o.right.name] },
+    toolbox: toolbox(o, false),
+    tooltip: { trigger: 'axis', confine: true, formatter: axisTooltip((v) => v, (n) => unidades.get(n) ?? '') },
+    grid: grid(46, 8),
+    xAxis: {
+      type: 'category', data: o.categories, boundaryGap: false,
+      axisLabel: { fontSize: FUENTE, color: TEXTO, interval: 0, hideOverlap: false },
     },
-    data: [{ value: it.value === null ? 0 : Math.max(0, Math.min(100, it.value)), name: it.name }],
-  }));
-  return { animation: false, toolbox: toolbox(o, false), series };
+    yAxis: [eje(o.left, 'left'), eje(o.right, 'right')],
+    series: [linea(o.left, 0, 8), linea(o.right, 1, 6)],
+  };
 }

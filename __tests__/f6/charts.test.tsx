@@ -106,12 +106,12 @@ describe('ReportCharts del estático', () => {
 
   it('muestra los gráficos por poza del escenario elegido, con su clima', () => {
     render(<ReportCharts report={rep} scenario={1} />);
-    expect(screen.getByText(/Escenario E2 · Preconcentración · Li\+ vs Na\+ \(t\/d\)/)).toBeTruthy();
+    expect(screen.getByText(/Escenario E2 · Preconcentración · Li\+ vs Na\+ por poza \(t\/d\)/)).toBeTruthy();
     expect(screen.queryByText(/Escenario E1 · Preconcentración · Li\+ vs Na\+/)).toBeNull();
     expect(screen.getByText('Clima de cada escenario')).toBeTruthy();
-    expect(screen.getByText(/Evolución de cada sal en la cascada/)).toBeTruthy();
+    expect(screen.getByText(/Evolución por sal precipitada \(t\/d\) — 2 sales/)).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: '%p/p' }));
-    expect(screen.getByText(/Escenario E2 · Preconcentración · Li\+ vs Na\+ \(%p\/p\)/)).toBeTruthy();
+    expect(screen.getByText(/Escenario E2 · Preconcentración · Li\+ vs Na\+ por poza \(%p\/p\)/)).toBeTruthy();
   });
 
   it('para imprimir, todos los escenarios', () => {
@@ -124,27 +124,42 @@ describe('ReportCharts del estático', () => {
     expect(dibujados.every((d) => d.print && d.option.toolbox === undefined)).toBe(true);
   });
 
-  it('balance de litio y recuperaciones del escenario, desde sus KPIs', () => {
+  it('balance de litio del escenario, desde sus KPIs, después de los gráficos de siempre', () => {
     dibujados.length = 0;
     const conKpis = { ...etapa, kpis: { li_in_t_d: 1, li_out_t_d: 0.8, li_recovery_pct: 80 } };
     const r: StaticReport = { ...rep, scenarios: [{ ...rep.scenarios[0], stages: [conKpis],
       process_kpis: { process_li_recovery_pct: 75 } }] };
     render(<ReportCharts report={r} />);
-    expect(screen.getByText('Escenario E1 · Recuperación de Li (%)')).toBeTruthy();
     expect(screen.getByText('Escenario E1 · Balance de litio (t/d de Li)')).toBeTruthy();
     const tipos = dibujados.map((d) => (d.option.series as { type: string }[])[0].type);
     expect(tipos).toContain('sankey');
-    expect(tipos).toContain('gauge');
+    expect(tipos).not.toContain('gauge');
+    // Orden: los del reporte de antes (por poza), después comparativa y clima, al final el Sankey.
+    const titulos = Array.from(document.querySelectorAll<HTMLElement>('[data-chart-title]'))
+      .map((p) => p.dataset.chartTitle ?? '');
+    const pos = (re: RegExp) => titulos.findIndex((x) => re.test(x));
+    expect(pos(/Li\+ vs Na\+ por poza/)).toBe(0);
+    expect(pos(/Li\+ \(t\/d\) vs Densidad \(kg\/m3\) por poza/)).toBe(1);
+    expect(pos(/Flujo y Actividad de Agua/)).toBe(2);
+    expect(pos(/Densidad por poza \(kg\/m3\)/)).toBe(3);
+    expect(pos(/Sales precipitadas por poza \(t\/d\)/)).toBe(4);
+    expect(pos(/Evolución por sal precipitada/)).toBe(5);
+    expect(pos(/scenario_comparison/)).toBeGreaterThan(5);
+    expect(pos(/Clima de cada escenario/)).toBeGreaterThan(pos(/scenario_comparison/));
+    expect(pos(/Balance de litio/)).toBe(titulos.length - 1);
   });
 
-  it('los gráficos apilados comparten cursor; barras o líneas a elección', () => {
+  it('Li+ vs especie con dos ejes Y; clima con cursor compartido; barras o líneas a elección', () => {
     dibujados.length = 0;
     render(<ReportCharts report={rep} scenario={0} />);
     const grupos = dibujados.map((d) => d.group).filter(Boolean);
     expect(grupos).toContain('clima');
-    expect(grupos.filter((g) => g === 'Escenario E1 · precon-Na+')).toHaveLength(2);
-    const tipo = () => dibujados.map((d) => (d.option.series as { type: string }[])[0].type)
-      .find((x) => x === 'bar' || x === 'line');
+    const dosEjes = dibujados.filter((d) => Array.isArray(d.option.yAxis) && d.option.yAxis.length === 2);
+    expect(dosEjes).toHaveLength(2); // Li+ vs Na+ y flujo / actividad de agua
+    const comparativa = (d: (typeof dibujados)[number]) =>
+      String((d.option.toolbox as { feature?: { saveAsImage?: { name?: string } } } | undefined)
+        ?.feature?.saveAsImage?.name ?? '').startsWith('scenario_comparison');
+    const tipo = () => dibujados.filter(comparativa).map((d) => (d.option.series as { type: string }[])[0].type)[0];
     expect(tipo()).toBe('bar');
     dibujados.length = 0;
     fireEvent.click(screen.getByRole('tab', { name: 'Líneas' }));
