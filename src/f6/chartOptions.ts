@@ -240,12 +240,13 @@ export function pondScatterOption(o: Base & {
       },
     },
     grid: grid(32, 28),
+    // Un margen alrededor de los puntos, para que el nombre de la poza no pise los ejes.
     xAxis: {
-      ...valueAxis(o.xName, o.xUnit, true),
+      ...valueAxis(o.xName, o.xUnit, true), boundaryGap: ['4%', '4%'],
       nameLocation: 'middle', nameGap: 26, nameTextStyle: { fontSize: FUENTE, color: TEXTO },
       splitLine: { lineStyle: { color: GRID, type: 'dashed' } },
     },
-    yAxis: valueAxis(o.yName, o.yUnit, true),
+    yAxis: { ...valueAxis(o.yName, o.yUnit, true), boundaryGap: ['8%', '12%'] },
     series: [{
       type: 'line', name: o.seriesName, color: o.color, symbol: 'circle', symbolSize: 8,
       lineStyle: { width: 1.5 },
