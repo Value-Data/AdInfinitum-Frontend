@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { displayNumber, orderColumns } from '../../src/f6/SectionEditorPage';
-import { thin } from '../../src/f6/Charts';
+import { chartLayout, seriesStyle } from '../../src/f6/chartData';
 import type { DictionaryEntry } from '../../src/services/apiV2';
 
 const e = (field: string, ui_order: number): DictionaryEntry => ({
@@ -23,12 +23,25 @@ describe('lo que se ve en el editor', () => {
 });
 
 describe('gráficos', () => {
-  it('una serie larga se raleia pero conserva el primer y el último día', () => {
-    const filas = Array.from({ length: 1460 }, (_, i) => i);
-    const r = thin(filas, 500);
-    expect(r.length).toBeLessThanOrEqual(500);
-    expect([r[0], r[r.length - 1]]).toEqual([0, 1459]);
-    expect(thin([1, 2, 3], 500)).toEqual([1, 2, 3]);
+  it('una serie larga no se raleia: el gráfico se ensancha para alcanzar cada día', () => {
+    const g = chartLayout(1460, 'auto', 'day');
+    expect(g.minWidth).toBeGreaterThanOrEqual(1460 * 3);
+    expect(g.interval).toBe('preserveStartEnd');
+    expect(chartLayout(30, 'auto', 'day').minWidth).toBe(0);
+  });
+  it('el paso de días pone una marca cada N días y ensancha si son muchas', () => {
+    const g = chartLayout(1460, 10, 'day');
+    expect(g.interval).toBe(9);
+    expect(g.angled).toBe(true);
+    expect(g.minWidth).toBe(146 * 46);
+    expect(chartLayout(100, 30, 'day')).toMatchObject({ interval: 29, angled: false });
+  });
+  it('para imprimir, al ancho de la página', () => {
+    expect(chartLayout(1460, 10, 'date', true)).toMatchObject({ minWidth: 0, interval: 'preserveStartEnd' });
+  });
+  it('desde la 9ª serie, el color se repite con trazo cortado', () => {
+    expect(seriesStyle(0).strokeDasharray).toBeUndefined();
+    expect(seriesStyle(8)).toEqual({ stroke: seriesStyle(0).stroke, strokeDasharray: '6 3' });
   });
 });
 

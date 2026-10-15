@@ -14,6 +14,17 @@
   --color-text: #1f2937;
   --color-text-secondary: #6b7280;
   --color-border: #d1d5db;
+  /* Series de los gráficos, en orden fijo (espejo en src/f6/chartData.ts: el PNG
+     exportado no resuelve variables CSS). */
+  --chart-series-1: #2a78d6;
+  --chart-series-2: #eb6834;
+  --chart-series-3: #1baf7a;
+  --chart-series-4: #eda100;
+  --chart-series-5: #e87ba4;
+  --chart-series-6: #008300;
+  --chart-series-7: #6250d6;
+  --chart-series-8: #e34948;
+  --chart-grid: #e1e0d9;
   --font-display: 'IBM Plex Sans', system-ui, sans-serif;
   --font-body: 'IBM Plex Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', 'Courier New', monospace;

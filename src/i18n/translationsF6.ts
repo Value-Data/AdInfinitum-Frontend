@@ -157,6 +157,12 @@ export const F6_TRANSLATIONS = {
   f6_download_charts: { es: 'Bajar gráficos (zip)', en: 'Download charts (zip)' },
   f6_axis_dates: { es: 'Fechas', en: 'Dates' },
   f6_axis_days: { es: 'Días', en: 'Days' },
+  f6_day_step: { es: 'Marca cada (días)', en: 'Tick every (days)' },
+  f6_day_step_auto: { es: 'Automático', en: 'Automatic' },
+  f6_chart_scroll_hint: {
+    es: 'Serie larga: el gráfico tiene todos los días; desplácelo hacia el lado para recorrerlos.',
+    en: 'Long series: the chart has every day; scroll sideways to go through them.',
+  },
   f6_normalize: { es: 'Normalizar a 100 %', en: 'Normalize to 100 %' },
   f6_fill: { es: 'Rellenar', en: 'Fill' },
   f6_fill_hint: { es: 'Pone el valor en todos los días vacíos de la columna.', en: 'Puts the value in every empty day of the column.' },
