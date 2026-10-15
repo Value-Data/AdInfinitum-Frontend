@@ -7,17 +7,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 import {
-  Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, LabelList, Legend, Line, LineChart, ResponsiveContainer, Scatter, ScatterChart,
+  Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '../services/api';
 import { apiError, saveBlob, type ReportQuery } from '../services/apiV2';
-import type { Report, ReportTable } from '../types/report';
+import type { Report, ReportTable, StageReport } from '../types/report';
 import { isStaticReport } from '../types/report';
 import { useT } from '../i18n/LanguageContext';
 import { useLabels } from './labels';
 import { formatCell } from './ReportView';
 import { dmy } from './common';
-import { DAY_STEPS, chartLayout, seriesStyle, type DayStep } from './chartData';
+import {
+  DAY_STEPS, SERIES_COLORS, chartLayout, climateRows, hasPondCharts, liVsSpecies, pondRows, saltEvolution,
+  seriesStyle, type DayStep, type Row,
+} from './chartData';
 
 export const GRID = '#e1e0d9';
 /** Lado máximo del lienzo del PNG (los navegadores no dibujan lienzos mucho mayores). */
@@ -285,18 +289,159 @@ function TableBars({ table, unidades, title, lines = false }: {
   );
 }
 
-/** Barras desde el reporte: comparativa de escenarios o el balance por poza de cada etapa. */
-export function ReportCharts({ report, scenario = 0 }: { report: Report; scenario?: number }) {
+// ---------------------------------------------------------------------------
+// Por poza (estático): lo que mostraba la versión anterior de cada etapa de pozas
+// ---------------------------------------------------------------------------
+const AXIS = { tick: { fontSize: 10 } };
+
+/** Una línea por poza (eje X = pozas de la cascada), con un solo eje Y. */
+function pondLine(data: Row[], key: string, name: string, color: string, unit: string, syncId?: string) {
+  return (
+    <LineChart data={data} syncId={syncId} margin={{ top: 5, right: 16, bottom: 5, left: 0 }}>
+      <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+      <XAxis dataKey="id" {...AXIS} interval={0} />
+      <YAxis {...AXIS} width={70} domain={['auto', 'auto']} tickFormatter={(v: number) => formatCell(v)}
+             label={{ value: unit ? `${name} (${unit})` : name, angle: -90, position: 'insideLeft',
+                      style: { fontSize: 10, textAnchor: 'middle' }, dx: 12 }} />
+      <Tooltip formatter={(v: number) => formatCell(v)} />
+      <Line type="monotone" dataKey={key} name={name} stroke={color} strokeWidth={2} dot={{ r: 4 }}
+            connectNulls isAnimationActive={false} />
+    </LineChart>
+  );
+}
+
+function StagePondCharts({ stage, mode, prefix }: { stage: StageReport; mode: 'abs' | 'pct'; prefix: string }) {
+  const t = useT();
+  const nombre = `${prefix}${t(`f6_stage_${stage.stage}` as never)}`;
+  const unidad = mode === 'abs' ? 't/d' : '%p/p';
+  const { species, rows } = liVsSpecies(stage, mode);
+  const pozas = pondRows(stage, mode);
+  const sales = saltEvolution(stage);
+  const dispersion = pozas.filter((p) => p.liquid_density !== null && p['Li+'] !== null);
+  const [li, otra] = [SERIES_COLORS[0], SERIES_COLORS[1]];
+  const sync = `${prefix}${stage.stage}`;
+  return (
+    <>
+      <h4 className="text-sm font-semibold pdf-block" style={{ gridColumn: '1 / -1' }}>
+        {nombre} · {t('f6_per_pond')}
+      </h4>
+      {species.map((sp) => (
+        <Panel key={sp} title={`${nombre} · Li+ vs ${sp} (${unidad})`} height={340}>
+          {[pondLine(rows, 'Li+', 'Li+', li, unidad, `${sync}-${sp}`),
+            pondLine(rows, sp, sp, otra, unidad, `${sync}-${sp}`)]}
+        </Panel>
+      ))}
+      {dispersion.length > 0 && (
+        <Panel title={`${nombre} · ${t('f6_chart_li_density')} (Li+ ${unidad})`}>
+          <ScatterChart margin={{ top: 16, right: 20, bottom: 24, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+            <XAxis type="number" dataKey="liquid_density" name={t('f6_chart_density')} unit=" kg/m3"
+                   domain={['auto', 'auto']} {...AXIS} tickFormatter={(v: number) => formatCell(v)}
+                   label={{ value: `${t('f6_chart_density')} (kg/m3)`, position: 'insideBottom', offset: -12,
+                            style: { fontSize: 10 } }} />
+            <YAxis type="number" dataKey="Li+" name="Li+" domain={['auto', 'auto']} {...AXIS} width={70}
+                   tickFormatter={(v: number) => formatCell(v)} />
+            <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(v: number) => formatCell(v)}
+                     labelFormatter={(_l, p) => String((p?.[0]?.payload as Row | undefined)?.id ?? '')} />
+            <Scatter name={t('f6_ponds')} data={dispersion} fill={li} line={{ stroke: li, strokeWidth: 1.5 }}
+                     lineType="joint" isAnimationActive={false}>
+              <LabelList dataKey="id" position="top" style={{ fontSize: 9, fill: '#52514e' }} />
+            </Scatter>
+          </ScatterChart>
+        </Panel>
+      )}
+      <Panel title={`${nombre} · ${t('f6_chart_flow_activity')}`} height={340}>
+        {[pondLine(pozas, 'outflow_t_d', t('f6_chart_outflow'), SERIES_COLORS[0], 't/d', `${sync}-flow`),
+          pondLine(pozas, 'water_activity', t('f6_chart_water_activity'), SERIES_COLORS[6], '', `${sync}-flow`)]}
+      </Panel>
+      <Panel title={`${nombre} · ${t('f6_chart_density')} (kg/m3)`}>
+        {pondLine(pozas, 'liquid_density', t('f6_chart_density'), SERIES_COLORS[7], 'kg/m3')}
+      </Panel>
+      <Panel title={`${nombre} · ${t('f6_chart_salt_total')} (t/d)`}>
+        {pondLine(pozas, 'salt_precipitated_t_d', t('f6_chart_salt_total'), SERIES_COLORS[2], 't/d')}
+      </Panel>
+      {sales.salts.length > 0 && (
+        <Panel title={`${nombre} · ${t('f6_chart_salt_evolution')} (t/d)`} height={360}>
+          <LineChart data={sales.rows} margin={{ top: 5, right: 16, bottom: 5, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+            <XAxis dataKey="id" {...AXIS} interval={0} />
+            <YAxis {...AXIS} width={70} tickFormatter={(v: number) => formatCell(v)} />
+            <Tooltip formatter={(v: number) => formatCell(v)} />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            {sales.salts.map((s, i) => (
+              <Line key={s} type="monotone" dataKey={s} {...seriesStyle(i)} strokeWidth={2} dot={{ r: 3 }}
+                    connectNulls isAnimationActive={false} />
+            ))}
+          </LineChart>
+        </Panel>
+      )}
+    </>
+  );
+}
+
+/** Temperatura y evaporación de cada escenario (dos gráficos, mismo eje X). */
+function ClimateChart({ comparison, lines }: { comparison: ReportTable; lines: boolean }) {
+  const t = useT();
+  const filas = climateRows(comparison);
+  if (!filas.some((f) => f.temperature_C !== null || f.evaporation_mm_d !== null)) return null;
+  const uno = (key: string, name: string, unit: string, color: string) => {
+    const Chart = lines ? LineChart : BarChart;
+    return (
+      <Chart data={filas} syncId="clima" margin={{ top: 5, right: 16, bottom: 5, left: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
+        <XAxis dataKey="id" {...AXIS} interval={0} />
+        <YAxis {...AXIS} width={70} tickFormatter={(v: number) => formatCell(v)}
+               label={{ value: `${name} (${unit})`, angle: -90, position: 'insideLeft',
+                        style: { fontSize: 10, textAnchor: 'middle' }, dx: 12 }} />
+        <Tooltip formatter={(v: number) => `${formatCell(v)} ${unit}`} />
+        {lines
+          ? <Line type="monotone" dataKey={key} name={name} stroke={color} strokeWidth={2} dot={{ r: 4 }}
+                  connectNulls isAnimationActive={false} />
+          : <Bar dataKey={key} name={name} fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false} />}
+      </Chart>
+    );
+  };
+  return (
+    <Panel title={t('f6_chart_climate')} height={340}>
+      {[uno('temperature_C', t('f6_chart_temperature'), '°C', SERIES_COLORS[1]),
+        uno('evaporation_mm_d', t('f6_chart_evaporation'), 'mm/d', SERIES_COLORS[0])]}
+    </Panel>
+  );
+}
+
+/**
+ * Gráficos desde el reporte. Estático: comparativa y clima de los escenarios, y por poza
+ * cada etapa de pozas del escenario elegido (`scenario`) o de todos (`allScenarios`, para
+ * imprimir). Dinámico: el balance por poza de cada etapa. Barras o líneas a elección.
+ */
+export function ReportCharts({ report, scenario = 0, allScenarios = false }: {
+  report: Report; scenario?: number; allScenarios?: boolean;
+}) {
   const t = useT();
   const caja = useRef<HTMLDivElement>(null);
-  const etapas = isStaticReport(report) ? (report.scenarios[scenario]?.stages ?? []) : report.stages;
-  const tablas = etapas.flatMap((s) => s.tables.filter((tb) => tb.row_kind === 'pond'));
-  const comparativa = isStaticReport(report) ? report.comparison : null;
+  const [vista, setVista] = useState<'bars' | 'lines'>('bars');
+  const [modo, setModo] = useState<'abs' | 'pct'>('abs');
+  const estatico = isStaticReport(report);
+  const escenarios = estatico
+    ? (allScenarios ? report.scenarios : report.scenarios.slice(scenario, scenario + 1)) : [];
+  const tablas = estatico ? [] : report.stages.flatMap((s) => s.tables.filter((tb) => tb.row_kind === 'pond'));
+  const comparativa = estatico ? report.comparison : null;
+  const conPozas = escenarios.some((sc) => sc.stages.some(hasPondCharts));
   if (!comparativa && tablas.length === 0) return null;
+  const lineas = vista === 'lines';
   return (
     <section className="mb-6" data-testid="report-charts" ref={caja}>
-      <div className="flex items-center gap-3 mb-2">
+      <div className="flex flex-wrap items-center gap-3 mb-2">
         <h3 className="text-base font-semibold">{t('f6_charts')}</h3>
+        <Toggle value={vista} onChange={setVista} testId="chart-view"
+                options={[['bars', t('f6_view_bars')], ['lines', t('f6_view_lines')]]} />
+        {conPozas && (
+          <>
+            <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_chart_li_units')}:</span>
+            <Toggle value={modo} onChange={setModo} testId="conc-mode"
+                    options={[['abs', 't/d'], ['pct', '%p/p']]} />
+          </>
+        )}
         <div className="flex-1" />
         <button className="btn btn-outline btn-sm"
                 onClick={() => caja.current && downloadChartsZip(caja.current, 'graficos_reporte')}>
@@ -304,9 +449,14 @@ export function ReportCharts({ report, scenario = 0 }: { report: Report; scenari
         </button>
       </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
-        {comparativa && <TableBars table={comparativa} unidades={['%']} />}
-        {comparativa && <TableBars table={comparativa} unidades={['t/d']} />}
-        {tablas.map((tb, i) => <TableBars key={`${tb.key}-${i}`} table={tb} unidades={['t/d']} />)}
+        {comparativa && <TableBars table={comparativa} unidades={['%']} lines={lineas} />}
+        {comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas} />}
+        {comparativa && <ClimateChart comparison={comparativa} lines={lineas} />}
+        {tablas.map((tb, i) => <TableBars key={`${tb.key}-${i}`} table={tb} unidades={['t/d']} lines={lineas} />)}
+        {escenarios.map((sc) => sc.stages.filter(hasPondCharts).map((st) => (
+          <StagePondCharts key={`${sc.index}-${st.stage}`} stage={st} mode={modo}
+                           prefix={`${t('f6_scenario')} ${sc.label} · `} />
+        )))}
       </div>
     </section>
   );

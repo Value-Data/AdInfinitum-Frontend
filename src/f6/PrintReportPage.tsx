@@ -80,7 +80,7 @@ export default function PrintReportPage() {
       </section>
       <section className="print-page-break">
         {dinamico && !cadena && <DailyCharts executionId={id} query={q} />}
-        <ReportCharts report={report} />
+        <ReportCharts report={report} allScenarios />
       </section>
       <section className="print-page-break">
         <ReportView report={report} printAll />

@@ -148,9 +148,14 @@ function ScenarioBlock({ sc }: { sc: StaticReport['scenarios'][number] }) {
   );
 }
 
-function StaticReportView({ report, printAll }: { report: StaticReport; printAll?: boolean }) {
+function StaticReportView({ report, printAll, scenario, onScenario }: {
+  report: StaticReport; printAll?: boolean; scenario?: number; onScenario?: (i: number) => void;
+}) {
   const t = useT();
-  const [i, setI] = useState(0);
+  const [propio, setPropio] = useState(0);
+  // Controlado desde fuera (para que los gráficos muestren el mismo escenario) o propio.
+  const i = scenario ?? propio;
+  const setI = onScenario ?? setPropio;
   const sc = report.scenarios[Math.min(i, report.scenarios.length - 1)];
   if (printAll) {
     // Para imprimir: todos los escenarios, uno detrás del otro, cada uno en su página.
@@ -187,8 +192,10 @@ function StaticReportView({ report, printAll }: { report: StaticReport; printAll
   );
 }
 
-export default function ReportView({ report, printAll }: { report: Report; printAll?: boolean }) {
+export default function ReportView({ report, printAll, scenario, onScenario }: {
+  report: Report; printAll?: boolean; scenario?: number; onScenario?: (i: number) => void;
+}) {
   return isStaticReport(report)
-    ? <StaticReportView report={report} printAll={printAll} />
+    ? <StaticReportView report={report} printAll={printAll} scenario={scenario} onScenario={onScenario} />
     : <DynamicReportView report={report} />;
 }

@@ -83,6 +83,7 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [escenario, setEscenario] = useState(0);
 
   useEffect(() => {
     let vivo = true;
@@ -153,8 +154,8 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
       {report && !cargando && (
         <>
           {dinamico && !verCadena && <DailyCharts executionId={detail.id} query={q} />}
-          <ReportCharts report={report} />
-          <ReportView report={report} />
+          <ReportCharts report={report} scenario={escenario} />
+          <ReportView report={report} scenario={escenario} onScenario={setEscenario} />
         </>
       )}
     </section>
