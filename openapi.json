@@ -3214,6 +3214,109 @@
         }
       }
     },
+    "/api/v1/inventario/escenarios": {
+      "get": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "List Escenarios",
+        "description": "Escenarios de la entrega de Mariana que se pueden cargar en un proyecto.",
+        "operationId": "list_escenarios_api_v1_inventario_escenarios_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InventarioEscenario"
+                  },
+                  "type": "array",
+                  "title": "Response List Escenarios Api V1 Inventario Escenarios Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/inventario/load": {
+      "post": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Load Escenario",
+        "description": "Carga un escenario de inventario en el proyecto.\n\nConvierte el escenario a secciones, valida cada una y, si ninguna tiene errores,\nlas guarda todas como versiones nuevas (una transacción: todas o ninguna). Con\nerrores responde igual 200, con `saved = false` y el informe de cada sección.",
+        "operationId": "load_escenario_api_v1_projects__project_id__inventario_load_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "es",
+                "en"
+              ],
+              "type": "string",
+              "default": "es",
+              "title": "Language"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventarioLoadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventarioLoadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "summary": "System Health",
@@ -4920,6 +5023,157 @@
         "title": "InitialPondState",
         "description": "Estado con que arranca una poza cargada (el inventario a una fecha)."
       },
+      "InventarioEscenario": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "con_inventario": {
+            "type": "boolean",
+            "title": "Con Inventario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "nombre",
+          "descripcion",
+          "con_inventario"
+        ],
+        "title": "InventarioEscenario"
+      },
+      "InventarioLoadRequest": {
+        "properties": {
+          "escenario": {
+            "type": "string",
+            "title": "Escenario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "escenario"
+        ],
+        "title": "InventarioLoadRequest"
+      },
+      "InventarioLoadResponse": {
+        "properties": {
+          "escenario": {
+            "type": "string",
+            "title": "Escenario"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "saved": {
+            "type": "boolean",
+            "title": "Saved"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "days_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Max"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion",
+            "default": ""
+          },
+          "n_initial_states": {
+            "type": "integer",
+            "title": "N Initial States"
+          },
+          "sections": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InventarioLoadedSection"
+            },
+            "type": "object",
+            "title": "Sections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "escenario",
+          "ok",
+          "saved",
+          "n_initial_states",
+          "sections"
+        ],
+        "title": "InventarioLoadResponse"
+      },
+      "InventarioLoadedSection": {
+        "properties": {
+          "validation": {
+            "$ref": "#/components/schemas/ValidationReport"
+          },
+          "saved_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "validation"
+        ],
+        "title": "InventarioLoadedSection"
+      },
       "LabelUpdate": {
         "properties": {
           "key": {
@@ -6362,6 +6616,11 @@
               }
             ],
             "title": "Feed Source"
+          },
+          "n_initial_states": {
+            "type": "integer",
+            "title": "N Initial States",
+            "default": 0
           }
         },
         "type": "object",

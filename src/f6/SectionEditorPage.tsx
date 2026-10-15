@@ -20,8 +20,9 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { IssueList } from './ConfigPanel';
 import { formatDateTime } from './common';
 import {
-  addDays, buildSchema, cleanPayload, coerce, hiddenTopLevel, isScalar, isVisible, issuesAt,
-  parsePaste, parseSeriesCsv, serializeSeriesCsv, seriesColumns, type EnumChoice, type SectionSchema,
+  addDays, buildSchema, cleanPayload, coerce, hiddenTopLevel, INITIAL_STATE_KINDS, initialStateRows,
+  initialStatesForSave, isEmptyInitialState, isScalar, isVisible, issuePond, issuesAt, parsePaste,
+  parseSeriesCsv, pasteInitialStates, serializeSeriesCsv, seriesColumns, type EnumChoice, type SectionSchema,
 } from './sectionModel';
 
 type Obj = Record<string, unknown>;
@@ -542,6 +543,127 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
 }
 
 // ---------------------------------------------------------------------------
+// Estado inicial de las pozas (inventario)
+// ---------------------------------------------------------------------------
+/**
+ * Una fila por poza de la sección: con qué arranca (masa, altura, densidad, actividad
+ * de agua, acumulados, masas por especie). Una fila vacía es una poza que arranca vacía
+ * y no se guarda. Se puede pegar desde Excel (la poza primero, o en el orden de la tabla).
+ */
+export function InitialStatesEditor({ schema, payload, onChange, issues, species }: {
+  schema: SectionSchema; payload: Obj; onChange: (rows: Obj[]) => void; issues: ValidationIssue[];
+  species: string[];
+}) {
+  const t = useT();
+  const pozas = (payload.ponds as Obj[] | undefined) ?? [];
+  const cargados = (payload.initial_states as Obj[] | undefined) ?? [];
+  const filas = initialStateRows(pozas, cargados);
+  // Lo que se mandó al validar: la fila de un problema es su posición ahí.
+  const enviados = initialStatesForSave(cargados);
+  const columnas = orderColumns(schema.children('initial_states').filter(isScalar))
+    .filter((c) => c.field !== 'pond');
+  const masas = schema.byKey.get('initial_states.species_mass_t');
+  const propios = issues.filter((i) => i.field.startsWith('initial_states'));
+  const n = initialStatesForSave(filas).length;
+  const set = (i: number, campo: string, v: unknown) => {
+    const nuevas = filas.slice();
+    nuevas[i] = { ...nuevas[i], [campo]: v };
+    onChange(nuevas);
+  };
+  const setMasa = (i: number, sp: string, v: unknown) => {
+    const actual = { ...((filas[i].species_mass_t as Obj | null) ?? {}) };
+    if (v == null) delete actual[sp]; else actual[sp] = v;
+    set(i, 'species_mass_t', Object.keys(actual).length ? actual : null);
+  };
+  const problema = (i: number, campo: string) => propios
+    .filter((p) => p.field === `initial_states.${campo}`
+      && issuePond(p, enviados) === String(filas[i].pond ?? '').trim().toLowerCase())
+    .map((p) => p.message).join(' · ') || undefined;
+  return (
+    <section className="card p-3 mb-4" data-testid="initial-states-editor">
+      <div className="flex flex-wrap items-center gap-2 mb-1">
+        <h4 className="font-semibold text-sm">{t('f6_initial_states_title')}</h4>
+        <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }} data-testid="initial-states-count">
+          ({n}/{pozas.length} {t('f6_initial_states_loaded')})
+        </span>
+        <div className="flex-1" />
+        <PasteBox onPaste={(rows) => onChange(pasteInitialStates(filas, rows, columnas, species))} />
+        {n > 0 && (
+          <button className="btn btn-outline btn-sm" onClick={() => onChange([])}>{t('f6_initial_states_clear')}</button>
+        )}
+      </div>
+      <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_initial_states_hint')}</p>
+      <IssueList issues={propios} kind="error" />
+      {filas.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_initial_states_no_ponds')}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="text-xs">
+            <thead>
+              <tr>
+                <th>{schema.byKey.get('initial_states.pond')?.label ?? 'pond'}</th>
+                {columnas.map((c) => <th key={c.key} className="whitespace-nowrap">{headerOf(c)}<Tip text={tooltipOf(c)} /></th>)}
+                {species.map((sp) => (
+                  <th key={sp} className="whitespace-nowrap" style={{ textTransform: 'none' }}
+                      title={masas ? tooltipOf(masas) : undefined}>
+                    {sp}{masas?.unit ? ` (${masas.unit})` : ''}
+                  </th>
+                ))}
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map((r, i) => {
+                const vacia = isEmptyInitialState(r);
+                // Estado de una poza que ya no está en la sección: se puede borrar.
+                const huerfana = i >= pozas.length;
+                const malPoza = problema(i, 'pond');
+                return (
+                  <tr key={`${String(r.pond)}-${i}`} data-testid={`initial-state-row-${i + 1}`}
+                      style={vacia ? { opacity: 0.75 } : undefined}>
+                    <td className="font-medium whitespace-nowrap" title={malPoza}
+                        style={huerfana || malPoza ? { color: '#b91c1c' } : undefined}>
+                      {String(r.pond ?? '')}
+                      {vacia && (
+                        <span className="ml-1" style={{ color: 'var(--color-text-secondary)' }}>
+                          · {t('f6_initial_states_empty')}
+                        </span>
+                      )}
+                    </td>
+                    {columnas.map((c) => (
+                      <td key={c.key}>
+                        <CellInput entry={c} value={r[c.field]} invalid={problema(i, c.field)}
+                                   testId={`initial-state-${i + 1}-${c.field}`}
+                                   onChange={(v) => set(i, c.field, v)} />
+                      </td>
+                    ))}
+                    {species.map((sp) => (
+                      <td key={sp}>
+                        <CellInput entry={{ ...(masas ?? columnas[0]), data_type: 'number' }}
+                                   value={((r.species_mass_t as Obj | null) ?? {})[sp]}
+                                   invalid={problema(i, 'species_mass_t')}
+                                   testId={`initial-state-${i + 1}-sp-${sp}`}
+                                   onChange={(v) => setMasa(i, sp, v)} />
+                      </td>
+                    ))}
+                    <td>
+                      <button className="btn btn-outline btn-sm" aria-label={t('f6_initial_states_clear_row')}
+                              title={t('f6_initial_states_clear_row')}
+                              onClick={() => onChange(huerfana ? filas.filter((_, j) => j !== i)
+                                : filas.map((f, j) => (j === i ? { pond: f.pond } : f)))}>✕</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Fichas de reactivos de la planta
 // ---------------------------------------------------------------------------
 function ReagentsEditor({ schema, value, onChange, issues }: {
@@ -687,6 +809,10 @@ export default function SectionEditorPage() {
                           onChange={(v) => setPlant('cake_wash_medium_pct', v ?? { H2O: 100 })} />
         </section>
       );
+    }
+    if (e.key === 'initial_states' && INITIAL_STATE_KINDS.has(kind)) {
+      return <InitialStatesEditor key={e.key} schema={schema} payload={payload} species={species}
+                                  issues={issues} onChange={(filas) => set('initial_states', filas)} />;
     }
     if (e.data_type === 'composition') {
       return <KeyValueEditor key={e.key} title={e.label} keys={species} unit={e.unit} testId={`comp-${e.key}`}

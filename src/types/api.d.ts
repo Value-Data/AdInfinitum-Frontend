@@ -894,6 +894,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inventario/escenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Escenarios
+         * @description Escenarios de la entrega de Mariana que se pueden cargar en un proyecto.
+         */
+        get: operations["list_escenarios_api_v1_inventario_escenarios_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/inventario/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Load Escenario
+         * @description Carga un escenario de inventario en el proyecto.
+         *
+         *     Convierte el escenario a secciones, valida cada una y, si ninguna tiene errores,
+         *     las guarda todas como versiones nuevas (una transacción: todas o ninguna). Con
+         *     errores responde igual 200, con `saved = false` y el informe de cada sección.
+         */
+        post: operations["load_escenario_api_v1_projects__project_id__inventario_load_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -1485,6 +1529,56 @@ export interface components {
              */
             at_operating_level: boolean;
         };
+        /** InventarioEscenario */
+        InventarioEscenario: {
+            /** Path */
+            path: string;
+            /** Nombre */
+            nombre: string;
+            /** Descripcion */
+            descripcion: string;
+            /** Dias */
+            dias?: number | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Con Inventario */
+            con_inventario: boolean;
+        };
+        /** InventarioLoadRequest */
+        InventarioLoadRequest: {
+            /** Escenario */
+            escenario: string;
+        };
+        /** InventarioLoadResponse */
+        InventarioLoadResponse: {
+            /** Escenario */
+            escenario: string;
+            /** Ok */
+            ok: boolean;
+            /** Saved */
+            saved: boolean;
+            /** Start Date */
+            start_date?: string | null;
+            /** Days Max */
+            days_max?: number | null;
+            /**
+             * Descripcion
+             * @default
+             */
+            descripcion: string;
+            /** N Initial States */
+            n_initial_states: number;
+            /** Sections */
+            sections: {
+                [key: string]: components["schemas"]["InventarioLoadedSection"];
+            };
+        };
+        /** InventarioLoadedSection */
+        InventarioLoadedSection: {
+            validation: components["schemas"]["ValidationReport"];
+            /** Saved Version */
+            saved_version?: number | null;
+        };
         /**
          * LabelUpdate
          * @description Texto de una entrada en un idioma. Lo que no se manda no cambia.
@@ -2010,6 +2104,11 @@ export interface components {
             updated_by?: string | null;
             /** Feed Source */
             feed_source?: ("data" | "execution") | null;
+            /**
+             * N Initial States
+             * @default 0
+             */
+            n_initial_states: number;
         };
         /** SectionVersionSummary */
         SectionVersionSummary: {
@@ -3801,6 +3900,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_escenarios_api_v1_inventario_escenarios_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventarioEscenario"][];
+                };
+            };
+        };
+    };
+    load_escenario_api_v1_projects__project_id__inventario_load_post: {
+        parameters: {
+            query?: {
+                language?: "es" | "en";
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InventarioLoadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventarioLoadResponse"];
                 };
             };
             /** @description Validation Error */

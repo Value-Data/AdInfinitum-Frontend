@@ -22,6 +22,7 @@ import DecimalsSelect from '../components/common/DecimalsSelect';
 import ExecutionFilesTable from '../components/common/ExecutionFilesTable';
 import { PartialRunBanner, RunStatusBadge, dmy, executionTypeLabel, partialInfo } from './common';
 import ReportView from './ReportView';
+import { InventoryBadge } from './ConfigPanel';
 import { DailyCharts, ReportCharts } from './Charts';
 
 const ACTIVE = new Set(['pending', 'running']);
@@ -286,6 +287,10 @@ export default function ExecutionPage() {
                   style={{ color: 'var(--color-primary)' }} title={t('f6_view_config_used')}>
               {t(`f6_stage_${s.section}` as never)} v{s.version_no}
             </Link>
+            {/* Arrancó con las pozas cargadas (estado inicial de la sección: inventario). */}
+            {Number(s.n_initial_states ?? 0) > 0 && (
+              <span className="ml-2"><InventoryBadge n={Number(s.n_initial_states)} /></span>
+            )}
           </React.Fragment>
         ))}
         {detail.start_date && ` · ${t('f6_start_date')}: ${dmy(detail.start_date)}`}
