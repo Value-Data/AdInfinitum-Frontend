@@ -24,6 +24,7 @@ import ExecutionFilesTable from '../components/common/ExecutionFilesTable';
 import { PartialRunBanner, RunStatusBadge, dmy, executionTypeLabel, partialInfo } from './common';
 import ReportView from './ReportView';
 import { DailyCharts, ReportCharts } from './Charts';
+import CompareExecutions from './CompareExecutions';
 
 const ACTIVE = new Set(['pending', 'running']);
 const POLL_MS = 5000;
@@ -85,6 +86,7 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [escenario, setEscenario] = useState(0);
+  const [comparar, setComparar] = useState<string[]>([]);
 
   useEffect(() => {
     let vivo = true;
@@ -162,7 +164,8 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
         </button>
         <button className="btn btn-outline" data-testid="print-report"
                 onClick={() => window.open(`/executions/${detail.id}/print?${new URLSearchParams(
-                  Object.entries({ ...q, chain: verCadena ? '1' : '' })
+                  Object.entries({ ...q, chain: verCadena ? '1' : '',
+                    compare: verCadena ? '' : comparar.join(',') })
                     .filter(([, v]) => v !== null && v !== undefined && v !== '')
                     .map(([k, v]) => [k, String(v)])).toString()}`, '_blank')}>
           {t('f6_print_pdf')}
@@ -174,6 +177,7 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
         <>
           {dinamico && !verCadena && <DailyCharts executionId={detail.id} query={q} />}
           <ReportCharts report={report} scenario={escenario} />
+          {!verCadena && <CompareExecutions detail={detail} query={q} ids={comparar} onChange={setComparar} />}
           <ReportView report={report} scenario={escenario} onScenario={setEscenario} />
         </>
       )}

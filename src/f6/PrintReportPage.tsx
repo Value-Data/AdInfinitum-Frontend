@@ -17,6 +17,7 @@ import { useLanguage, useT } from '../i18n/LanguageContext';
 import logo from '../media/logo-header.png';
 import { DailyCharts, ReportCharts } from './Charts';
 import { ChartPrintContext } from './EChart';
+import CompareExecutions from './CompareExecutions';
 import ReportView from './ReportView';
 import { PartialRunBanner, executionTypeLabel, formatDateTime, partialInfo } from './common';
 import InputParameters from './InputParameters';
@@ -46,6 +47,8 @@ export default function PrintReportPage() {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfServidor, setPdfServidor] = useState(false);
   const [seriesListas, setSeriesListas] = useState(false);
+  const [comparacionLista, setComparacionLista] = useState(false);
+  const comparar = (search.get('compare') ?? '').split(',').filter(Boolean);
   const hoja = useRef<HTMLDivElement>(null);
   const [paramsListos, setParamsListos] = useState(false);
 
@@ -70,7 +73,9 @@ export default function PrintReportPage() {
   const conParams = (detail.sections?.length ?? 0) > 0;
   const conSeries = dinamico && !cadena;
   // Lo que se imprime tiene que estar dibujado: los parámetros y las series diarias.
-  const esperando = (conParams && !paramsListos) || (conSeries && !seriesListas);
+  const conComparacion = comparar.length > 0 && !cadena;
+  const esperando = (conParams && !paramsListos) || (conSeries && !seriesListas)
+    || (conComparacion && !comparacionLista);
   const bajarPdf = async () => {
     if (!hoja.current) return;
     setPdf('busy');
@@ -149,6 +154,9 @@ export default function PrintReportPage() {
         <section className="print-page-break">
           {conSeries && <DailyCharts executionId={id} query={q} print onSettled={() => setSeriesListas(true)} />}
           <ReportCharts report={report} allScenarios />
+          {conComparacion && (
+            <CompareExecutions detail={detail} query={q} ids={comparar} onSettled={() => setComparacionLista(true)} />
+          )}
         </section>
       </ChartPrintContext.Provider>
       <section className="print-page-break">
