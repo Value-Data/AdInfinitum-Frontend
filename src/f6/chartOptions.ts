@@ -4,7 +4,9 @@
  * ejes con su unidad, tooltip con el formato de decimales de la app, zoom, leyenda y
  * caja de herramientas. `print`: sin zoom ni herramientas (el papel no las usa).
  */
-import type { EChartsOption, LineSeriesOption, BarSeriesOption } from 'echarts';
+import type {
+  BarSeriesOption, EChartsOption, GaugeSeriesOption, HeatmapSeriesOption, LineSeriesOption, SankeySeriesOption,
+} from 'echarts';
 import { formatCell } from './ReportView';
 import { seriesStyle } from './chartData';
 
@@ -35,7 +37,14 @@ export interface LineInput {
   values: (number | null)[];
   index: number;
   width?: number;
+  /** Color y trazo fijos (p. ej. una ejecución en la comparación); si no, los de `index`. */
+  color?: string;
+  lineType?: LineType;
 }
+
+export type LineType = 'solid' | 'dashed' | 'dotted';
+/** Trazos de la comparación de ejecuciones: la actual continua, las otras distintas. */
+export const COMPARE_LINE_TYPES: LineType[] = ['solid', 'dashed', 'dotted', 'dashed'];
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -142,9 +151,9 @@ export function dailyLineOption(o: Base & {
   const series: LineSeriesOption[] = o.series.map((s) => {
     const st = seriesStyle(s.index);
     return {
-      type: 'line', name: s.name, data: s.values, color: st.color,
+      type: 'line', name: s.name, data: s.values, color: s.color ?? st.color,
       sampling: 'lttb', showSymbol: false, symbolSize: 5, connectNulls: true,
-      lineStyle: { width: s.width ?? 1.5, type: st.dashed ? 'dashed' : 'solid' },
+      lineStyle: { width: s.width ?? 1.5, type: s.lineType ?? (st.dashed ? 'dashed' : 'solid') },
     };
   });
   return {
@@ -176,6 +185,7 @@ export interface CategoryInput {
   values: (number | null)[];
   /** Color fijo (si no, el de su posición). */
   color?: string;
+  lineType?: LineType;
 }
 
 /**
@@ -200,7 +210,7 @@ export function categoryOption(o: Base & {
     return o.kind === 'bars'
       ? { type: 'bar', name: s.name, data: s.values, color, barMaxWidth: 48, itemStyle: { borderRadius: [4, 4, 0, 0] } }
       : { type: 'line', name: s.name, data: s.values, color, symbol: 'circle', symbolSize: 7, connectNulls: true,
-          smooth: true, smoothMonotone: 'x', lineStyle: { width: 2, type: st.dashed && !s.color ? 'dashed' : 'solid' } };
+          smooth: true, smoothMonotone: 'x', lineStyle: { width: 2, type: s.lineType ?? (st.dashed && !s.color ? 'dashed' : 'solid') } };
   });
   return {
     animation: false,
@@ -254,4 +264,186 @@ export function pondScatterOption(o: Base & {
       label: { show: true, position: 'top', formatter: '{b}', fontSize: 9, color: TEXTO },
     }],
   };
+}
+
+// ---------------------------------------------------------------------------
+// Litio: de la salmuera de pozo al producto (Sankey)
+// ---------------------------------------------------------------------------
+const GRIS_PERDIDA = '#b8b6ae';
+const VERDE_PRODUCTO = '#1baf7a';
+const AZUL = '#2a78d6';
+
+/** Un tramo del Sankey: el Li que entra y sale de una etapa, ya con sus nombres. */
+export interface LiStageInput { name: string; li_in: number | null; li_out: number | null; lossName: string }
+
+/**
+ * Li por etapa, en cadena: entrada → etapa → (siguiente etapa | producto), y de cada etapa
+ * lo que no sale con la salmuera ("no recuperado" = entra − sale: el reporte no separa
+ * aún sal precipitada, arrastre e infiltración). Los montos salen de los KPIs de cada
+ * etapa; un tramo sin dato (o en cero) no se dibuja. Tooltip con el % del Li que entra a
+ * la primera etapa.
+ */
+export function liSankeyOption(o: Base & {
+  stages: LiStageInput[];
+  sourceName: string;
+  productName: string;
+  unit: string;
+  /** "del Li que entra" (i18n). */
+  pctLabel: string;
+}): EChartsOption {
+  const links: { source: string; target: string; value: number; loss: boolean }[] = [];
+  const nodos = new Set<string>();
+  const enlazar = (source: string, target: string, value: number | null, loss = false) => {
+    if (value === null || !(value > 0)) return;
+    links.push({ source, target, value, loss });
+    nodos.add(source).add(target);
+  };
+  o.stages.forEach((st, i) => {
+    if (i === 0) enlazar(o.sourceName, st.name, st.li_in);
+    const sig = o.stages[i + 1];
+    enlazar(st.name, sig ? sig.name : o.productName, st.li_out);
+    if (st.li_in !== null && st.li_out !== null) enlazar(st.name, st.lossName, st.li_in - st.li_out, true);
+  });
+  const base = o.stages[0]?.li_in ?? null;
+  const pct = (v: number) => (base && base > 0 ? ` · ${formatCell(v / base * 100)} % ${o.pctLabel}` : '');
+  const perdidas = new Set(o.stages.map((s) => s.lossName));
+  const serie: SankeySeriesOption = {
+    // Alineado a la izquierda: lo no recuperado de cada etapa queda junto a la etapa
+    // siguiente, no amontonado a la derecha.
+    type: 'sankey', left: 8, right: 150, top: 16, bottom: 16, nodeGap: 14, nodeWidth: 14, nodeAlign: 'left',
+    layoutIterations: 0, draggable: !o.print, emphasis: { focus: 'adjacency' },
+    label: {
+      fontSize: 11, color: TEXTO, width: 140, overflow: 'break',
+      formatter: (p: unknown) => {
+        const d = p as { name: string; value: number };
+        return `${d.name}\n${withUnit(d.value, o.unit)}`;
+      },
+    },
+    lineStyle: { color: 'gradient', opacity: 0.35, curveness: 0.5 },
+    data: [...nodos].map((n) => ({
+      name: n,
+      itemStyle: { color: perdidas.has(n) ? GRIS_PERDIDA : n === o.productName ? VERDE_PRODUCTO : AZUL },
+    })),
+    links: links.map((l) => ({
+      source: l.source, target: l.target, value: l.value,
+      ...(l.loss ? { lineStyle: { color: GRIS_PERDIDA, opacity: 0.5 } } : {}),
+    })),
+  };
+  return {
+    animation: false,
+    toolbox: toolbox(o, false),
+    tooltip: {
+      trigger: 'item', confine: true,
+      formatter: (p: unknown) => {
+        const d = p as { dataType?: string; name: string; value: number; data: { source?: string; target?: string } };
+        const titulo = d.dataType === 'edge' ? `${d.data.source} → ${d.data.target}` : d.name;
+        return `<b>${esc(titulo)}</b><br/>${esc(withUnit(d.value, o.unit))}${esc(pct(d.value))}`;
+      },
+    },
+    series: [serie],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Mapa de calor poza × día
+// ---------------------------------------------------------------------------
+/** Paleta secuencial (de claro a oscuro, un solo tono) del mapa de calor. */
+export const HEAT_COLORS = ['#eaf2fb', '#a9cbef', '#5b9be0', '#2a78d6', '#164c8f'];
+
+/**
+ * Una celda por poza y día con el valor del backend; los días sin dato quedan vacíos. La
+ * escala de colores va del mínimo al máximo de lo dibujado, con su unidad. La poza de
+ * producto va marcada en el eje. Sin dibujo progresivo: se dibuja entero de una vez (la
+ * impresión y el PDF no esperan cuadros de animación).
+ */
+export function pondHeatmapOption(o: Base & {
+  categories: string[];
+  ponds: string[];
+  values: (number | null | undefined)[][];
+  unit: string;
+  productPond: string | null;
+  axisLabel: (v: string) => string;
+  tooltipTitle: (v: string) => string;
+  interval: number | 'auto';
+}): EChartsOption {
+  const print = Boolean(o.print);
+  const data: [number, number, number][] = [];
+  let min = Infinity;
+  let max = -Infinity;
+  o.values.forEach((serie, y) => serie.forEach((v, x) => {
+    if (typeof v !== 'number' || !Number.isFinite(v)) return;
+    data.push([x, y, v]);
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }));
+  if (data.length === 0) { min = 0; max = 1; } else if (min === max) { max = min + 1; }
+  const serie: HeatmapSeriesOption = {
+    type: 'heatmap', data, progressive: 0,
+    emphasis: { itemStyle: { borderColor: '#1f2937', borderWidth: 1 } },
+  };
+  return {
+    animation: false,
+    toolbox: toolbox(o, true),
+    tooltip: {
+      trigger: 'item', confine: true,
+      formatter: (p: unknown) => {
+        const [x, y, v] = (p as { value: [number, number, number] }).value;
+        return `<b>${esc(o.tooltipTitle(String(o.categories[x])))}</b><br/>${esc(o.ponds[y])}: `
+          + `<b>${esc(withUnit(v, o.unit))}</b>`;
+      },
+    },
+    grid: { left: 8, right: 20, top: 26, bottom: print ? 46 : 78, containLabel: true },
+    xAxis: {
+      type: 'category', data: o.categories,
+      axisLabel: {
+        fontSize: FUENTE, color: TEXTO, interval: o.interval, rotate: 35, hideOverlap: o.interval === 'auto',
+        formatter: (v: string) => o.axisLabel(v),
+      },
+    },
+    yAxis: {
+      type: 'category', data: o.ponds, inverse: true,
+      axisLabel: {
+        fontSize: FUENTE, color: TEXTO,
+        formatter: (v: string) => (v === o.productPond ? `{p|${v} ★}` : v),
+        rich: { p: { fontWeight: 'bold', color: AZUL, fontSize: FUENTE + 1 } },
+      },
+    },
+    visualMap: {
+      type: 'continuous', min, max, calculable: !print, orient: 'horizontal', left: 'center',
+      bottom: print ? 0 : 30, itemHeight: 220, itemWidth: 10,
+      formatter: (v: unknown) => withUnit(v, o.unit), textStyle: { fontSize: FUENTE, color: TEXTO },
+      inRange: { color: HEAT_COLORS },
+    },
+    dataZoom: print ? undefined : [
+      { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
+      { type: 'slider', xAxisIndex: 0, filterMode: 'none', height: 16, bottom: 4,
+        labelFormatter: (_i: number, v: string) => o.axisLabel(v) },
+    ],
+    series: [serie],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Indicadores: recuperación de Li por etapa
+// ---------------------------------------------------------------------------
+/** Un medidor por recuperación (0–100 %), uno al lado del otro; sin dato, "–".
+ * `highlight`: la del proceso completo, en otro color. */
+export function recoveryGaugesOption(o: Base & {
+  items: { name: string; value: number | null; highlight?: boolean }[];
+}): EChartsOption {
+  const n = Math.max(1, o.items.length);
+  const series = o.items.map((it, i): GaugeSeriesOption => ({
+    type: 'gauge', min: 0, max: 100, startAngle: 210, endAngle: -30,
+    center: [`${((i + 0.5) / n) * 100}%`, '52%'], radius: '78%',
+    progress: { show: it.value !== null, width: 10, itemStyle: { color: it.highlight ? VERDE_PRODUCTO : AZUL } },
+    axisLine: { lineStyle: { width: 10, color: [[1, GRID]] } },
+    axisTick: { show: false }, splitLine: { show: false }, pointer: { show: false }, axisLabel: { show: false },
+    title: { offsetCenter: [0, '78%'], fontSize: 11, color: TEXTO },
+    detail: {
+      offsetCenter: [0, '5%'], fontSize: 16, fontWeight: 'bold', color: '#1f2937',
+      formatter: () => (it.value === null ? '–' : `${formatCell(it.value)} %`),
+    },
+    data: [{ value: it.value === null ? 0 : Math.max(0, Math.min(100, it.value)), name: it.name }],
+  }));
+  return { animation: false, toolbox: toolbox(o, false), series };
 }

@@ -22,11 +22,12 @@ import {
   categoryOption, dailyLineOption, pondScatterOption, type CategoryInput, type ToolLabels,
 } from './chartOptions';
 import { EChart, useChartPrint } from './EChart';
+import { Panel, Toggle, nombreArchivo, useTools } from './chartPanel';
+import { LiSankeyPanel, PondHeatmap, RecoveryPanel } from './ProCharts';
 import { canvasToBlob, panelCanvas } from './chartImage';
 
 export { GRID } from './chartOptions';
-
-const nombreArchivo = (titulo: string) => titulo.replace(/[^\w\-]+/g, '_').slice(0, 60);
+export { Panel, Toggle } from './chartPanel';
 
 /** Todos los gráficos de un contenedor, como PNG en un zip (uno por panel, con su título). */
 export async function downloadChartsZip(contenedor: HTMLElement, nombre: string): Promise<void> {
@@ -39,56 +40,6 @@ export async function downloadChartsZip(contenedor: HTMLElement, nombre: string)
     zip.file(`${String(i + 1).padStart(2, '0')}_${nombreArchivo(titulo)}.png`, await canvasToBlob(lienzo));
   }
   saveBlob(await zip.generateAsync({ type: 'blob' }), `${nombre}.zip`);
-}
-
-/** Textos de la caja de herramientas de los gráficos. */
-function useTools(): ToolLabels {
-  const t = useT();
-  return {
-    savePng: t('f6_chart_save_png'), zoom: t('f6_chart_zoom'),
-    zoomBack: t('f6_chart_zoom_back'), restore: t('f6_chart_restore'),
-  };
-}
-
-/**
- * Un gráfico con su título (el título nombra el PNG del zip). Varios hijos = varios
- * gráficos uno debajo del otro, con el mismo eje X (en vez de dos ejes Y). `minWidth`
- * > 0 ensancha el gráfico y aparece la barra de desplazamiento horizontal.
- */
-export function Panel({ title, children, minWidth = 0, height = 280 }: {
-  title: string; children: React.ReactNode; minWidth?: number; height?: number;
-}) {
-  const graficos = React.Children.toArray(children).filter(Boolean) as React.ReactElement<{ height?: number }>[];
-  const alto = graficos.length > 1 ? Math.round(height * 0.62) : height;
-  return (
-    <div className="card p-3 mb-4 pdf-block" data-chart-title={title}
-         style={{ minWidth: 0, gridColumn: minWidth ? '1 / -1' : undefined }}>
-      <h4 className="text-sm font-semibold mb-2">{title}</h4>
-      <div style={{ overflowX: minWidth ? 'auto' : 'visible', width: '100%' }} data-testid="chart-scroll">
-        <div style={{ width: minWidth ? `${minWidth}px` : '100%', minWidth: '100%' }}>
-          {graficos.map((g, i) => (
-            <div key={i} style={{ width: '100%', height: alto }}>{React.cloneElement(g, { height: alto })}</div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Botones de una sola elección (pestañas chicas). */
-export function Toggle<K extends string>({ value, options, onChange, testId }: {
-  value: K; options: [K, string][]; onChange: (k: K) => void; testId?: string;
-}) {
-  return (
-    <div className="flex gap-1" role="tablist" data-testid={testId}>
-      {options.map(([k, texto]) => (
-        <button key={k} role="tab" aria-selected={value === k} style={{ textTransform: 'none' }}
-                className={`btn btn-sm ${value === k ? 'btn-primary' : 'btn-outline'}`} onClick={() => onChange(k)}>
-          {texto}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 /**
@@ -225,6 +176,9 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
             <EChart option={o.option} height={280} />
           </Panel>
         ))}
+        <PondHeatmap data={data} eje={eje} interval={geo.interval}
+                     titleOf={(key, sp) => (sp ? `${t('f6_series_composition')} ${sp}`
+                       : titulo({ key, unit: '', series: [], origin: 'group' }))} />
       </div>
     </section>
   );
@@ -397,7 +351,7 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false }: {
   const tablas = estatico ? [] : report.stages.flatMap((s) => s.tables.filter((tb) => tb.row_kind === 'pond'));
   const comparativa = estatico ? report.comparison : null;
   const conPozas = escenarios.some((sc) => sc.stages.some(hasPondCharts));
-  if (!comparativa && tablas.length === 0) return null;
+  if (estatico && !comparativa) return null;
   const lineas = vista === 'lines';
   return (
     <section className="mb-6" data-testid="report-charts" ref={caja}>
@@ -419,14 +373,24 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false }: {
         </button>
       </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
+        {!estatico && <RecoveryPanel stages={report.stages} processKpis={report.process_kpis} />}
+        {!estatico && <LiSankeyPanel stages={report.stages} dynamic />}
         {comparativa && <TableBars table={comparativa} unidades={['%']} lines={lineas} />}
         {comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas} />}
         {comparativa && <ClimateChart comparison={comparativa} lines={lineas} />}
         {tablas.map((tb, i) => <TableBars key={`${tb.key}-${i}`} table={tb} unidades={['t/d']} lines={lineas} />)}
-        {escenarios.map((sc) => sc.stages.filter(hasPondCharts).map((st) => (
-          <StagePondCharts key={`${sc.index}-${st.stage}`} stage={st} mode={modo}
-                           prefix={`${t('f6_scenario')} ${sc.label} · `} />
-        )))}
+        {escenarios.map((sc) => {
+          const prefijo = `${t('f6_scenario')} ${sc.label} · `;
+          return (
+            <React.Fragment key={sc.index}>
+              <RecoveryPanel stages={sc.stages} processKpis={sc.process_kpis} prefix={prefijo} />
+              <LiSankeyPanel stages={sc.stages} dynamic={false} prefix={prefijo} />
+              {sc.stages.filter(hasPondCharts).map((st) => (
+                <StagePondCharts key={`${sc.index}-${st.stage}`} stage={st} mode={modo} prefix={prefijo} />
+              ))}
+            </React.Fragment>
+          );
+        })}
       </div>
     </section>
   );

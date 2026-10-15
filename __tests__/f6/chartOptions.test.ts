@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  LEGEND_SCROLL_FROM, axisName, axisTooltip, categoryOption, dailyLineOption, legendRows, pondScatterOption,
+  COMPARE_LINE_TYPES, LEGEND_SCROLL_FROM, axisName, axisTooltip, categoryOption, dailyLineOption, legendRows,
+  liSankeyOption, pondHeatmapOption, pondScatterOption, recoveryGaugesOption,
 } from '../../src/f6/chartOptions';
 import { SERIES_COLORS } from '../../src/f6/chartData';
 import { setDecimalsOverride } from '../../src/utils/numberFormat';
@@ -166,5 +167,104 @@ describe('ECharts acepta las opciones', () => {
       xUnit: 'kg/m3', yName: 'Li+', yUnit: 't/d', seriesName: 'Pozas', color: '#123' }));
     expect(svg).toContain('P1');
     expect(svg).toContain('Densidad (kg/m3)');
+  });
+});
+
+describe('balance de litio (Sankey)', () => {
+  const etapas = [
+    { name: 'Precon', li_in: 100, li_out: 80, lossName: 'Precon · no recuperado' },
+    { name: 'Planta', li_in: 80, li_out: 76, lossName: 'Planta · no recuperado' },
+    { name: 'Post', li_in: 76, li_out: 60, lossName: 'Post · no recuperado' },
+  ];
+  const sankey = (stages = etapas, extra = {}) => liSankeyOption({ stages, sourceName: 'Pozo', productName: 'Producto',
+    unit: 't', pctLabel: 'del Li que entra', tools, ...extra }) as Any;
+
+  it('pozo → etapas → producto, con lo no recuperado de cada etapa', () => {
+    const s = sankey().series[0];
+    expect(s.type).toBe('sankey');
+    expect(s.links.map((l: Any) => [l.source, l.target, l.value])).toEqual([
+      ['Pozo', 'Precon', 100], ['Precon', 'Planta', 80], ['Precon', 'Precon · no recuperado', 20],
+      ['Planta', 'Post', 76], ['Planta', 'Planta · no recuperado', 4],
+      ['Post', 'Producto', 60], ['Post', 'Post · no recuperado', 16],
+    ]);
+    expect(s.data.map((n: Any) => n.name)).toContain('Producto');
+  });
+
+  it('tooltip con unidad y % del Li que entra', () => {
+    const o = sankey();
+    const html = o.tooltip.formatter({ dataType: 'edge', name: '', value: 60, data: { source: 'Post', target: 'Producto' } });
+    expect(html).toContain('Post → Producto');
+    expect(html).toContain('60,00 t');
+    expect(html).toContain('60,00 % del Li que entra');
+  });
+
+  it('un tramo sin dato no se dibuja; una sola etapa va de la entrada al producto', () => {
+    const s = sankey([{ name: 'Planta', li_in: 10, li_out: null, lossName: 'x' }]).series[0];
+    expect(s.links).toEqual([{ source: 'Pozo', target: 'Planta', value: 10 }]);
+    expect(sankey([], { print: true }).toolbox).toBeUndefined();
+  });
+});
+
+describe('mapa de calor poza × día', () => {
+  const heat = (extra = {}) => pondHeatmapOption({ categories: ['2024-01-01', '2024-01-02', '2024-01-03'],
+    ponds: ['P1', 'P2'], values: [[1, null, 3], [2, 5, undefined]], unit: 'kg/m3', productPond: 'P2',
+    axisLabel: (v) => v, tooltipTitle: (v) => `Fecha ${v}`, interval: 'auto', tools, ...extra }) as Any;
+
+  it('una celda por poza y día con dato; escala de colores del mínimo al máximo, con unidad', () => {
+    const o = heat();
+    expect(o.series[0].type).toBe('heatmap');
+    expect(o.series[0].progressive).toBe(0);
+    expect(o.series[0].data).toEqual([[0, 0, 1], [2, 0, 3], [0, 1, 2], [1, 1, 5]]);
+    expect(o.visualMap).toMatchObject({ min: 1, max: 5 });
+    expect(o.visualMap.formatter(1234.5)).toBe('1.234,50 kg/m3');
+  });
+
+  it('zoom en los días, tooltip fecha/poza/valor y la poza de producto marcada', () => {
+    const o = heat();
+    expect(o.dataZoom.map((d: Any) => d.type)).toEqual(['inside', 'slider']);
+    expect(o.tooltip.formatter({ value: [1, 1, 5] })).toBe('<b>Fecha 2024-01-02</b><br/>P2: <b>5,00 kg/m3</b>');
+    expect(o.yAxis.axisLabel.formatter('P2')).toBe('{p|P2 ★}');
+    expect(o.yAxis.axisLabel.formatter('P1')).toBe('P1');
+    const p = heat({ print: true });
+    expect(p.dataZoom).toBeUndefined();
+    expect(p.visualMap.calculable).toBe(false);
+  });
+});
+
+describe('indicadores de recuperación', () => {
+  it('un medidor por etapa, 0–100 %, sin dato "–"', () => {
+    const o = recoveryGaugesOption({ items: [{ name: 'Precon', value: 82.5 }, { name: 'Planta', value: null },
+      { name: 'Proceso', value: 70, highlight: true }] }) as Any;
+    expect(o.series).toHaveLength(3);
+    expect(o.series.every((s: Any) => s.type === 'gauge' && s.min === 0 && s.max === 100)).toBe(true);
+    expect(o.series[0].detail.formatter()).toBe('82,50 %');
+    expect(o.series[1].detail.formatter()).toBe('–');
+    expect(o.series[1].progress.show).toBe(false);
+    expect(o.series[2].progress.itemStyle.color).not.toBe(o.series[0].progress.itemStyle.color);
+  });
+});
+
+describe('comparación: trazo y color por ejecución', () => {
+  it('las líneas de la serie diaria y por escenario aceptan color y trazo fijos', () => {
+    const d = diaria(1, { series: [{ name: 'A', values: [1], index: 0, color: '#111', lineType: 'dotted' }] });
+    expect(d.series[0]).toMatchObject({ color: '#111', lineStyle: { type: 'dotted' } });
+    const c = categoryOption({ categories: ['E1'], series: [{ name: 'A', values: [1], lineType: COMPARE_LINE_TYPES[1] }],
+      kind: 'lines', yName: '', unit: '%' }) as Any;
+    expect(c.series[0].lineStyle.type).toBe('dashed');
+  });
+});
+
+describe('ECharts acepta los gráficos nuevos', () => {
+  const dibujar = (option: Any) => {
+    const c = echarts.init(null, null, { renderer: 'svg', ssr: true, width: 700, height: 320 });
+    try { c.setOption(option); return c.renderToSVGString(); } finally { c.dispose(); }
+  };
+  it('Sankey, mapa de calor y medidores', () => {
+    expect(dibujar(liSankeyOption({ stages: [{ name: 'Precon', li_in: 10, li_out: 8, lossName: 'Pérdida' }],
+      sourceName: 'Pozo', productName: 'Producto', unit: 't', pctLabel: '', print: true }))).toContain('Producto');
+    expect(dibujar(pondHeatmapOption({ categories: ['a', 'b'], ponds: ['P1', 'P2'], values: [[1, 2], [3, null]],
+      unit: '', productPond: 'P1', axisLabel: (v) => v, tooltipTitle: (v) => v, interval: 'auto', print: true })))
+      .toContain('<svg');
+    expect(dibujar(recoveryGaugesOption({ items: [{ name: 'Precon', value: 80 }], print: true }))).toContain('80,00 %');
   });
 });

@@ -14,11 +14,14 @@ import { echarts, type EChartsInstance } from './echartsSetup';
 export const ChartPrintContext = createContext(false);
 export const useChartPrint = () => useContext(ChartPrintContext);
 
-export function EChart({ option, height, group }: {
+export function EChart({ option, height, group, canvas = false }: {
   option: EChartsOption;
   height: number;
   /** Gráficos del mismo grupo mueven juntos el cursor y el tooltip (mismo eje X). */
   group?: string;
+  /** Siempre en lienzo (a 2x al imprimir): para gráficos con miles de celdas, que en SVG
+   * pesan demasiado para imprimir. */
+  canvas?: boolean;
 }) {
   const print = useChartPrint();
   const ref = useRef<ReactEChartsCore>(null);
@@ -43,7 +46,8 @@ export function EChart({ option, height, group }: {
 
   return (
     <ReactEChartsCore ref={ref} echarts={echarts} option={option} notMerge lazyUpdate={false}
-                      opts={{ renderer: print ? 'svg' : 'canvas' }} onChartReady={listo}
+                      opts={print && canvas ? { renderer: 'canvas', devicePixelRatio: 2 }
+                        : { renderer: print ? 'svg' : 'canvas' }} onChartReady={listo}
                       style={{ width: '100%', height }} />
   );
 }

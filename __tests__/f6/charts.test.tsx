@@ -124,13 +124,27 @@ describe('ReportCharts del estático', () => {
     expect(dibujados.every((d) => d.print && d.option.toolbox === undefined)).toBe(true);
   });
 
+  it('balance de litio y recuperaciones del escenario, desde sus KPIs', () => {
+    dibujados.length = 0;
+    const conKpis = { ...etapa, kpis: { li_in_t_d: 1, li_out_t_d: 0.8, li_recovery_pct: 80 } };
+    const r: StaticReport = { ...rep, scenarios: [{ ...rep.scenarios[0], stages: [conKpis],
+      process_kpis: { process_li_recovery_pct: 75 } }] };
+    render(<ReportCharts report={r} />);
+    expect(screen.getByText('Escenario E1 · Recuperación de Li (%)')).toBeTruthy();
+    expect(screen.getByText('Escenario E1 · Balance de litio (t/d de Li)')).toBeTruthy();
+    const tipos = dibujados.map((d) => (d.option.series as { type: string }[])[0].type);
+    expect(tipos).toContain('sankey');
+    expect(tipos).toContain('gauge');
+  });
+
   it('los gráficos apilados comparten cursor; barras o líneas a elección', () => {
     dibujados.length = 0;
     render(<ReportCharts report={rep} scenario={0} />);
     const grupos = dibujados.map((d) => d.group).filter(Boolean);
     expect(grupos).toContain('clima');
     expect(grupos.filter((g) => g === 'Escenario E1 · precon-Na+')).toHaveLength(2);
-    const tipo = () => (dibujados[0].option.series as { type: string }[])[0].type;
+    const tipo = () => dibujados.map((d) => (d.option.series as { type: string }[])[0].type)
+      .find((x) => x === 'bar' || x === 'line');
     expect(tipo()).toBe('bar');
     dibujados.length = 0;
     fireEvent.click(screen.getByRole('tab', { name: 'Líneas' }));
