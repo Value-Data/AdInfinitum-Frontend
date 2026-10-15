@@ -141,6 +141,15 @@ export async function getSectionVersions(
   return data;
 }
 
+/** Una versión guardada de la sección (la que usó una ejecución). */
+export async function getSectionVersion(
+  projectId: string, kind: SectionKind, versionNo: number,
+): Promise<SectionResponse> {
+  const { data } = await api.get<SectionResponse>(
+    `/projects/${projectId}/sections/${kind}/versions/${versionNo}`);
+  return data;
+}
+
 export async function validateSection(
   projectId: string, kind: SectionKind, payload: Record<string, unknown>, language: Language,
 ): Promise<ValidationReport> {

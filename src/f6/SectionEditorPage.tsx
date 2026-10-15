@@ -11,8 +11,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import {
-  apiError, getAqsolCatalogV2, getDictionary, getProjectV2, getSection, getSectionVersions, saveSection,
-  validateSection,
+  apiError, getAqsolCatalogV2, getDictionary, getProjectV2, getSection, getSectionVersion, getSectionVersions,
+  saveBlob, saveSection, validateSection,
   type DictionaryEntry, type SectionKind, type ValidationIssue, type ValidationReport,
 } from '../services/apiV2';
 import { useLanguage, useT } from '../i18n/LanguageContext';
@@ -21,7 +21,7 @@ import { IssueList } from './ConfigPanel';
 import { formatDateTime } from './common';
 import {
   addDays, buildSchema, cleanPayload, coerce, hiddenTopLevel, isScalar, isVisible, issuesAt,
-  parsePaste, seriesColumns, type EnumChoice, type SectionSchema,
+  parsePaste, parseSeriesCsv, serializeSeriesCsv, seriesColumns, type EnumChoice, type SectionSchema,
 } from './sectionModel';
 
 type Obj = Record<string, unknown>;
@@ -404,6 +404,29 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
     if (salta && !inicio && /^\d{4}-\d{2}-\d{2}$/.test(filas[0][0])) nuevo.series_start_date = filas[0][0];
     onChange(nuevo);
   };
+  const { lang } = useLanguage();
+  const [csvAviso, setCsvAviso] = useState<string | null>(null);
+  const importarCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0];
+    e.target.value = '';
+    if (!archivo) return;
+    const r = parseSeriesCsv(await archivo.text(), cols, porDia ? species : []);
+    if (!r.ok) { setCsvAviso(t(r.error === 'empty' ? 'f6_csv_empty' : 'f6_csv_no_columns')); return; }
+    // El archivo manda: sus columnas reemplazan las de la serie; las que no trae se vacían.
+    const nuevo: Obj = { series_start_date: r.start ?? serie.series_start_date };
+    cols.forEach((c) => { nuevo[c] = r.values[c] ?? Array(r.n).fill(null); });
+    if (porDia) nuevo.composition_pct_by_day = r.composition ?? Array(r.n).fill(null);
+    onChange(nuevo);
+    setPagina(0);
+    setCsvAviso(`${t('f6_csv_loaded')}: ${r.n} ${t('f6_days')} · ${Object.keys(r.values).length} ${t('f6_csv_columns')}`);
+  };
+  const exportarCsv = () => {
+    const valores = Object.fromEntries(cols.map((c) => [c, lista(c)]));
+    const texto = serializeSeriesCsv(inicio || null, cols, valores, lang, porDia ? species : [],
+      porDia ? comps() : null);
+    saveBlob(new Blob([texto], { type: 'text/csv;charset=utf-8' }),
+      `serie_${String(payload.kind ?? 'seccion')}_${inicio || 'sin_fecha'}.csv`);
+  };
   const [rellenoCol, setRellenoCol] = useState(cols[0] ?? '');
   const [rellenoValor, setRellenoValor] = useState('');
   const borrarDia = (i: number) => {
@@ -444,6 +467,12 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
         <button className="btn btn-outline btn-sm" onClick={() => agregar(1)}>{t('add')}</button>
         <button className="btn btn-outline btn-sm" onClick={() => agregar(365)}>+365</button>
         <PasteBox onPaste={pegar} />
+        <label className="btn btn-outline btn-sm" title={t('f6_csv_hint')} style={{ cursor: 'pointer' }}>
+          {t('f6_csv_import')}
+          <input type="file" accept=".csv,.txt,text/csv" className="sr-only" data-testid="series-csv-input"
+                 onChange={importarCsv} />
+        </label>
+        {n > 0 && <button className="btn btn-outline btn-sm" onClick={exportarCsv}>{t('f6_csv_export')}</button>}
         {n > 0 && <button className="btn btn-outline btn-sm" onClick={vaciar}>{t('f6_clear_series')}</button>}
       </div>
       {n > 0 && (
@@ -456,6 +485,7 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
           <button className="btn btn-outline btn-sm" onClick={rellenar}>{t('f6_fill')}</button>
         </div>
       )}
+      {csvAviso && <p className="text-xs mb-2" role="status">{csvAviso}</p>}
       <IssueList issues={issues.filter((i) => i.field.startsWith('series'))} kind="error" />
       <div className="overflow-x-auto">
         <table className="text-xs">
@@ -580,7 +610,7 @@ export default function SectionEditorPage() {
           getProjectV2(id), getDictionary(lang, { kind }), getSection(id, kind),
           getSectionVersions(id, kind).catch(() => [])]);
         const seccion = pedida && ultima && pedida !== ultima.version_no
-          ? (await api.get<typeof ultima>(`/projects/${id}/sections/${kind}/versions/${pedida}`)).data
+          ? await getSectionVersion(id, kind, pedida)
           : ultima;
         if (vivo) setHistorial(versiones as never);
         const catalogo = await getAqsolCatalogV2(proyecto.aqsol_version);

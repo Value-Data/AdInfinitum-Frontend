@@ -183,6 +183,18 @@ export const F6_TRANSLATIONS = {
     es: 'escenarios resueltos; los demás no tienen resultados.',
     en: 'scenarios solved; the others have no results.',
   },
+  f6_csv_import: { es: 'Importar CSV', en: 'Import CSV' },
+  f6_csv_export: { es: 'Exportar CSV', en: 'Export CSV' },
+  f6_csv_hint: {
+    es: 'Una fila por día. Separador ; o , (con ; vale la coma decimal). Con encabezado, las columnas se reconocen por nombre (date, evaporation_mm_d, temperature_C, brine_flow_t_d y especies); sin él, en el orden: fecha (opcional), columnas, especies.',
+    en: 'One row per day. Separator ; or , (with ; a decimal comma is fine). With a header, columns are matched by name (date, evaporation_mm_d, temperature_C, brine_flow_t_d and species); without one, in order: date (optional), columns, species.',
+  },
+  f6_csv_empty: { es: 'El archivo no trae filas.', en: 'The file has no rows.' },
+  f6_csv_no_columns: {
+    es: 'El encabezado no trae ninguna columna de la serie.', en: 'The header has none of the series columns.',
+  },
+  f6_csv_loaded: { es: 'Archivo cargado', en: 'File loaded' },
+  f6_csv_columns: { es: 'columnas', en: 'columns' },
   f6_day_step: { es: 'Marca cada (días)', en: 'Tick every (days)' },
   f6_day_step_auto: { es: 'Automático', en: 'Automatic' },
   f6_chart_scroll_hint: {
