@@ -147,8 +147,8 @@ describe('ReportCharts del estático', () => {
     expect((dens?.option.series as { data: number[] }[])[0].data).toEqual([1.2, 1.25]);
     expect(pos(/Sales precipitadas por poza \(t\/d\)/)).toBe(4);
     expect(pos(/Evolución por sal precipitada/)).toBe(5);
-    expect(pos(/scenario_comparison/)).toBeGreaterThan(5);
-    expect(pos(/Clima de cada escenario/)).toBeGreaterThan(pos(/scenario_comparison/));
+    expect(pos(/^Li \(t\/d\)$/)).toBeGreaterThan(5);
+    expect(pos(/Clima de cada escenario/)).toBeGreaterThan(pos(/^Li \(t\/d\)$/));
     expect(pos(/Balance de litio/)).toBe(titulos.length - 1);
   });
 
@@ -161,11 +161,29 @@ describe('ReportCharts del estático', () => {
     expect(dosEjes).toHaveLength(2); // Li+ vs Na+ y flujo / actividad de agua
     const comparativa = (d: (typeof dibujados)[number]) =>
       String((d.option.toolbox as { feature?: { saveAsImage?: { name?: string } } } | undefined)
-        ?.feature?.saveAsImage?.name ?? '').startsWith('scenario_comparison');
+        ?.feature?.saveAsImage?.name ?? '').startsWith('Li_t_d');
     const tipo = () => dibujados.filter(comparativa).map((d) => (d.option.series as { type: string }[])[0].type)[0];
     expect(tipo()).toBe('bar');
     dibujados.length = 0;
     fireEvent.click(screen.getByRole('tab', { name: 'Líneas' }));
     expect(tipo()).toBe('line');
+  });
+
+  it('evaporación / sales de cada escenario, de la última etapa de pozas, con su fórmula', () => {
+    const C = (key: string, formula?: string) => ({ key, unit: 't/d', kind: 'label' as const, formula });
+    const r: StaticReport = { ...rep, comparison: { ...rep.comparison,
+      columns: [...rep.comparison.columns, C('precon_evaporation_t_d', 'Σ evaporation_t_d (pond_balance, precon)'),
+        C('precon_salt_precipitated_t_d'), C('postliming_evaporation_t_d', 'Σ evaporation_t_d (pond_balance, postliming)'),
+        C('postliming_salt_precipitated_t_d')],
+      rows: [{ id: 'E1', precon_evaporation_t_d: 10, precon_salt_precipitated_t_d: 2,
+        postliming_evaporation_t_d: 3, postliming_salt_precipitated_t_d: null },
+      { id: 'E2', precon_evaporation_t_d: 11, precon_salt_precipitated_t_d: 4,
+        postliming_evaporation_t_d: null, postliming_salt_precipitated_t_d: null }] } };
+    dibujados.length = 0;
+    render(<ReportCharts report={r} />);
+    const panel = screen.getByText('Evap total / Sales total (t/d)').closest('[data-chart-title]')!;
+    expect(panel.textContent).toContain('Σ evaporation_t_d (pond_balance, postliming)');
+    const op = dibujados.find((d) => (d.option.series as { name: string }[])[0]?.name === 'Evap total')!;
+    expect((op.option.series as { data: (number | null)[] }[]).map((x) => x.data)).toEqual([[3, 11], [2, 4]]);
   });
 });

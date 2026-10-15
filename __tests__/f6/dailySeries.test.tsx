@@ -75,7 +75,8 @@ describe('series diarias del dinámico', () => {
         { key: 'so4_mg_ratio', unit: '', series: [{ key: 'feed', values: [2.1] }] },
       ] };
     const g = dailyGroups(planta, ['Li+'], null);
-    expect(g.map((x) => x.key)).toEqual(['outlet_composition_pct', 'so4_mg_ratio', 'liming_solids_t_d']);
+    // La composición de 8 especies ya no es la del reporte de antes: va entre los demás.
+    expect(g.map((x) => x.key)).toEqual(['so4_mg_ratio', 'outlet_composition_pct', 'liming_solids_t_d']);
     expect(g[2].series.map(seriesUsesOwnName)).toEqual([true, false]);
   });
 });
@@ -115,5 +116,39 @@ describe('recuperación de Li en barras', () => {
   it('con una sola etapa no agrega nada a la tarjeta de KPIs', () => {
     const { container } = render(<RecoveryBars stages={[st('precon', 80)]} processKpis={{}} />);
     expect(container.innerHTML).toBe('');
+  });
+});
+
+describe('planta: los gráficos del reporte de antes, con sus datos', () => {
+  const v = [1];
+  const planta = (salesKey: string): DailySeries => ({
+    stage: 'liming', dates: ['2024-01-01'], product_pond: null, composition: null, salts: null,
+    groups: [
+      { key: 'liming_flows', unit: 't/d', series: [{ key: 'limed_brine_out', values: v }] },
+      { key: 'li_pct', unit: '%', series: [{ key: 'limed_brine_out', values: v }] },
+      { key: 'reagents', unit: 't/d', series: [{ key: 'lime_feed', values: v }] },
+      { key: 'reagent_solutions_t_d', unit: 't/d', series: [{ key: 'lime_slurry', formula: 'a + b', values: v },
+        { key: 'cacl2_solution', values: v }] },
+      { key: 'outlet_composition_pct', unit: '%w/w', series: [{ key: 'Li+', species: true, values: v }] },
+      { key: 'outlet_composition_pct_old', unit: '%w/w', series: ['Li+', 'Mg++', 'H2O', 'K+', 'SO4--']
+        .map((sp) => ({ key: sp, species: true, values: v })) },
+      { key: 'salt_cake_t_d', unit: 't/d', series: [{ key: 'salt_cake_dry', values: v }] },
+      { key: salesKey, unit: 't/d', series: [{ key: 'steps_salt_precipitated', values: v }] },
+      { key: 'so4_mg_ratio', unit: '', series: [{ key: 'feed', values: v }] },
+    ] });
+
+  it('Li %, composición (Li+, Mg++, H2O, K+, SO4--), sales totales, reactivos, flujo y SO4/Mg primero', () => {
+    for (const k of ['liming_salt_precipitated_t_d', 'salt_precipitated_t_d']) {
+      expect(dailyGroups(planta(k), [], null).map((x) => x.key)).toEqual([
+        'li_pct', 'outlet_composition_pct_old', 'liming_salt_precipitated_t_d', 'reagent_solutions_t_d',
+        'liming_flows', 'so4_mg_ratio', 'reagents', 'outlet_composition_pct', 'salt_cake_t_d']);
+    }
+    expect(dailyGroups(planta('x'), [], null)[1].series.map((s) => s.key)).toEqual(['Li+', 'Mg++', 'H2O', 'K+', 'SO4--']);
+  });
+
+  it('en la cascada, "salt_precipitated_t_d" por poza sigue siendo la sal de cada poza', () => {
+    const c: DailySeries = { ...cascada, groups: [{ key: 'salt_precipitated_t_d', unit: 't/d',
+      series: [{ key: 'P1', pond: true, values: [1, 2, 3] }] }] };
+    expect(dailyGroups(c, [], null).map((x) => x.key)).toContain('salt_precipitated_t_d');
   });
 });

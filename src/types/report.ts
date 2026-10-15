@@ -118,6 +118,8 @@ export interface DailySeriesItem {
   pond?: boolean;
   species?: boolean;
   salt?: boolean;
+  /** De dónde sale la serie (columnas y archivo de la corrida), con nombres internos. */
+  formula?: string | null;
   values: (number | null)[];
 }
 export interface DailySeriesGroup { key: string; unit: string; series: DailySeriesItem[] }

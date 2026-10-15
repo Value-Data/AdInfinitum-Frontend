@@ -289,3 +289,13 @@ describe('decimales fijos por gráfico', () => {
     expect(o.tooltip.formatter([{ seriesName: 'Densidad', value: 1.21346, axisValue: 'P1' }])).toContain('1,2135 g/cm3');
   });
 });
+
+describe('fórmula de cada serie en el tooltip', () => {
+  it('la serie diaria con fórmula la muestra debajo de su valor', () => {
+    const o = dailyLineOption({ categories: ['2024-01-01'], unit: 't/d', yName: '', axisLabel: (v) => v,
+      tooltipTitle: (v) => v, interval: 'auto', angled: false,
+      series: [{ name: 'Lechada de cal', values: [1], index: 0, formula: 'lime + water (encalado_reactivos)' }] }) as Any;
+    const html = o.tooltip.formatter([{ seriesName: 'Lechada de cal', value: 1, axisValue: '2024-01-01' }]);
+    expect(html).toContain('lime + water (encalado_reactivos)');
+  });
+});

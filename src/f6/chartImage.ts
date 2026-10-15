@@ -9,6 +9,7 @@ import { echarts, type EChartsInstance } from './echartsSetup';
 /** Lado máximo de un lienzo (los navegadores no dibujan lienzos mucho mayores). */
 const MAX_CANVAS = 16000;
 const CABECERA = 28;
+const LINEA_NOTA = 16;
 /** Tiempo máximo para cargar la imagen de un gráfico. */
 export const IMAGE_TIMEOUT_MS = 15000;
 
@@ -52,8 +53,9 @@ export async function panelCanvas(panel: HTMLElement, titulo: string, pixelRatio
   const charts = chartsIn(panel);
   if (charts.length === 0) return null;
   const medidas = charts.map((c) => ({ w: c.getWidth(), h: c.getHeight() }));
+  const notas = Array.from(panel.querySelectorAll<HTMLElement>('[data-chart-note]')).map((n) => n.textContent ?? '');
   const ancho = Math.max(...medidas.map((m) => m.w));
-  const alto = medidas.reduce((a, m) => a + m.h, 0) + CABECERA;
+  const alto = medidas.reduce((a, m) => a + m.h, 0) + CABECERA + notas.length * LINEA_NOTA;
   if (ancho <= 0 || alto <= CABECERA) return null;
   const escala = Math.min(pixelRatio, MAX_CANVAS / ancho, MAX_CANVAS / alto);
   const canvas = document.createElement('canvas');
@@ -72,6 +74,12 @@ export async function panelCanvas(panel: HTMLElement, titulo: string, pixelRatio
     const img = await chartImage(c, escala);
     ctx.drawImage(img, 0, y, medidas[i].w, medidas[i].h);
     y += medidas[i].h;
+  }
+  ctx.fillStyle = '#6b6a64';
+  ctx.font = '11px sans-serif';
+  for (const n of notas) {
+    ctx.fillText(n, 8, y + 13);
+    y += LINEA_NOTA;
   }
   return canvas;
 }

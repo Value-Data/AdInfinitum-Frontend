@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 import { apiError, getExecutionSeries, saveBlob, type ReportQuery } from '../services/apiV2';
-import type { DailySeries, Report, ReportTable, StageReport } from '../types/report';
+import type { DailySeries, Report, ReportColumn, ReportTable, StageReport } from '../types/report';
 import { isStaticReport } from '../types/report';
 import { useT } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
@@ -16,7 +16,7 @@ import { useDecimals } from '../context/DecimalsContext';
 import { useLabels } from './labels';
 import { dmy } from './common';
 import {
-  DAY_STEPS, LI_BRINE, SERIES_COLORS, chartLayout, climateRows, dailyGroups, dailyRows, hasPondCharts, liVsSpecies,
+  DAY_STEPS, LIMING_SALTS, LI_BRINE, SERIES_COLORS, lastStageTotals, chartLayout, climateRows, dailyGroups, dailyRows, hasPondCharts, liVsSpecies,
   pondRows, saltEvolution, saltPonds, seriesUsesOwnName, type DailyGroup, type DayStep, type Row,
 } from './chartData';
 import {
@@ -98,8 +98,8 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
     if (g.origin !== 'group') return null;
     const planta = data?.stage === 'liming';
     const claves: Record<string, [TranslationKey, boolean]> = planta
-      ? { li_pct: ['dynres_enc_li_out', true], outlet_composition_pct: ['dynres_enc_composition_out', true],
-          salt_cake_t_d: ['dynres_enc_total_salts', true], reagents: ['reagent_consumption', true],
+      ? { li_pct: ['dynres_enc_li_out', true], outlet_composition_pct_old: ['dynres_enc_composition_out', true],
+          [LIMING_SALTS]: ['dynres_enc_total_salts', true], reagent_solutions_t_d: ['reagent_consumption', true],
           liming_flows: ['flow_out', true], so4_mg_ratio: ['so4_mg_ratio', true] }
       : { inflow_t_d: ['inflow_per_pond', false], height_m: ['height_per_pond', false],
           [LI_BRINE]: ['li_per_pond_per_day', true] };
@@ -124,13 +124,16 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
     const cabeza = eje === 'date' ? (v: string) => dmy(v) : (v: string) => `${t('f6_day')} ${v}`;
     return grupos.map((g) => {
       const nombre = g.unit && !viejo(g)?.conUnidad ? `${titulo(g)} (${g.unit})` : titulo(g);
+      const nombreSerie = (s: (typeof g.series)[number]) => (SERIE_VIEJA[s.key] ? t(SERIE_VIEJA[s.key])
+        : seriesUsesOwnName(s) ? s.key : label(`result.${s.key}`, s.key));
       return {
         key: g.key, title: nombre,
+        notes: g.series.filter((s) => s.formula).map((s) => `${nombreSerie(s)}: ${s.formula}`),
         option: dailyLineOption({
           categories: categorias, unit: g.unit, yName: '', axisLabel: marca, tooltipTitle: cabeza,
           interval: geo.interval, angled: geo.angled, print, tools, fileName: nombreArchivo(nombre),
           series: g.series.map((s, i) => ({
-            name: seriesUsesOwnName(s) ? s.key : label(`result.${s.key}`, s.key),
+            name: nombreSerie(s), formula: s.formula,
             values: s.values.map((v) => v ?? null), index: i,
             width: s.key === data.product_pond ? 2.5 : 1.5,
           })),
@@ -198,7 +201,7 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
       )}
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
         {opciones.map((o) => (
-          <Panel key={o.key} title={o.title} minWidth={geo.minWidth}>
+          <Panel key={o.key} title={o.title} minWidth={geo.minWidth} notes={o.notes}>
             <EChart option={o.option} height={280} />
           </Panel>
         ))}
@@ -210,6 +213,12 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
   );
 }
 
+/** Series de la planta con su nombre del reporte de antes. */
+const SERIE_VIEJA: Record<string, TranslationKey> = {
+  lime_slurry: 'dynres_lime_milk', cacl2_solution: 'dynres_cacl2_solution',
+  steps_salt_precipitated: 'dynres_total_salts_line',
+};
+
 /** Columnas numéricas de una tabla con la unidad pedida (las de etiqueta, no especies). */
 function columnas(table: ReportTable, unidades: string[]) {
   return table.columns.filter((c) => c.key !== 'id' && c.kind === 'label' && unidades.includes(c.unit)
@@ -219,24 +228,29 @@ function columnas(table: ReportTable, unidades: string[]) {
 const valores = (rows: Row[] | ReportTable['rows'], key: string) =>
   rows.map((r) => (typeof r[key] === 'number' ? (r[key] as number) : null));
 
-function TableBars({ table, unidades, title, lines = false }: {
+function TableBars({ table, unidades, title, lines = false, keys, skip = [] }: {
   table: ReportTable; unidades: string[]; title?: string; lines?: boolean;
+  /** Solo estas columnas, en este orden; `skip`: estas no. */
+  keys?: string[]; skip?: string[];
 }) {
   const { label } = useLabels();
   const { decimals } = useDecimals();
   const tools = useTools();
   const print = useChartPrint();
-  const cols = columnas(table, unidades).slice(0, 6);
+  const todas = columnas(table, unidades).filter((c) => !skip.includes(c.key));
+  const cols = (keys ? keys.map((k) => todas.find((c) => c.key === k)).filter((c): c is ReportColumn => Boolean(c))
+    : todas).slice(0, 6);
   const nombre = title ?? `${label(`result.${table.key}`, table.key)} (${cols[0]?.unit ?? ''})`;
   const option = useMemo(() => categoryOption({
     categories: table.rows.map((r) => String(r.id)), kind: lines ? 'lines' : 'bars',
     yName: '', unit: cols[0]?.unit ?? '', print, tools, fileName: nombreArchivo(nombre),
     series: cols.map((c) => ({ name: label(`result.${c.key}`, c.key), values: valores(table.rows, c.key) })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [table, lines, print, decimals, label, nombre]);
+  }), [table, lines, print, decimals, label, nombre, cols.map((c) => c.key).join('|')]);
   if (cols.length === 0 || table.rows.length === 0) return null;
+  const notas = cols.filter((c) => c.formula).map((c) => `${label(`result.${c.key}`, c.key)}: ${c.formula}`);
   return (
-    <Panel title={nombre}>
+    <Panel title={nombre} notes={notas}>
       <EChart option={option} height={280} />
     </Panel>
   );
@@ -350,6 +364,31 @@ function StagePondCharts({ stage, mode, prefix }: { stage: StageReport; mode: 'a
   );
 }
 
+const EVAP_SALES_COLS = ['precon_evaporation_t_d', 'precon_salt_precipitated_t_d',
+  'postliming_evaporation_t_d', 'postliming_salt_precipitated_t_d'];
+
+/** "Evap total / Sales total" de cada escenario (t/d), de la última etapa de pozas, como
+ * el gráfico por día del estático de antes. Sin las columnas en la comparativa, no va. */
+function EvapSaltsChart({ comparison, lines }: { comparison: ReportTable; lines: boolean }) {
+  const t = useT();
+  const { label } = useLabels();
+  const { decimals } = useDecimals();
+  const tools = useTools();
+  const print = useChartPrint();
+  const { rows, formulas } = lastStageTotals(comparison);
+  const titulo = `${t('execres_evap_total')} / ${t('execres_salts_total')} (t/d)`;
+  const option = useMemo(() => categoryOption({
+    categories: rows.map((r) => r.id), kind: lines ? 'lines' : 'bars', yName: '', unit: 't/d', print, tools,
+    fileName: nombreArchivo(titulo),
+    series: [{ name: t('execres_evap_total'), values: valores(rows, 'evaporation_t_d') },
+      { name: t('execres_salts_total'), values: valores(rows, 'salt_precipitated_t_d') }],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [comparison, lines, print, decimals, t]);
+  if (!rows.some((r) => r.evaporation_t_d !== null || r.salt_precipitated_t_d !== null)) return null;
+  const notas = Object.entries(formulas).map(([k, f]) => `${label(`result.${k}`, k)}: ${f}`);
+  return <Panel title={titulo} notes={notas}><EChart option={option} height={280} /></Panel>;
+}
+
 /** Temperatura y evaporación de cada escenario (dos gráficos, mismo eje X, cursor compartido). */
 function ClimateChart({ comparison, lines }: { comparison: ReportTable; lines: boolean }) {
   const t = useT();
@@ -422,9 +461,15 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false }: {
                            prefix={`${t('f6_scenario')} ${sc.label} · `} />
         )))}
         {/* 2) Comparativa y clima de los escenarios; balance por poza del dinámico. */}
-        {comparativa && <TableBars table={comparativa} unidades={['%']} lines={lineas} />}
-        {comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas} />}
+        {/* Los del estático por día de antes, ahora por escenario: recuperación, Li,
+            evaporación / sales, clima. */}
+        {comparativa && <TableBars table={comparativa} unidades={['%']} lines={lineas} title={t('execres_recovery_pct')} />}
+        {comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas} title="Li (t/d)"
+                                   keys={['li_in_t_d', 'li_out_t_d']} />}
+        {comparativa && <EvapSaltsChart comparison={comparativa} lines={lineas} />}
         {comparativa && <ClimateChart comparison={comparativa} lines={lineas} />}
+        {comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas}
+                                   skip={['li_in_t_d', 'li_out_t_d', ...EVAP_SALES_COLS]} />}
         {tablas.map((tb, i) => <TableBars key={`${tb.key}-${i}`} table={tb} unidades={['t/d']} lines={lineas} />)}
         {/* 3) Los nuevos: balance de litio. */}
         {!estatico && <LiSankeyPanel stages={report.stages} dynamic />}

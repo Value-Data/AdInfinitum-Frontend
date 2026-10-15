@@ -191,7 +191,12 @@ export function dailyGroups(d: DailySeries, especies: string[], pozaSales: strin
       series: (d.salts!.salts).filter((s) => s in dePoza).map((s) => ({ key: s, salt: true, values: dePoza[s] })),
     });
   }
-  const grupos: DailyGroup[] = [...(li ? [li] : []), ...d.groups.map((g) => ({ ...g, origin: 'group' as const }))];
+  const grupos: DailyGroup[] = [...(li ? [li] : []), ...d.groups.map((g) => ({
+    ...g, origin: 'group' as const,
+    // La clave vieja de las sales de la planta (solo en la planta y si no es por poza).
+    key: d.stage === 'liming' && g.key === 'salt_precipitated_t_d' && !g.series.some((s) => s.pond)
+      ? LIMING_SALTS : g.key,
+  }))];
   return ordenBase([...grupos, ...comp, ...sales], d.stage).filter(conDatos);
 }
 
@@ -200,12 +205,18 @@ export function dailyGroups(d: DailySeries, especies: string[], pozaSales: strin
  * composición de cada especie elegida); después los demás, como los manda el backend.
  * Cascada: entrada por poza, altura, Li % de la salmuera, composición (el Li % de la
  * salida de cada poza queda entre los demás). Planta: Li % de la salida,
- * composición de la salida, sales (torta), reactivos, flujo de salida, razón SO4/Mg.
+ * composición de la salida (Li+, Mg++, H2O, K+, SO4--), sales precipitadas totales,
+ * consumo de reactivos (lechada y soluciones), flujo de salida, razón SO4/Mg. Los grupos
+ * que los reemplazaban (composición de la salida, torta, reactivos sólidos) quedan entre
+ * los demás.
  */
 export const COMPOSICION = '*composition';
+/** Sales precipitadas totales de la planta (el backend la está renombrando desde
+ * `salt_precipitated_t_d`; en la planta se aceptan las dos claves). */
+export const LIMING_SALTS = 'liming_salt_precipitated_t_d';
 export const BASE_DAILY_ORDER: Record<'cascade' | 'liming', string[]> = {
   cascade: ['inflow_t_d', 'height_m', LI_BRINE, COMPOSICION],
-  liming: ['li_pct', 'outlet_composition_pct', 'salt_cake_t_d', 'reagents', 'liming_flows', 'so4_mg_ratio'],
+  liming: ['li_pct', 'outlet_composition_pct_old', LIMING_SALTS, 'reagent_solutions_t_d', 'liming_flows', 'so4_mg_ratio'],
 };
 
 function ordenBase(grupos: DailyGroup[], stage: string): DailyGroup[] {
@@ -309,4 +320,30 @@ export function unionDates(series: DailySeries[]): string[] {
 export function comparisonColumns(t: ReportTable): { key: string; unit: string }[] {
   return t.columns.filter((c) => c.key !== 'id' && t.rows.some((r) => typeof r[c.key] === 'number'))
     .map((c) => ({ key: c.key, unit: c.unit }));
+}
+
+/**
+ * Evaporación y sal precipitada (t/d) de cada escenario, de la última etapa de pozas que
+ * los trae (concentración si no está vacía, si no preconcentración), como el gráfico por
+ * día del estático de antes. Solo elige la columna: los valores salen de la comparativa.
+ */
+export function lastStageTotals(t: ReportTable): { rows: Row[]; formulas: Record<string, string> } {
+  const col = (key: string) => t.columns.find((c) => c.key === key);
+  const formulas: Record<string, string> = {};
+  const rows = t.rows.map((r) => {
+    const fila: Row = { id: String(r.id), evaporation_t_d: null, salt_precipitated_t_d: null };
+    for (const m of ['evaporation_t_d', 'salt_precipitated_t_d'] as const) {
+      for (const e of ['postliming', 'precon']) {
+        const v = num(r[`${e}_${m}`]);
+        if (v !== null) {
+          fila[m] = v;
+          const f = col(`${e}_${m}`)?.formula;
+          if (f) formulas[`${e}_${m}`] = f;
+          break;
+        }
+      }
+    }
+    return fila;
+  });
+  return { rows, formulas };
 }

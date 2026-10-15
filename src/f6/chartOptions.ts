@@ -41,6 +41,8 @@ export interface LineInput {
   /** Color y trazo fijos (p. ej. una ejecución en la comparación); si no, los de `index`. */
   color?: string;
   lineType?: LineType;
+  /** De dónde sale (va en el tooltip). */
+  formula?: string | null;
 }
 
 export type LineType = 'solid' | 'dashed' | 'dotted';
@@ -66,13 +68,15 @@ interface AxisParam { marker?: string; seriesName?: string; value?: unknown; axi
 
 /** Tooltip de eje: el título (fecha, día o poza) y cada serie con su valor y unidad (una
  * para todas, o la de cada serie por su nombre en los gráficos de dos ejes). */
-export function axisTooltip(title: (v: string) => string, unit: string | ((serie: string) => string), digits?: number) {
+export function axisTooltip(title: (v: string) => string, unit: string | ((serie: string) => string), digits?: number,
+  formulas: Record<string, string> = {}) {
   return (params: unknown): string => {
     const ps = (Array.isArray(params) ? params : [params]) as AxisParam[];
     if (ps.length === 0) return '';
     const cabeza = esc(title(String(ps[0].axisValue ?? ps[0].name ?? '')));
     const filas = ps.map((p) => `${p.marker ?? ''}${esc(p.seriesName ?? '')}`
-      + `<span style="float:right;margin-left:16px;font-weight:600">${esc(withUnit(p.value, typeof unit === 'string' ? unit : unit(p.seriesName ?? ''), digits))}</span>`);
+      + `<span style="float:right;margin-left:16px;font-weight:600">${esc(withUnit(p.value, typeof unit === 'string' ? unit : unit(p.seriesName ?? ''), digits))}</span>`
+      + (formulas[p.seriesName ?? ''] ? `<br/><span style="font-size:10px;color:#8a887f">${esc(formulas[p.seriesName ?? ''])}</span>` : ''));
     return [`<b>${cabeza}</b>`, ...filas].join('<br/>');
   };
 }
@@ -165,7 +169,8 @@ export function dailyLineOption(o: Base & {
     animation: false,
     legend: ley.option,
     toolbox: toolbox(o, true),
-    tooltip: { trigger: 'axis', confine: true, formatter: axisTooltip(o.tooltipTitle, o.unit) },
+    tooltip: { trigger: 'axis', confine: true, formatter: axisTooltip(o.tooltipTitle, o.unit, undefined,
+      Object.fromEntries(o.series.filter((s) => s.formula).map((s) => [s.name, s.formula as string]))) },
     grid: grid(ley.height + 26, print ? 8 : 40),
     xAxis: {
       type: 'category', data: o.categories.map(String), boundaryGap: false,

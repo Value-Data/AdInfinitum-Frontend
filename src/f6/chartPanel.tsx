@@ -23,10 +23,12 @@ export function useTools(): ToolLabels {
  * gráficos uno debajo del otro, con el mismo eje X (en vez de dos ejes Y). `minWidth`
  * > 0 ensancha el gráfico y aparece la barra de desplazamiento horizontal.
  */
-export function Panel({ title, children, minWidth = 0, height = 280, wide = false }: {
+export function Panel({ title, children, minWidth = 0, height = 280, wide = false, notes = [] }: {
   title: string; children: React.ReactNode; minWidth?: number; height?: number;
   /** Todo el ancho de la grilla (sin ensanchar el gráfico). */
   wide?: boolean;
+  /** Notas al pie (de dónde sale cada serie); también van en el PNG y en el PDF. */
+  notes?: string[];
 }) {
   const graficos = React.Children.toArray(children).filter(Boolean) as React.ReactElement<{ height?: number }>[];
   const alto = graficos.length > 1 ? Math.round(height * 0.62) : height;
@@ -41,6 +43,11 @@ export function Panel({ title, children, minWidth = 0, height = 280, wide = fals
           ))}
         </div>
       </div>
+      {notes.length > 0 && (
+        <ul className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+          {notes.map((n) => <li key={n} data-chart-note>ⓘ {n}</li>)}
+        </ul>
+      )}
     </div>
   );
 }
