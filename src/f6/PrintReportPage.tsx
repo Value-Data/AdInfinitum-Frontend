@@ -15,7 +15,7 @@ import { useT } from '../i18n/LanguageContext';
 import logo from '../media/logo-header.png';
 import { DailyCharts, ReportCharts } from './Charts';
 import ReportView from './ReportView';
-import { executionTypeLabel, formatDateTime } from './common';
+import { PartialRunBanner, executionTypeLabel, formatDateTime, partialInfo } from './common';
 
 export default function PrintReportPage() {
   const { id = '' } = useParams<{ id: string }>();
@@ -77,6 +77,7 @@ export default function PrintReportPage() {
             <tr><th className="text-left pr-6">{t('f6_print_generated')}</th><td>{formatDateTime(new Date().toISOString())}</td></tr>
           </tbody>
         </table>
+        <div className="mt-6"><PartialRunBanner info={partialInfo(detail)} /></div>
       </section>
       <section className="print-page-break">
         {dinamico && !cadena && <DailyCharts executionId={id} query={q} />}

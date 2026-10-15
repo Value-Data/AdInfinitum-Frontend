@@ -49,3 +49,41 @@ export function formatDateTime(s: string | null | undefined): string {
   return d.toLocaleString('es-CL', { year: 'numeric', month: '2-digit', day: '2-digit',
                                     hour: '2-digit', minute: '2-digit' });
 }
+
+/** Lo que resolvió una ejecución que no terminó bien, o null si no hay nada parcial. */
+export interface PartialInfo { unit: 'days' | 'scenarios'; done: number; total: number | null }
+
+export function partialInfo(d: {
+  execution_type: string; status: string; last_completed_day?: number | null; n_days?: number | null;
+  scenarios?: { status?: unknown }[]; selected_scenarios?: number[];
+}): PartialInfo | null {
+  if (d.status === 'pending' || d.status === 'running' || d.status === 'completed') return null;
+  if (d.execution_type.startsWith('dynamic_')) {
+    const hechos = d.last_completed_day ?? 0;
+    const total = d.n_days ?? null;
+    return hechos >= 1 && (total === null || hechos < total) ? { unit: 'days', done: hechos, total } : null;
+  }
+  const escenarios = d.scenarios ?? [];
+  if (escenarios.length === 0) return null;
+  const ok = escenarios.filter((s) => s.status !== 'failed').length;
+  const total = Math.max(escenarios.length, d.selected_scenarios?.length ?? 0);
+  return ok >= 1 && ok < total ? { unit: 'scenarios', done: ok, total } : null;
+}
+
+/**
+ * Aviso de corrida cortada, bien visible a propósito: leer un promedio de 137 de 1460
+ * días como si fuera la corrida entera es peor que no mostrar nada.
+ */
+export function PartialRunBanner({ info }: { info: PartialInfo | null }) {
+  const t = useT();
+  if (!info) return null;
+  const cuerpo = info.unit === 'days'
+    ? `${t('f6_partial_days_pre')} 1–${info.done}${info.total ? ` ${t('f6_partial_of')} ${info.total}` : ''}. ${t('f6_partial_days_body')}`
+    : `${info.done} ${t('f6_partial_of')} ${info.total} ${t('f6_partial_scenarios_body')}`;
+  return (
+    <div className="card p-3 mb-4 text-sm pdf-block" role="alert" data-testid="partial-banner"
+         style={{ backgroundColor: 'var(--color-warning-bg)', borderColor: 'var(--color-warning)' }}>
+      <strong>{t('f6_partial_title')}</strong> {cuerpo}
+    </div>
+  );
+}

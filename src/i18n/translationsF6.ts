@@ -172,6 +172,17 @@ export const F6_TRANSLATIONS = {
   f6_chart_li_units: { es: 'Li+ y especies en', en: 'Li+ and species in' },
   f6_view_bars: { es: 'Barras', en: 'Bars' },
   f6_view_lines: { es: 'Líneas', en: 'Lines' },
+  f6_partial_title: { es: 'Resultados parciales: la ejecución no terminó.', en: 'Partial results: the run did not finish.' },
+  f6_partial_of: { es: 'de', en: 'of' },
+  f6_partial_days_pre: { es: 'Los resultados corresponden a los días', en: 'The results are for days' },
+  f6_partial_days_body: {
+    es: 'No son la corrida completa: los promedios, los KPIs y las sales son solo de ese tramo.',
+    en: 'They are not the full run: averages, KPIs and salts refer to that span only.',
+  },
+  f6_partial_scenarios_body: {
+    es: 'escenarios resueltos; los demás no tienen resultados.',
+    en: 'scenarios solved; the others have no results.',
+  },
   f6_day_step: { es: 'Marca cada (días)', en: 'Tick every (days)' },
   f6_day_step_auto: { es: 'Automático', en: 'Automatic' },
   f6_chart_scroll_hint: {

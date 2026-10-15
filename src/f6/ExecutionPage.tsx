@@ -20,7 +20,7 @@ import { useLanguage, useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import DecimalsSelect from '../components/common/DecimalsSelect';
 import ExecutionFilesTable from '../components/common/ExecutionFilesTable';
-import { RunStatusBadge, dmy, executionTypeLabel } from './common';
+import { PartialRunBanner, RunStatusBadge, dmy, executionTypeLabel, partialInfo } from './common';
 import ReportView from './ReportView';
 import { DailyCharts, ReportCharts } from './Charts';
 
@@ -333,6 +333,7 @@ export default function ExecutionPage() {
 
       {chain && chain.executions.length > 1 && <ChainStrip chain={chain} current={id} />}
 
+      {hasResults(detail) && <PartialRunBanner info={partialInfo(detail)} />}
       {hasResults(detail) ? <ReportSection detail={detail} chain={chain} /> : (!activa && (
         <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_no_results')}</p>
       ))}
