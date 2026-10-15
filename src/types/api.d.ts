@@ -894,6 +894,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/legacy-executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Legacy Executions
+         * @description Ejecuciones de la versión anterior del proyecto, de la más nueva a la más vieja.
+         *     Las borradas en la versión anterior no salen salvo con `include_deleted`.
+         */
+        get: operations["list_legacy_executions_api_v1_projects__project_id__legacy_executions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/legacy-executions/{execution_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Legacy Execution
+         * @description El resumen más `parameters_snapshot` y `results` como los guardaba la versión
+         *     anterior.
+         */
+        get: operations["get_legacy_execution_api_v1_legacy_executions__execution_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/legacy-executions/{execution_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Legacy Execution Files
+         * @description Archivos que dejó la ejecución (CSV, log, metadata).
+         */
+        get: operations["list_legacy_execution_files_api_v1_legacy_executions__execution_id__files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/legacy-executions/{execution_id}/files/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Legacy Execution File
+         * @description Descarga un archivo de la ejecución.
+         */
+        get: operations["download_legacy_execution_file_api_v1_legacy_executions__execution_id__files__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -1508,6 +1590,106 @@ export interface components {
         LabelsUpdateResponse: {
             /** Updated */
             updated: number;
+        };
+        /**
+         * LegacyExecutionDetail
+         * @description El resumen más el JSON que la versión anterior guardaba en esas columnas.
+         */
+        LegacyExecutionDetail: {
+            /** Id */
+            id: string;
+            /** Project Id */
+            project_id: string;
+            /** Execution Type */
+            execution_type: string;
+            /** Status */
+            status: string;
+            /** Original Status */
+            original_status: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Source Execution Id */
+            source_execution_id: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Created By Username */
+            created_by_username?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Deleted At */
+            deleted_at: string | null;
+            /** Aqsol Version */
+            aqsol_version: string | null;
+            /** Has Results */
+            has_results: boolean;
+            /** N Files */
+            n_files: number;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
+            /** Parameters Snapshot */
+            parameters_snapshot: Record<string, never> | null;
+            /** Results */
+            results: Record<string, never> | null;
+        };
+        /** LegacyExecutionFile */
+        LegacyExecutionFile: {
+            /** Name */
+            name: string;
+            /** Size Bytes */
+            size_bytes: number;
+        };
+        /** LegacyExecutionSummary */
+        LegacyExecutionSummary: {
+            /** Id */
+            id: string;
+            /** Project Id */
+            project_id: string;
+            /** Execution Type */
+            execution_type: string;
+            /** Status */
+            status: string;
+            /** Original Status */
+            original_status: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Source Execution Id */
+            source_execution_id: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Created By Username */
+            created_by_username?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Deleted At */
+            deleted_at: string | null;
+            /** Aqsol Version */
+            aqsol_version: string | null;
+            /** Has Results */
+            has_results: boolean;
+            /** N Files */
+            n_files: number;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
         };
         /** LimingDynamic */
         LimingDynamic: {
@@ -3793,6 +3975,133 @@ export interface operations {
                 "multipart/form-data": components["schemas"]["Body_import_project_api_v1_projects__project_id__excel_import_post"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_legacy_executions_api_v1_projects__project_id__legacy_executions_get: {
+        parameters: {
+            query?: {
+                include_deleted?: boolean;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyExecutionSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_legacy_execution_api_v1_legacy_executions__execution_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyExecutionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_legacy_execution_files_api_v1_legacy_executions__execution_id__files_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyExecutionFile"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_legacy_execution_file_api_v1_legacy_executions__execution_id__files__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

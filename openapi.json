@@ -3214,6 +3214,223 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/legacy-executions": {
+      "get": {
+        "tags": [
+          "legacy-executions"
+        ],
+        "summary": "List Legacy Executions",
+        "description": "Ejecuciones de la versión anterior del proyecto, de la más nueva a la más vieja.\nLas borradas en la versión anterior no salen salvo con `include_deleted`.",
+        "operationId": "list_legacy_executions_api_v1_projects__project_id__legacy_executions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Deleted"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LegacyExecutionSummary"
+                  },
+                  "title": "Response List Legacy Executions Api V1 Projects  Project Id  Legacy Executions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legacy-executions/{execution_id}": {
+      "get": {
+        "tags": [
+          "legacy-executions"
+        ],
+        "summary": "Get Legacy Execution",
+        "description": "El resumen más `parameters_snapshot` y `results` como los guardaba la versión\nanterior.",
+        "operationId": "get_legacy_execution_api_v1_legacy_executions__execution_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyExecutionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legacy-executions/{execution_id}/files": {
+      "get": {
+        "tags": [
+          "legacy-executions"
+        ],
+        "summary": "List Legacy Execution Files",
+        "description": "Archivos que dejó la ejecución (CSV, log, metadata).",
+        "operationId": "list_legacy_execution_files_api_v1_legacy_executions__execution_id__files_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LegacyExecutionFile"
+                  },
+                  "title": "Response List Legacy Execution Files Api V1 Legacy Executions  Execution Id  Files Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legacy-executions/{execution_id}/files/{name}": {
+      "get": {
+        "tags": [
+          "legacy-executions"
+        ],
+        "summary": "Download Legacy Execution File",
+        "description": "Descarga un archivo de la ejecución.",
+        "operationId": "download_legacy_execution_file_api_v1_legacy_executions__execution_id__files__name__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "summary": "System Health",
@@ -4990,6 +5207,369 @@
           "updated"
         ],
         "title": "LabelsUpdateResponse"
+      },
+      "LegacyExecutionDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "execution_type": {
+            "type": "string",
+            "title": "Execution Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "original_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Status"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "source_execution_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Execution Id"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_by_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Username"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "aqsol_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aqsol Version"
+          },
+          "has_results": {
+            "type": "boolean",
+            "title": "Has Results"
+          },
+          "n_files": {
+            "type": "integer",
+            "title": "N Files"
+          },
+          "imported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Imported At"
+          },
+          "parameters_snapshot": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters Snapshot"
+          },
+          "results": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "execution_type",
+          "status",
+          "original_status",
+          "error_message",
+          "source_execution_id",
+          "created_by",
+          "created_at",
+          "started_at",
+          "completed_at",
+          "deleted_at",
+          "aqsol_version",
+          "has_results",
+          "n_files",
+          "imported_at",
+          "parameters_snapshot",
+          "results"
+        ],
+        "title": "LegacyExecutionDetail",
+        "description": "El resumen más el JSON que la versión anterior guardaba en esas columnas."
+      },
+      "LegacyExecutionFile": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "size_bytes"
+        ],
+        "title": "LegacyExecutionFile"
+      },
+      "LegacyExecutionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "execution_type": {
+            "type": "string",
+            "title": "Execution Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "original_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Status"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "source_execution_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Execution Id"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_by_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Username"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "aqsol_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aqsol Version"
+          },
+          "has_results": {
+            "type": "boolean",
+            "title": "Has Results"
+          },
+          "n_files": {
+            "type": "integer",
+            "title": "N Files"
+          },
+          "imported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Imported At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "execution_type",
+          "status",
+          "original_status",
+          "error_message",
+          "source_execution_id",
+          "created_by",
+          "created_at",
+          "started_at",
+          "completed_at",
+          "deleted_at",
+          "aqsol_version",
+          "has_results",
+          "n_files",
+          "imported_at"
+        ],
+        "title": "LegacyExecutionSummary"
       },
       "LimingDynamic": {
         "properties": {
