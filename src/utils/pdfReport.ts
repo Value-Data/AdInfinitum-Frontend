@@ -6,9 +6,16 @@
    página se rebana). `.pdf-page-break` fuerza página nueva. Lo marcado `no-print` o
    `data-pdf-ignore` no sale.
 
+   Los paneles de gráficos (`[data-chart-title]`) no pasan por html2canvas: cada
+   gráfico de ECharts entrega su imagen (`getDataURL`, a 2x) y se compone con su título.
+   Nada espera a `requestAnimationFrame` (con la pestaña oculta no corre): cada bloque
+   tiene un tiempo máximo y, si se pasa, el PDF falla con un error que dice cuál.
+
    jsPDF + html2canvas pesan (~1.3 MB): se cargan al pedir el PDF (import dinámico), en
    un chunk aparte del bundle principal.
    ============================================================ */
+
+import { panelCanvas, withTimeout } from '../f6/chartImage';
 
 const A4_W = 210; // mm
 const A4_H = 297; // mm
@@ -16,13 +23,26 @@ const MARGIN = 8; // mm
 const GAP = 4; // mm entre bloques
 const CONTENT_W = A4_W - MARGIN * 2;
 
+/** Tiempo máximo para capturar un bloque. */
+export const BLOCK_TIMEOUT_MS = 30000;
+
 type Html2Canvas = (typeof import('html2canvas'))['default'];
 
 function ignorar(el: Element): boolean {
   return el.classList?.contains('no-print') || el.hasAttribute?.('data-pdf-ignore');
 }
 
-async function captureBlock(html2canvas: Html2Canvas, el: HTMLElement): Promise<HTMLCanvasElement> {
+function nombreBloque(el: HTMLElement): string {
+  const texto = el.dataset.chartTitle ?? el.querySelector('h1,h2,h3,h4')?.textContent ?? el.textContent ?? '';
+  return texto.trim().slice(0, 60) || el.tagName.toLowerCase();
+}
+
+async function captureBlock(html2canvas: Html2Canvas, el: HTMLElement): Promise<HTMLCanvasElement | null> {
+  const titulo = el.dataset.chartTitle;
+  if (titulo !== undefined) {
+    const lienzo = await panelCanvas(el, titulo);
+    if (lienzo) return lienzo;
+  }
   return html2canvas(el, {
     scale: 2,
     backgroundColor: '#ffffff',
@@ -57,10 +77,10 @@ export function pdfBlocks(container: HTMLElement): HTMLElement[] {
 
 /** Arma un PDF A4 vertical de varias páginas con el contenedor y lo baja. */
 export async function generatePdfFromContainer(container: HTMLElement, filename: string): Promise<void> {
-  const [{ jsPDF }, html2canvas] = await Promise.all([
+  const [{ jsPDF }, html2canvas] = await withTimeout(Promise.all([
     import('jspdf'),
     import('html2canvas').then((m) => m.default),
-  ]);
+  ]), BLOCK_TIMEOUT_MS, 'PDF: no se pudieron cargar las librerías del PDF (¿sin conexión?)');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const usableH = A4_H - MARGIN;
 
@@ -73,8 +93,9 @@ export async function generatePdfFromContainer(container: HTMLElement, filename:
       doc.addPage();
       cursorY = MARGIN;
     }
-    const canvas = await captureBlock(html2canvas, block);
-    if (canvas.width === 0 || canvas.height === 0) continue;
+    const canvas = await withTimeout(captureBlock(html2canvas, block), BLOCK_TIMEOUT_MS,
+      `PDF: el bloque "${nombreBloque(block)}" tardó más de ${BLOCK_TIMEOUT_MS / 1000} s en capturarse`);
+    if (!canvas || canvas.width === 0 || canvas.height === 0) continue;
     const imgH = (canvas.height * CONTENT_W) / canvas.width; // mm
 
     if (imgH <= A4_H - MARGIN * 2) {
