@@ -59,3 +59,15 @@ describe('herramientas recuperadas de la versión anterior', () => {
     expect(buildLaunchRequest({ ...base, escenarios: [] }, []).selected_scenarios).toBeUndefined();
   });
 });
+
+import { tooltipOf } from '../../src/f6/SectionEditorPage';
+
+describe('ayuda de cada campo', () => {
+  it('descripción, ayuda extra, unidad con rango y nombre interno', () => {
+    const t = tooltipOf({ key: 'ponds.dilution_frac', entity: 'ponds', field: 'dilution_frac', category: 'model',
+      data_type: 'number', label: 'Dilución', description: 'Agua de dilución.', help_text: null,
+      unit: 'frac', min_value: 0, max_value: 1, min_inclusive: true, max_inclusive: false,
+      required: false, time_variable: true } as never);
+    expect(t.split('\n')).toEqual(['Agua de dilución.', 'frac [0, 1)', 'ponds.dilution_frac']);
+  });
+});
