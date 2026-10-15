@@ -193,7 +193,7 @@ export function DailyCharts({ executionId, query, print = false }: {
   return (
     <section className="mb-6" data-testid="daily-charts" ref={caja}>
       <div className="flex flex-wrap items-center gap-3 mb-2">
-        <h3 className="text-base font-semibold">{t('f6_charts_daily')}</h3>
+        <h3 className="text-base font-semibold pdf-block pdf-page-break">{t('f6_charts_daily')}</h3>
         <Toggle value={eje} onChange={setEje}
                 options={[['date', t('f6_axis_dates')], ['day', t('f6_axis_days')]]} />
         <label className="flex gap-1 items-center text-xs no-print">
@@ -432,7 +432,7 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false }: {
   return (
     <section className="mb-6" data-testid="report-charts" ref={caja}>
       <div className="flex flex-wrap items-center gap-3 mb-2">
-        <h3 className="text-base font-semibold">{t('f6_charts')}</h3>
+        <h3 className="text-base font-semibold pdf-block pdf-page-break">{t('f6_charts')}</h3>
         <Toggle value={vista} onChange={setVista} testId="chart-view"
                 options={[['bars', t('f6_view_bars')], ['lines', t('f6_view_lines')]]} />
         {conPozas && (
