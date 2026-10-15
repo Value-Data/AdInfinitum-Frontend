@@ -894,7 +894,11 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+<<<<<<< HEAD
     "/api/v1/projects/{project_id}/legacy-executions": {
+=======
+    "/api/v1/inventario/escenarios": {
+>>>>>>> origin/f6-inventario
         parameters: {
             query?: never;
             header?: never;
@@ -902,11 +906,19 @@ export interface paths {
             cookie?: never;
         };
         /**
+<<<<<<< HEAD
          * List Legacy Executions
          * @description Ejecuciones de la versión anterior del proyecto, de la más nueva a la más vieja.
          *     Las borradas en la versión anterior no salen salvo con `include_deleted`.
          */
         get: operations["list_legacy_executions_api_v1_projects__project_id__legacy_executions_get"];
+=======
+         * List Escenarios
+         * @description Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,
+         *     por qué: así la UI los muestra deshabilitados en vez de fallar al cargar.
+         */
+        get: operations["list_escenarios_api_v1_inventario_escenarios_get"];
+>>>>>>> origin/f6-inventario
         put?: never;
         post?: never;
         delete?: never;
@@ -915,13 +927,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+<<<<<<< HEAD
     "/api/v1/legacy-executions/{execution_id}": {
+=======
+    "/api/v1/projects/{project_id}/inventario/load": {
+>>>>>>> origin/f6-inventario
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
+<<<<<<< HEAD
         /**
          * Get Legacy Execution
          * @description El resumen más `parameters_snapshot` y `results` como los guardaba la versión
@@ -970,6 +987,19 @@ export interface paths {
         get: operations["download_legacy_execution_file_api_v1_legacy_executions__execution_id__files__name__get"];
         put?: never;
         post?: never;
+=======
+        get?: never;
+        put?: never;
+        /**
+         * Load Escenario
+         * @description Carga un escenario de inventario en el proyecto.
+         *
+         *     Convierte el escenario a secciones, valida cada una y, si ninguna tiene errores,
+         *     las guarda todas como versiones nuevas (una transacción: todas o ninguna). Con
+         *     errores responde igual 200, con `saved = false` y el informe de cada sección.
+         */
+        post: operations["load_escenario_api_v1_projects__project_id__inventario_load_post"];
+>>>>>>> origin/f6-inventario
         delete?: never;
         options?: never;
         head?: never;
@@ -1566,6 +1596,63 @@ export interface components {
              * @default false
              */
             at_operating_level: boolean;
+        };
+        /** InventarioEscenario */
+        InventarioEscenario: {
+            /** Path */
+            path: string;
+            /** Nombre */
+            nombre: string;
+            /** Descripcion */
+            descripcion: string;
+            /** Dias */
+            dias?: number | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Con Inventario */
+            con_inventario: boolean;
+            /**
+             * Loadable
+             * @default true
+             */
+            loadable: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** InventarioLoadRequest */
+        InventarioLoadRequest: {
+            /** Escenario */
+            escenario: string;
+        };
+        /** InventarioLoadResponse */
+        InventarioLoadResponse: {
+            /** Escenario */
+            escenario: string;
+            /** Ok */
+            ok: boolean;
+            /** Saved */
+            saved: boolean;
+            /** Start Date */
+            start_date?: string | null;
+            /** Days Max */
+            days_max?: number | null;
+            /**
+             * Descripcion
+             * @default
+             */
+            descripcion: string;
+            /** N Initial States */
+            n_initial_states: number;
+            /** Sections */
+            sections: {
+                [key: string]: components["schemas"]["InventarioLoadedSection"];
+            };
+        };
+        /** InventarioLoadedSection */
+        InventarioLoadedSection: {
+            validation: components["schemas"]["ValidationReport"];
+            /** Saved Version */
+            saved_version?: number | null;
         };
         /**
          * LabelUpdate
@@ -2192,6 +2279,11 @@ export interface components {
             updated_by?: string | null;
             /** Feed Source */
             feed_source?: ("data" | "execution") | null;
+            /**
+             * N Initial States
+             * @default 0
+             */
+            n_initial_states: number;
         };
         /** SectionVersionSummary */
         SectionVersionSummary: {
@@ -3996,15 +4088,17 @@ export interface operations {
             };
         };
     };
+<<<<<<< HEAD
     list_legacy_executions_api_v1_projects__project_id__legacy_executions_get: {
         parameters: {
             query?: {
                 include_deleted?: boolean;
-            };
+=======
+    list_escenarios_api_v1_inventario_escenarios_get: {
+        parameters: {
+            query?: never;
             header?: never;
-            path: {
-                project_id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -4015,6 +4109,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": components["schemas"]["InventarioEscenario"][];
+                };
+            };
+        };
+    };
+    load_escenario_api_v1_projects__project_id__inventario_load_post: {
+        parameters: {
+            query?: {
+                language?: "es" | "en";
+>>>>>>> origin/f6-inventario
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+<<<<<<< HEAD
+        requestBody?: never;
+=======
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InventarioLoadRequest"];
+            };
+        };
+>>>>>>> origin/f6-inventario
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+<<<<<<< HEAD
                     "application/json": components["schemas"]["LegacyExecutionSummary"][];
                 };
             };
@@ -4110,6 +4238,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+=======
+                    "application/json": components["schemas"]["InventarioLoadResponse"];
+>>>>>>> origin/f6-inventario
                 };
             };
             /** @description Validation Error */

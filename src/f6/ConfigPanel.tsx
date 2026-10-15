@@ -7,9 +7,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   apiError, downloadTemplate, exportConfiguration, getReportParams, importConfiguration,
-  saveBlob, updateReportParams,
-  type EngineKind, type ExcelImportResult, type Process, type ReportParams, type SectionKind,
-  type SectionState, type ValidationIssue,
+  listInventarioEscenarios, loadInventarioEscenario, saveBlob, updateReportParams,
+  type EngineKind, type ExcelImportResult, type InventarioEscenario, type InventarioLoadResult,
+  type Process, type ReportParams, type SectionKind, type SectionState, type ValidationIssue,
 } from '../services/apiV2';
 import { useLanguage, useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -29,6 +29,17 @@ export function IssueList({ issues = [], kind }: {
         <li key={`${i.field}-${i.row}-${n}`} title={i.field}>{i.message}</li>
       ))}
     </ul>
+  );
+}
+
+/** Aviso de que una cascada arranca con las pozas cargadas (estado inicial de la sección). */
+export function InventoryBadge({ n }: { n: number }) {
+  const t = useT();
+  return (
+    <span className="text-xs px-2 py-0.5 border" data-testid="inventory-badge"
+          title={t('f6_with_inventory_hint')} style={{ color: '#1e40af', borderColor: '#93c5fd' }}>
+      {t('f6_with_inventory')} ({n})
+    </span>
   );
 }
 
@@ -57,6 +68,9 @@ function SectionCards({ projectId, sections, engine }: {
                 {formatDateTime(s?.updated_at)}
                 {s?.feed_source && etapa !== 'precon' && ` · ${t(`f6_feed_${s.feed_source}` as never)}`}
               </p>
+            )}
+            {!vacia && (s?.n_initial_states ?? 0) > 0 && (
+              <p className="mb-2"><InventoryBadge n={s?.n_initial_states ?? 0} /></p>
             )}
             <Link to={`/projects/${projectId}/sections/${kind}`} className="btn btn-outline btn-sm">
               {vacia ? t('f6_configure') : t('f6_edit')}
@@ -169,6 +183,134 @@ function ExcelPanel({ projectId, engine, onSaved }: {
   );
 }
 
+/**
+ * Cargar un escenario de la entrega de Mariana: guarda su preconcentración dinámica
+ * con el estado inicial de cada poza (el "modo con inventario" de antes). Después se
+ * lanza como cualquier dinámico; la fecha de inicio y los días del escenario se
+ * muestran para correrlo como la entrega.
+ */
+/** Los escenarios de Mariana son de AQSOL 027: en otra versión no se pueden cargar. */
+export const INVENTARIO_AQSOL = '027';
+
+/** Fecha de inicio y días con que corría el escenario, para precargar el lanzamiento. */
+export interface LaunchDefaults {
+  start_date: string;
+  n_days: number | null;
+}
+
+export function launchDefaultsFrom(r: InventarioLoadResult): LaunchDefaults | null {
+  return r.saved && r.start_date ? { start_date: r.start_date, n_days: r.days_max ?? null } : null;
+}
+
+export function InventarioPanel({ projectId, aqsolVersion, onSaved, onLoaded }: {
+  projectId: string; aqsolVersion?: string | null; onSaved: () => void;
+  onLoaded?: (d: LaunchDefaults) => void;
+}) {
+  const t = useT();
+  const otraVersion = aqsolVersion != null && aqsolVersion !== INVENTARIO_AQSOL;
+  const { lang } = useLanguage();
+  const [escenarios, setEscenarios] = useState<InventarioEscenario[]>([]);
+  const [elegido, setElegido] = useState('');
+  const [resultado, setResultado] = useState<InventarioLoadResult | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (otraVersion) return;
+    listInventarioEscenarios().then(setEscenarios).catch(() => setEscenarios([]));
+  }, [otraVersion]);
+  if (otraVersion) {
+    return (
+      <div className="card p-4 mb-6" data-testid="inventario-panel">
+        <h3 className="text-base font-semibold mb-1">{t('f6_inventory_title')}</h3>
+        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }} data-testid="inventario-other-version">
+          {t('f6_inventory_other_version')} (AQSOL {aqsolVersion}).
+        </p>
+      </div>
+    );
+  }
+  if (escenarios.length === 0) return null;
+  const actual = escenarios.find((e) => e.path === elegido);
+  const cargar = async () => {
+    setOcupado(true);
+    setError(null);
+    setResultado(null);
+    try {
+      const r = await loadInventarioEscenario(projectId, elegido, lang);
+      setResultado(r);
+      if (r.saved) onSaved();
+      const d = launchDefaultsFrom(r);
+      if (d && onLoaded) onLoaded(d);
+    } catch (err) {
+      setError(apiError(err).message);
+    } finally {
+      setOcupado(false);
+    }
+  };
+  return (
+    <div className="card p-4 mb-6" data-testid="inventario-panel">
+      <h3 className="text-base font-semibold mb-1">{t('f6_inventory_title')}</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_inventory_hint')}</p>
+      <div className="flex flex-wrap items-end gap-3 mb-2">
+        <label className="text-sm" style={{ minWidth: 280 }}>
+          <span className="label">{t('f6_inventory_choose')}</span>
+          <select className="input" value={elegido} data-testid="inventario-select"
+                  onChange={(e) => { setElegido(e.target.value); setResultado(null); setError(null); }}>
+            <option value="">{t('f6_choose')}</option>
+            {escenarios.map((e) => (
+              <option key={e.path} value={e.path} disabled={!e.loadable} title={e.reason ?? undefined}>
+                {e.nombre}{e.start_date ? ` · ${e.start_date}` : ''}{e.dias ? ` · ${e.dias} ${t('f6_days')}` : ''}
+                {!e.loadable ? ` · ${t('f6_inventory_not_loadable')}` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button className="btn btn-primary" onClick={cargar} disabled={!elegido || ocupado}
+                data-testid="inventario-load">
+          {t('f6_inventory_load')}
+        </button>
+        {ocupado && <LoadingSpinner size="sm" />}
+      </div>
+      {escenarios.some((e) => !e.loadable) && (
+        <ul className="text-xs mb-2 list-disc pl-5" style={{ color: '#92400e' }} data-testid="inventario-not-loadable">
+          {escenarios.filter((e) => !e.loadable).map((e) => (
+            <li key={e.path}>{e.nombre}: {e.reason}</li>
+          ))}
+        </ul>
+      )}
+      {actual?.descripcion && (
+        <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>{actual.descripcion}</p>
+      )}
+      {error && <p className="text-sm" style={{ color: '#b91c1c' }} data-testid="inventario-error">{error}</p>}
+      {resultado && (
+        <div className="mt-2" data-testid="inventario-result">
+          <p className="text-sm mb-2">
+            {resultado.saved
+              ? `${t('f6_inventory_loaded')}: ${resultado.escenario} · ${resultado.n_initial_states} ${t('f6_initial_states_loaded')}`
+              : t('f6_inventory_not_saved')}
+          </p>
+          {resultado.saved && resultado.start_date && (
+            <p className="text-sm mb-2">
+              {t('f6_inventory_launch_with')} {resultado.start_date}
+              {resultado.days_max ? ` · ${resultado.days_max} ${t('f6_days')}` : ''}
+              {onLoaded ? ` · ${t('f6_inventory_prefilled')}` : ''}
+            </p>
+          )}
+          {Object.entries(resultado.sections).map(([kind, r]) => (
+            <div key={kind} className="mb-2">
+              <div className="text-sm font-semibold">
+                {t(`f6_kind_${kind}` as never)}: {r.validation.ok ? '✓' : '✗'}
+                {r.saved_version != null && ` → v${r.saved_version}`}
+              </div>
+              <IssueList issues={r.validation.errors} kind="error" />
+              <IssueList issues={r.validation.warnings} kind="warning" />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReportParamsCard({ projectId }: { projectId: string }) {
   const t = useT();
   const { label } = useLabels();
@@ -204,8 +346,9 @@ function ReportParamsCard({ projectId }: { projectId: string }) {
   );
 }
 
-export default function ConfigPanel({ projectId, sections, onChanged }: {
+export default function ConfigPanel({ projectId, sections, onChanged, aqsolVersion, onInventoryLoaded }: {
   projectId: string; sections: SectionState[]; onChanged: () => void;
+  aqsolVersion?: string | null; onInventoryLoaded?: (d: LaunchDefaults) => void;
 }) {
   const t = useT();
   const [engine, setEngine] = useState<EngineKind>('dynamic');
@@ -220,6 +363,10 @@ export default function ConfigPanel({ projectId, sections, onChanged }: {
         ))}
       </div>
       <SectionCards projectId={projectId} sections={sections} engine={engine} />
+      {engine === 'dynamic' && (
+        <InventarioPanel projectId={projectId} aqsolVersion={aqsolVersion} onSaved={onChanged}
+                         onLoaded={onInventoryLoaded} />
+      )}
       <ExcelPanel projectId={projectId} engine={engine} onSaved={onChanged} />
       <ReportParamsCard projectId={projectId} />
     </div>

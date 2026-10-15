@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildLaunchRequest, continuationCandidates, needsSource, sourceCandidates,
+  buildLaunchRequest, continuationCandidates, inventoryPonds, needsSource, sourceCandidates,
 } from '../../src/f6/LaunchPanel';
 import { apiError, type ExecutionSummary, type SectionState } from '../../src/services/apiV2';
 
@@ -71,5 +71,23 @@ describe('errores de la API', () => {
   it('un 422 de FastAPI junta los mensajes', () => {
     const e = apiError({ response: { status: 422, data: { detail: [{ msg: 'a' }, { msg: 'b' }] } } });
     expect([e.code, e.message]).toEqual([null, 'a; b']);
+  });
+});
+
+describe('corrida con inventario', () => {
+  const secciones = [
+    { kind: 'precon_dynamic', n_initial_states: 10 },
+    { kind: 'postliming_dynamic', n_initial_states: 0 },
+  ] as SectionState[];
+
+  it('una cascada del dinámico arranca cargada si su sección trae estado inicial', () => {
+    expect(inventoryPonds('dynamic_precon', '', secciones)).toBe(10);
+    expect(inventoryPonds('dynamic_postliming', '', secciones)).toBe(0);
+    expect(inventoryPonds('dynamic_liming', '', secciones)).toBe(0);
+    expect(inventoryPonds('static_precon', '', secciones)).toBe(0);
+  });
+
+  it('una continuación toma el estado de la otra ejecución, no el de la sección', () => {
+    expect(inventoryPonds('dynamic_precon', 'pre-ok', secciones)).toBe(0);
   });
 });

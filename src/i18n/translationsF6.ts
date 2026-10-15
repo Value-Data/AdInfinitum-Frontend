@@ -268,4 +268,46 @@ export const F6_TRANSLATIONS = {
   legacy_completed: { es: 'Término', en: 'Finished' },
   legacy_error: { es: 'Error', en: 'Error' },
   legacy_source: { es: 'Alimentada por', en: 'Fed by' },
+
+  // Estado inicial de las pozas (inventario)
+  f6_initial_states_title: { es: 'Estado inicial de las pozas (inventario)', en: 'Initial pond state (inventory)' },
+  f6_initial_states_hint: {
+    es: 'Opcional. Una fila por poza; una fila vacía es una poza que arranca vacía. Pegar desde Excel: la poza primero (o en el orden de la tabla), luego las columnas y las masas por especie.',
+    en: 'Optional. One row per pond; an empty row is a pond that starts empty. Paste from Excel: pond first (or in table order), then the columns and the mass per species.',
+  },
+  f6_initial_states_loaded: { es: 'pozas cargadas', en: 'ponds loaded' },
+  f6_initial_states_empty: { es: 'vacía', en: 'empty' },
+  f6_initial_states_clear: { es: 'Vaciar todas', en: 'Clear all' },
+  f6_initial_states_clear_row: { es: 'Vaciar la poza', en: 'Clear pond' },
+  f6_initial_states_no_ponds: {
+    es: 'Primero cargue las pozas de la sección.',
+    en: 'Add the section ponds first.',
+  },
+  f6_with_inventory: { es: 'con inventario', en: 'with inventory' },
+  f6_with_inventory_hint: {
+    es: 'La corrida arranca con las pozas cargadas con el estado inicial de la sección',
+    en: 'The run starts with the ponds loaded with the section initial state',
+  },
+  f6_inventory_title: { es: 'Cargar escenario de inventario (Mariana)', en: 'Load inventory scenario (Mariana)' },
+  f6_inventory_hint: {
+    es: 'Guarda la preconcentración dinámica del escenario —pozas, factores, clima, alimentación y el estado inicial de cada poza— como una versión nueva. Después se lanza como un dinámico.',
+    en: 'Saves the scenario dynamic preconcentration —ponds, factors, climate, feed and each pond initial state— as a new version. Then launch it as a dynamic run.',
+  },
+  f6_inventory_choose: { es: 'Escenario', en: 'Scenario' },
+  f6_inventory_load: { es: 'Cargar escenario', en: 'Load scenario' },
+  f6_inventory_loaded: { es: 'Escenario cargado', en: 'Scenario loaded' },
+  f6_inventory_not_saved: {
+    es: 'El escenario tiene errores y no se guardó.',
+    en: 'The scenario has errors and was not saved.',
+  },
+  f6_inventory_not_loadable: { es: 'no se puede cargar', en: 'cannot be loaded' },
+  f6_inventory_other_version: {
+    es: 'Los escenarios de Mariana son de AQSOL 027: no se pueden cargar en un proyecto de otra versión',
+    en: 'Mariana scenarios are AQSOL 027: they cannot be loaded into a project of another version',
+  },
+  f6_inventory_prefilled: {
+    es: 'precargados en Ejecuciones → Lanzar (se pueden cambiar)',
+    en: 'prefilled in Executions → Launch (can be changed)',
+  },
+  f6_inventory_launch_with: { es: 'Para correrlo como la entrega: inicio', en: 'To run it as delivered: start' },
 } as const;

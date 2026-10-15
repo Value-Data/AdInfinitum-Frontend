@@ -145,6 +145,9 @@ export function cleanPayload(payload: Record<string, unknown>): Record<string, u
     }
     out.series = s;
   }
+  if (Array.isArray(out.initial_states)) {
+    out.initial_states = initialStatesForSave(out.initial_states as Record<string, unknown>[]);
+  }
   return out;
 }
 
@@ -257,4 +260,81 @@ export function serializeSeriesCsv(
     ].join(sep));
   }
   return `﻿${lineas.join('\r\n')}\r\n`;
+}
+
+// ---------------------------------------------------------------------------
+// Estado inicial de las pozas (inventario)
+// ---------------------------------------------------------------------------
+type Row = Record<string, unknown>;
+
+/** Secciones cuyas pozas pueden arrancar cargadas. */
+export const INITIAL_STATE_KINDS = new Set(['precon_dynamic', 'postliming_dynamic']);
+
+const clave = (v: unknown) => String(v ?? '').trim().toLowerCase();
+
+/** Una fila sin nada cargado: la poza arranca vacía y la fila no se manda. */
+export function isEmptyInitialState(row: Row): boolean {
+  return Object.entries(row).every(([k, v]) => {
+    if (k === 'pond') return true;
+    if (v === null || v === undefined || v === false || v === '') return true;
+    if (typeof v === 'object') return Object.values(v as Row).every((x) => x === null || x === undefined);
+    return false;
+  });
+}
+
+/**
+ * Una fila por poza de la sección, en su orden, con el estado cargado si lo hay. Los
+ * estados de pozas que ya no están en la sección quedan al final para que no se pierdan
+ * sin aviso (la validación los marca).
+ */
+export function initialStateRows(ponds: Row[], states: Row[]): Row[] {
+  const porPoza = new Map(states.map((s) => [clave(s.pond), s]));
+  const nombres = ponds.map((p) => String(p.name ?? '').trim()).filter(Boolean);
+  const filas: Row[] = nombres.map((n) => ({ ...(porPoza.get(clave(n)) ?? {}), pond: n }));
+  const usadas = new Set(nombres.map(clave));
+  return [...filas, ...states.filter((s) => !usadas.has(clave(s.pond)))];
+}
+
+/** Lo que se guarda: solo las pozas con estado cargado. */
+export function initialStatesForSave(rows: Row[]): Row[] {
+  return rows.filter((r) => !isEmptyInitialState(r));
+}
+
+/**
+ * Filas pegadas de Excel sobre la tabla del estado inicial. Columnas: los campos de la
+ * tabla y después una por especie; la poza va primero si se quiere ubicar la fila por
+ * nombre. Sin nombre de poza conocido, las filas se asignan en orden desde la primera.
+ */
+export function pasteInitialStates(
+  rows: Row[], pasted: string[][], cols: DictionaryEntry[], species: string[], speciesField = 'species_mass_t',
+): Row[] {
+  const out = rows.map((r) => ({ ...r }));
+  const indice = new Map(out.map((r, i) => [clave(r.pond), i]));
+  let siguiente = 0;
+  for (const celdas of pasted) {
+    let i = indice.get(clave(celdas[0]));
+    let base = 1;
+    if (i === undefined) { i = siguiente; base = 0; }
+    siguiente = i + 1;
+    if (i >= out.length) break;
+    const fila: Row = { pond: out[i].pond };
+    cols.forEach((c, j) => {
+      const v = coerce(c, celdas[base + j] ?? '');
+      if (v !== null) fila[c.field] = v;
+    });
+    const masas: Row = {};
+    species.forEach((sp, j) => {
+      const v = parseNumber(celdas[base + cols.length + j] ?? '');
+      if (v !== null) masas[sp] = v;
+    });
+    if (Object.keys(masas).length) fila[speciesField] = masas;
+    out[i] = fila;
+  }
+  return out;
+}
+
+/** La poza de un problema del estado inicial: por su etiqueta o por su fila en lo guardado. */
+export function issuePond(issue: ValidationIssue, saved: Row[]): string {
+  if (issue.row_label) return clave(issue.row_label);
+  return issue.row ? clave(saved[issue.row - 1]?.pond) : '';
 }
