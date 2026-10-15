@@ -582,206 +582,6 @@
         }
       }
     },
-    "/api/v1/projects/{project_id}/config": {
-      "get": {
-        "tags": [
-          "projects"
-        ],
-        "summary": "Get Config",
-        "description": "Get current project configuration (admin only).",
-        "operationId": "get_config_api_v1_projects__project_id__config_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProjectConfigResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "projects"
-        ],
-        "summary": "Update Config",
-        "description": "Update project configuration (admin only). Supports partial updates.",
-        "operationId": "update_config_api_v1_projects__project_id__config_put",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProjectConfigUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProjectConfigResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/projects/{project_id}/config/defaults": {
-      "get": {
-        "tags": [
-          "projects"
-        ],
-        "summary": "Get Config Defaults",
-        "description": "Get default configuration values from engine data files (admin only).",
-        "operationId": "get_config_defaults_api_v1_projects__project_id__config_defaults_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProjectConfigDefaults"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/projects/aqsol/catalog/{version}": {
-      "get": {
-        "tags": [
-          "projects"
-        ],
-        "summary": "Get Aqsol Catalog",
-        "description": "Especies y fases editables de una version de AQSOL.",
-        "operationId": "get_aqsol_catalog_api_v1_projects_aqsol_catalog__version__get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Version"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AqsolCatalog"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/projects/inventario/escenarios": {
       "get": {
         "tags": [
@@ -2121,7 +1921,7 @@
           "executions"
         ],
         "summary": "Delete Execution",
-        "description": "Soft delete an execution (admin only).",
+        "description": "Borra una ejecución (admin; borrado lógico). No se borra una que está en la cola o\ncorriendo, ni una de la que otra se alimenta o continúa.",
         "operationId": "delete_execution_api_v1_executions__execution_id__delete",
         "security": [
           {
@@ -2455,52 +2255,6 @@
         }
       }
     },
-    "/api/v1/executions/{execution_id}/export": {
-      "get": {
-        "tags": [
-          "executions"
-        ],
-        "summary": "Export Execution",
-        "description": "Download execution results as Excel file.",
-        "operationId": "export_execution_api_v1_executions__execution_id__export_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "execution_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Execution Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/executions/{execution_id}/report": {
       "get": {
         "tags": [
@@ -2678,6 +2432,100 @@
               "type": "string",
               "default": "es",
               "title": "Language"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{execution_id}/series": {
+      "get": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Get Execution Series",
+        "description": "Series diarias del dinámico en el período, para los gráficos. `species`: especies\n(separadas por coma) de la composición de la salmuera de cada poza, o `all` para\ntodas las de la versión de AQSOL. En una cascada trae además `salts`: las sales\nprecipitadas por poza y por sal (t/d).",
+        "operationId": "get_execution_series_api_v1_executions__execution_id__series_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "period_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period Start"
+            }
+          },
+          {
+            "name": "species",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Species"
+            }
+          },
+          {
+            "name": "period_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period End"
             }
           }
         ],
@@ -3408,51 +3256,6 @@
   },
   "components": {
     "schemas": {
-      "AqsolCatalog": {
-        "properties": {
-          "version": {
-            "type": "string",
-            "title": "Version"
-          },
-          "species": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Species"
-          },
-          "salts": {
-            "items": {
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Salts"
-          },
-          "n_aqueous": {
-            "type": "integer",
-            "title": "N Aqueous"
-          },
-          "n_salts": {
-            "type": "integer",
-            "title": "N Salts"
-          },
-          "faktor_length": {
-            "type": "integer",
-            "title": "Faktor Length"
-          }
-        },
-        "type": "object",
-        "required": [
-          "version",
-          "species",
-          "salts",
-          "n_aqueous",
-          "n_salts",
-          "faktor_length"
-        ],
-        "title": "AqsolCatalog",
-        "description": "Especies y fases editables de una version de AQSOL.\n\nEl frontend renderiza a partir de esto en vez de constantes hardcodeadas, para que\nal cambiar de base aparezcan (o desaparezcan) filas sin tocar codigo."
-      },
       "AqsolCatalogOut": {
         "properties": {
           "version": {
@@ -3888,6 +3691,11 @@
           "labels_created": {
             "type": "integer",
             "title": "Labels Created"
+          },
+          "descriptions_filled": {
+            "type": "integer",
+            "title": "Descriptions Filled",
+            "default": 0
           }
         },
         "type": "object",
@@ -5946,536 +5754,6 @@
           "scenarios"
         ],
         "title": "PreconStatic"
-      },
-      "ProjectConfigDefaults": {
-        "properties": {
-          "brine": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "type": "object",
-            "title": "Brine"
-          },
-          "brine_total_flow": {
-            "type": "number",
-            "title": "Brine Total Flow"
-          },
-          "precon_ponds": {
-            "items": {
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Precon Ponds"
-          },
-          "precon_faktor": {
-            "items": {
-              "type": "number"
-            },
-            "type": "array",
-            "title": "Precon Faktor"
-          },
-          "encalado_config": {
-            "type": "object",
-            "title": "Encalado Config"
-          },
-          "encalado_faktor": {
-            "items": {
-              "type": "number"
-            },
-            "type": "array",
-            "title": "Encalado Faktor"
-          },
-          "postliming_ponds": {
-            "items": {
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Postliming Ponds"
-          },
-          "postliming_faktor": {
-            "items": {
-              "type": "number"
-            },
-            "type": "array",
-            "title": "Postliming Faktor"
-          },
-          "daily_schedule": {
-            "items": {
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Daily Schedule"
-          },
-          "salt_names": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Salt Names"
-          },
-          "precon_days_year": {
-            "type": "number",
-            "title": "Precon Days Year"
-          },
-          "encalado_days_year": {
-            "type": "number",
-            "title": "Encalado Days Year"
-          },
-          "postliming_days_year": {
-            "type": "number",
-            "title": "Postliming Days Year"
-          },
-          "dynamic_config": {
-            "type": "object",
-            "title": "Dynamic Config"
-          },
-          "inventario_config": {
-            "type": "object",
-            "title": "Inventario Config",
-            "default": {}
-          }
-        },
-        "type": "object",
-        "required": [
-          "brine",
-          "brine_total_flow",
-          "precon_ponds",
-          "precon_faktor",
-          "encalado_config",
-          "encalado_faktor",
-          "postliming_ponds",
-          "postliming_faktor",
-          "daily_schedule",
-          "salt_names",
-          "precon_days_year",
-          "encalado_days_year",
-          "postliming_days_year",
-          "dynamic_config"
-        ],
-        "title": "ProjectConfigDefaults",
-        "description": "Schema for default configuration values loaded from engine data."
-      },
-      "ProjectConfigResponse": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "project_id": {
-            "type": "string",
-            "title": "Project Id"
-          },
-          "brine": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "number"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Brine"
-          },
-          "brine_total_flow": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Brine Total Flow"
-          },
-          "precon_ponds": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Precon Ponds"
-          },
-          "precon_faktor": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "number"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Precon Faktor"
-          },
-          "encalado_config": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Encalado Config"
-          },
-          "encalado_faktor": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "number"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Encalado Faktor"
-          },
-          "postliming_ponds": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Postliming Ponds"
-          },
-          "postliming_faktor": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "number"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Postliming Faktor"
-          },
-          "daily_schedule": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Daily Schedule"
-          },
-          "precon_days_year": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Precon Days Year"
-          },
-          "encalado_days_year": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Encalado Days Year"
-          },
-          "postliming_days_year": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Postliming Days Year"
-          },
-          "dynamic_config": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dynamic Config"
-          },
-          "inventario_config": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inventario Config"
-          },
-          "aqsol_version": {
-            "type": "string",
-            "title": "Aqsol Version",
-            "default": "027"
-          },
-          "entrainment_basis": {
-            "type": "string",
-            "title": "Entrainment Basis",
-            "default": "wet"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "project_id",
-          "updated_at"
-        ],
-        "title": "ProjectConfigResponse",
-        "description": "Schema for project configuration response."
-      },
-      "ProjectConfigUpdate": {
-        "properties": {
-          "brine": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "number"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Brine"
-          },
-          "brine_total_flow": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Brine Total Flow"
-          },
-          "precon_ponds": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Precon Ponds"
-          },
-          "precon_faktor": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "number"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Precon Faktor"
-          },
-          "encalado_config": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Encalado Config"
-          },
-          "encalado_faktor": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "number"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Encalado Faktor"
-          },
-          "postliming_ponds": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Postliming Ponds"
-          },
-          "postliming_faktor": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "number"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Postliming Faktor"
-          },
-          "daily_schedule": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Daily Schedule"
-          },
-          "precon_days_year": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Precon Days Year"
-          },
-          "encalado_days_year": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Encalado Days Year"
-          },
-          "postliming_days_year": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Postliming Days Year"
-          },
-          "dynamic_config": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dynamic Config"
-          },
-          "inventario_config": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inventario Config"
-          },
-          "aqsol_version": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "027",
-                  "066"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Aqsol Version"
-          },
-          "entrainment_basis": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "wet",
-                  "dry"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Entrainment Basis"
-          }
-        },
-        "type": "object",
-        "title": "ProjectConfigUpdate",
-        "description": "Schema for updating project configuration. All fields optional for partial update."
       },
       "ProjectCreate": {
         "properties": {
