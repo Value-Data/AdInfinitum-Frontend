@@ -130,8 +130,10 @@ function Block({ b }: { b: ParamBlock }) {
 
 interface Loaded { section: string; version_no: number; blocks: ParamBlock[] }
 
-export default function InputParameters({ projectId, sections, engine }: {
+export default function InputParameters({ projectId, sections, engine, onSettled }: {
   projectId: string; sections: { section: string; version_no: number }[]; engine: 'static' | 'dynamic';
+  /** Cuando terminó de cargar (o falló): el PDF espera a esto para no salir sin la sección. */
+  onSettled?: () => void;
 }) {
   const t = useT();
   const { lang } = useLanguage();
@@ -155,7 +157,8 @@ export default function InputParameters({ projectId, sections, engine }: {
       };
     }))
       .then((r) => { if (vivo) setDatos(r); })
-      .catch((err) => { if (vivo) setError(apiError(err).message); });
+      .catch((err) => { if (vivo) setError(apiError(err).message); })
+      .finally(() => { if (vivo) onSettled?.(); });
     return () => { vivo = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, clave, engine, lang]);

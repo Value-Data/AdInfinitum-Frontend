@@ -41,6 +41,7 @@ export default function PrintReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [pdf, setPdf] = useState<'idle' | 'busy' | 'error'>('idle');
   const hoja = useRef<HTMLDivElement>(null);
+  const [paramsListos, setParamsListos] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -60,6 +61,7 @@ export default function PrintReportPage() {
   if (!detail || !project || !report) return <div className="p-6">…</div>;
   const dinamico = isDynamicType(detail.execution_type);
   const periodo = 'period' in report ? report.period : null;
+  const conParams = (detail.sections?.length ?? 0) > 0;
   const bajarPdf = async () => {
     if (!hoja.current) return;
     setPdf('busy');
@@ -76,8 +78,8 @@ export default function PrintReportPage() {
          ref={hoja}>
       <div className="no-print flex flex-wrap items-center justify-end gap-2 mb-4">
         {pdf === 'error' && <span className="text-sm" style={{ color: 'var(--color-danger)' }}>{t('f6_pdf_error')}</span>}
-        <button className="btn btn-primary" onClick={bajarPdf} disabled={pdf === 'busy'} data-testid="download-pdf">
-          {pdf === 'busy' ? t('f6_pdf_busy') : t('f6_download_pdf')}
+        <button className="btn btn-primary" onClick={bajarPdf} disabled={pdf === 'busy' || (conParams && !paramsListos)} data-testid="download-pdf">
+          {pdf === 'busy' || (conParams && !paramsListos) ? t('f6_pdf_busy') : t('f6_download_pdf')}
         </button>
         <button className="btn btn-outline" onClick={() => window.print()}>{t('f6_print_now')}</button>
       </div>
@@ -105,8 +107,9 @@ export default function PrintReportPage() {
         </table>
         <div className="mt-6"><PartialRunBanner info={partialInfo(detail)} /></div>
       </section>
-      {(detail.sections?.length ?? 0) > 0 && (
+      {conParams && (
         <InputParameters projectId={detail.project_id} engine={dinamico ? 'dynamic' : 'static'}
+                         onSettled={() => setParamsListos(true)}
                          sections={(detail.sections ?? []) as unknown as { section: string; version_no: number }[]} />
       )}
       <section className="print-page-break">
