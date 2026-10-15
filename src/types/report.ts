@@ -23,7 +23,7 @@ export type ReportRow = { id: string; formula?: string | null } & Record<string,
 
 export interface ReportTable {
   key: string;
-  row_kind: 'pond' | 'stream' | 'salt' | 'species' | 'scenario' | 'kpi';
+  row_kind: 'pond' | 'stream' | 'salt' | 'species' | 'scenario' | 'kpi' | 'step';
   columns: ReportColumn[];
   rows: ReportRow[];
   /** Nombres internos de notas al pie. */
@@ -118,6 +118,8 @@ export interface DailySeriesItem {
   pond?: boolean;
   species?: boolean;
   salt?: boolean;
+  /** De dónde sale la serie (columnas y archivo de la corrida), con nombres internos. */
+  formula?: string | null;
   values: (number | null)[];
 }
 export interface DailySeriesGroup { key: string; unit: string; series: DailySeriesItem[] }

@@ -12,6 +12,7 @@ import { useDecimals } from '../context/DecimalsContext';
 import { useLabels, type LabelFn } from './labels';
 import { useT } from '../i18n/LanguageContext';
 import { dmy } from './common';
+import { recoveries } from './chartData';
 
 /** Decimales por defecto: más para valores chicos (fracciones, concentraciones). */
 export function formatCell(v: unknown): string {
@@ -48,10 +49,27 @@ export function rowHeader(table: ReportTable, id: string, label: LabelFn): strin
   return label(`result.${id}`, id);
 }
 
+/**
+ * Orden de columnas de la "Tabla 1" de antes (balance por poza): área, entrada,
+ * evaporación (t y mm/d), salida, fugas, impregnación (t y % de la salida), sal
+ * precipitada; lo demás después, como venga. En otras tablas por poza, el área primero.
+ */
+const ORDEN_TABLA_1 = ['area_m2', 'inflow_t', 'inflow_t_d_avg', 'inflow_t_d', 'evaporation_t', 'evaporation_t_d_avg',
+  'evaporation_t_d', 'evaporation_mm_d_avg', 'outflow_t', 'outflow_t_d_avg', 'outflow_t_d', 'leakage_t',
+  'leakage_t_d_avg', 'leakage_t_d', 'entrainment_t', 'entrainment_t_d_avg', 'entrainment_t_d',
+  'entrainment_of_outflow_pct', 'salt_precipitated_t', 'salt_precipitated_t_d_avg', 'salt_precipitated_t_d'];
+
+export function orderColumns(table: ReportTable): ReportColumn[] {
+  const columnas = table.columns.filter((c) => c.key !== 'id');
+  const orden = table.key === 'pond_balance' ? ORDEN_TABLA_1 : table.row_kind === 'pond' ? ['area_m2'] : [];
+  const lugar = (c: ReportColumn) => (orden.includes(c.key) ? orden.indexOf(c.key) : orden.length);
+  return [...columnas].sort((a, b) => lugar(a) - lugar(b));
+}
+
 export function ReportTableView({ table }: { table: ReportTable }) {
   useDecimals();
   const { label } = useLabels();
-  const columnas = table.columns.filter((c) => c.key !== 'id');
+  const columnas = orderColumns(table);
   return (
     <div className="card overflow-x-auto mb-4 pdf-block" data-testid={`report-table-${table.key}`}>
       <div className="px-3 py-2 text-sm font-semibold"
@@ -103,31 +121,106 @@ export function ReportTableView({ table }: { table: ReportTable }) {
   );
 }
 
+/** Las tarjetas que iban primero en el reporte de antes: recuperación, producción de Li y
+ * convergencia del AQSOL; después las demás, como las manda el backend. */
+export const KPI_FIRST = ['li_recovery_pct', 'li_out_t_y', 'aqsol_converged_pct'];
+/** Van dentro de la tarjeta de la convergencia del AQSOL, no solas. */
+const KPI_IN_AQSOL = ['n_aqsol_failed_days', 'n_aqsol_ok_days', 'n_aqsol_days'];
+
+export function orderKpis(kpis: Record<string, number | null>): [string, number | null][] {
+  const entradas = Object.entries(kpis).filter(([k]) => !KPI_IN_AQSOL.includes(k));
+  const lugar = (k: string) => (KPI_FIRST.includes(k) ? KPI_FIRST.indexOf(k) : KPI_FIRST.length);
+  return [...entradas].sort((a, b) => lugar(a[0]) - lugar(b[0]));
+}
+
 export function KpiCards({ kpis }: { kpis: Record<string, number | null> }) {
   const { label } = useLabels();
-  const entradas = Object.entries(kpis);
+  const t = useT();
+  const entradas = orderKpis(kpis);
   if (entradas.length === 0) return null;
+  // "AQSOL convergencia" como antes: "x %" y debajo los días (ok/total si el reporte los
+  // trae; si no, los que fallaron).
+  const aqsol = (v: number | null) => {
+    const ok = kpis.n_aqsol_ok_days;
+    const total = kpis.n_aqsol_days;
+    const fallas = kpis.n_aqsol_failed_days;
+    const sub = typeof ok === 'number' && typeof total === 'number' ? `(${formatCell(ok)}/${formatCell(total)} ${t('f6_days')})`
+      : typeof fallas === 'number' ? `(${fallas} ${t('dynres_days_failed')})` : null;
+    return { titulo: t('aqsol_convergence'), valor: v === null ? '–' : `${formatCell(v)} %`, sub };
+  };
   return (
     <div className="grid gap-3 mb-4 pdf-block" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
-      {entradas.map(([k, v]) => (
-        <div key={k} className="card p-3" data-testid={`kpi-${k}`}>
-          <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            {label(`result.${k}`, k)}
+      {entradas.map(([k, v]) => {
+        const c = k === 'aqsol_converged_pct' ? aqsol(v) : { titulo: label(`result.${k}`, k), valor: formatCell(v), sub: null };
+        return (
+          <div key={k} className="card p-3" data-testid={`kpi-${k}`}>
+            <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{c.titulo}</div>
+            <div className="text-lg font-semibold font-mono">{c.valor}</div>
+            {c.sub && <div className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>{c.sub}</div>}
           </div>
-          <div className="text-lg font-semibold font-mono">{formatCell(v)}</div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
+/**
+ * Recuperación de Li de cada etapa y del proceso (si el reporte la trae) como barras
+ * horizontales de 0 a 100 %, junto a las tarjetas de KPIs (que siguen igual).
+ */
+export function RecoveryBars({ stages, processKpis }: {
+  stages: StageReport[]; processKpis: Record<string, number | null>;
+}) {
+  useDecimals();
+  const t = useT();
+  const filas = recoveries(stages, processKpis);
+  // Con una sola etapa y sin proceso, la tarjeta de KPIs ya lo dice todo.
+  if (filas.length < 2 || !filas.some((f) => f.value !== null)) return null;
+  return (
+    <div className="card p-3 mb-4 pdf-block" data-testid="recovery-bars" style={{ maxWidth: 640 }}>
+      <div className="text-sm font-semibold mb-2">{t('f6_recovery_panel')} (%)</div>
+      {filas.map((f) => {
+        const ancho = f.value === null ? 0 : Math.max(0, Math.min(100, f.value));
+        return (
+          <div key={f.key} className="flex items-center gap-3 text-sm mb-1">
+            <span style={{ width: 190, color: 'var(--color-text-secondary)' }}>
+              {f.key === 'process' ? t('f6_process_full') : t(`f6_stage_${f.key}` as never)}
+            </span>
+            <div className="flex-1 rounded" style={{ height: 10, background: 'var(--color-border)' }}
+                 role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={f.value ?? undefined}>
+              <div className="rounded" style={{ height: 10, width: `${ancho}%`,
+                background: f.key === 'process' ? '#1baf7a' : 'var(--color-primary)' }} />
+            </div>
+            <span className="font-mono text-right" style={{ width: 84 }}>
+              {f.value === null ? '–' : `${formatCell(f.value)} %`}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Tablas del detalle de la planta (el "Detalle planta de reactivos" de antes). */
+const LIMING_DETAIL = ['liming_steps', 'liming_step_composition', 'liming_reagent_detail'];
+
 function StageBlock({ stage }: { stage: StageReport }) {
   const t = useT();
+  const detalle = stage.tables.filter((tb) => LIMING_DETAIL.includes(tb.key));
+  const dias = detalle.flatMap((tb) => tb.rows).map((r) => r.n_days_averaged).find((v) => typeof v === 'number');
   return (
     <section className="mb-6">
       <h3 className="text-base font-semibold mb-2 pdf-block">{t(`f6_stage_${stage.stage}` as never)}</h3>
       <KpiCards kpis={stage.kpis} />
-      {stage.tables.map((t) => <ReportTableView key={t.key} table={t} />)}
+      {stage.tables.filter((tb) => !LIMING_DETAIL.includes(tb.key)).map((tb) => <ReportTableView key={tb.key} table={tb} />)}
+      {detalle.length > 0 && (
+        <>
+          <h4 className="text-sm font-semibold mb-2 pdf-block" data-testid="liming-detail">
+            {t('dynreport_reagent_detail_prefix')} {dias ?? '–'} {t('dynreport_reagent_detail_suffix')}
+          </h4>
+          {detalle.map((tb) => <ReportTableView key={tb.key} table={tb} />)}
+        </>
+      )}
     </section>
   );
 }
@@ -147,6 +240,7 @@ function DynamicReportView({ report }: { report: DynamicReport }) {
           <KpiCards kpis={report.process_kpis} />
         </section>
       )}
+      <RecoveryBars stages={report.stages} processKpis={report.process_kpis} />
       {report.stages.map((s) => <StageBlock key={s.stage} stage={s} />)}
       {report.global_balance && <ReportTableView table={report.global_balance} />}
     </div>
@@ -166,6 +260,7 @@ function ScenarioBlock({ sc }: { sc: StaticReport['scenarios'][number] }) {
         {sc.temperature_C ?? '–'} °C · {sc.evaporation_mm_d ?? '–'} mm/d
       </p>
       {Object.keys(sc.process_kpis).length > 0 && <KpiCards kpis={sc.process_kpis} />}
+      <RecoveryBars stages={sc.stages} processKpis={sc.process_kpis} />
       {sc.stages.map((s) => <StageBlock key={s.stage} stage={s} />)}
       {sc.global_balance && <ReportTableView table={sc.global_balance} />}
     </>

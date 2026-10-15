@@ -3,20 +3,19 @@
  * Los valores salen tal cual de lo que devuelve el backend; aquí solo se ordenan.
  */
 import type {
-  DailySeries, DailySeriesGroup, DailySeriesItem, ReportTable, StageReport,
+  DailySeries, DailySeriesGroup, DailySeriesItem, ReportTable, Stage, StageReport,
 } from '../types/report';
 
 /** Paleta categórica (mismo orden que `--chart-series-*` en tokens.css). Va en hex y no
- * como variable CSS porque el SVG exportado a PNG no resuelve variables. Validada con
+ * como variable CSS porque ECharts dibuja en un lienzo, que no resuelve variables. Validada con
  * el validador de dataviz (banda de luminosidad, croma, separación CVD). */
 export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300',
   '#6250d6', '#e34948'];
 
 /** Estilo de la serie i: las 8 primeras por color; desde la 9ª se repiten con trazo
  * cortado, para que nunca dos series se distingan solo por un color generado. */
-export function seriesStyle(i: number): { stroke: string; strokeDasharray?: string } {
-  const stroke = SERIES_COLORS[i % SERIES_COLORS.length];
-  return i >= SERIES_COLORS.length ? { stroke, strokeDasharray: '6 3' } : { stroke };
+export function seriesStyle(i: number): { color: string; dashed: boolean } {
+  return { color: SERIES_COLORS[i % SERIES_COLORS.length], dashed: i >= SERIES_COLORS.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -31,8 +30,9 @@ const PX_PER_TICK = 46;
 export const PX_PER_DAY = 3;
 
 export interface ChartLayout {
-  /** Prop `interval` del eje X de recharts. */
-  interval: number | 'preserveStartEnd';
+  /** `axisLabel.interval` del eje X de ECharts: una marca cada `interval + 1` días, o
+   * 'auto' (las que quepan sin pisarse). */
+  interval: number | 'auto';
   angled: boolean;
   /** Alto del eje X (las etiquetas en ángulo necesitan más). */
   axisHeight: number;
@@ -51,12 +51,12 @@ export function chartLayout(nDays: number, step: DayStep, mode: 'day' | 'date', 
   const marcas = paso ? Math.floor(Math.max(0, nDays - 1) / paso) + 1 : 0;
   const angled = mode === 'date' || marcas > 10;
   if (fit) {
-    return { interval: 'preserveStartEnd', angled: mode === 'date', axisHeight: mode === 'date' ? 62 : 30, minWidth: 0 };
+    return { interval: 'auto', angled: mode === 'date', axisHeight: mode === 'date' ? 62 : 30, minWidth: 0 };
   }
   const porMarcas = marcas > 16 ? Math.round(marcas * PX_PER_TICK) : 0;
   const porDias = nDays * PX_PER_DAY > 900 ? nDays * PX_PER_DAY : 0;
   return {
-    interval: paso ? paso - 1 : 'preserveStartEnd',
+    interval: paso ? paso - 1 : 'auto',
     angled,
     axisHeight: angled ? 62 : 30,
     minWidth: Math.max(porMarcas, porDias),
@@ -163,8 +163,22 @@ export interface DailyGroup extends DailySeriesGroup {
 const conDatos = (g: DailySeriesGroup) =>
   g.series.some((s) => s.values.some((v) => v !== null && v !== undefined));
 
+/** Li % de la salmuera de cada poza (de la composición): el "Li% por poza (por día)" de
+ * antes. Va siempre en la cascada; por eso la composición de Li+ no se repite. */
+export const LI_BRINE = 'li_brine_pct';
+
+function liSalmuera(d: DailySeries): DailyGroup | null {
+  if (d.stage === 'liming' || !d.composition?.species.includes('Li+')) return null;
+  return {
+    key: LI_BRINE, unit: '%', origin: 'group',
+    series: Object.entries(d.composition.ponds).map(([pozo, c]) => ({ key: pozo, pond: true, values: c['Li+'] ?? [] })),
+  };
+}
+
 export function dailyGroups(d: DailySeries, especies: string[], pozaSales: string | null): DailyGroup[] {
-  const comp: DailyGroup[] = (d.composition?.species ?? []).filter((sp) => especies.includes(sp))
+  const li = liSalmuera(d);
+  const comp: DailyGroup[] = (d.composition?.species ?? [])
+    .filter((sp) => especies.includes(sp) && !(li && sp === 'Li+'))
     .map((sp) => ({
       key: `composition_${sp}`, unit: '%p/p', origin: 'composition', subject: sp,
       series: Object.entries(d.composition!.ponds).map(([pozo, c]) => ({ key: pozo, pond: true, values: c[sp] ?? [] })),
@@ -177,7 +191,42 @@ export function dailyGroups(d: DailySeries, especies: string[], pozaSales: strin
       series: (d.salts!.salts).filter((s) => s in dePoza).map((s) => ({ key: s, salt: true, values: dePoza[s] })),
     });
   }
-  return [...d.groups.map((g) => ({ ...g, origin: 'group' as const })), ...comp, ...sales].filter(conDatos);
+  const grupos: DailyGroup[] = [...(li ? [li] : []), ...d.groups.map((g) => ({
+    ...g, origin: 'group' as const,
+    // La clave vieja de las sales de la planta (solo en la planta y si no es por poza).
+    key: d.stage === 'liming' && g.key === 'salt_precipitated_t_d' && !g.series.some((s) => s.pond)
+      ? LIMING_SALTS : g.key,
+  }))];
+  return ordenBase([...grupos, ...comp, ...sales], d.stage).filter(conDatos);
+}
+
+/**
+ * Los gráficos del reporte de antes van primero y en su orden (`COMPOSICION` = la
+ * composición de cada especie elegida); después los demás, como los manda el backend.
+ * Cascada: entrada por poza, altura, Li % de la salmuera, composición (el Li % de la
+ * salida de cada poza queda entre los demás). Planta: Li % de la salida,
+ * composición de la salida (Li+, Mg++, H2O, K+, SO4--), sales precipitadas totales,
+ * consumo de reactivos (lechada y soluciones), flujo de salida, razón SO4/Mg. Los grupos
+ * que los reemplazaban (composición de la salida, torta, reactivos sólidos) quedan entre
+ * los demás.
+ */
+export const COMPOSICION = '*composition';
+/** Sales precipitadas totales de la planta (el backend la está renombrando desde
+ * `salt_precipitated_t_d`; en la planta se aceptan las dos claves). */
+export const LIMING_SALTS = 'liming_salt_precipitated_t_d';
+export const BASE_DAILY_ORDER: Record<'cascade' | 'liming', string[]> = {
+  cascade: ['inflow_t_d', 'height_m', LI_BRINE, COMPOSICION],
+  liming: ['li_pct', 'outlet_composition_pct_old', LIMING_SALTS, 'reagent_solutions_t_d', 'liming_flows', 'so4_mg_ratio'],
+};
+
+function ordenBase(grupos: DailyGroup[], stage: string): DailyGroup[] {
+  const orden = BASE_DAILY_ORDER[stage === 'liming' ? 'liming' : 'cascade'];
+  const lugar = (g: DailyGroup) => {
+    const i = orden.indexOf(g.origin === 'composition' ? COMPOSICION : g.origin === 'group' ? g.key : '');
+    return i === -1 ? orden.length : i;
+  };
+  // sort estable: dentro del mismo lugar se conserva el orden del backend.
+  return [...grupos].sort((a, b) => lugar(a) - lugar(b));
 }
 
 /** Pozas con alguna sal en el período (las que tienen sentido en el selector). */
@@ -197,4 +246,104 @@ export function dailyRows(d: DailySeries, g: DailySeriesGroup): Record<string, s
 /** El nombre de una serie que no es una poza, especie o sal sale del diccionario. */
 export function seriesUsesOwnName(s: DailySeriesItem): boolean {
   return Boolean(s.pond || s.species || s.salt);
+}
+
+// ---------------------------------------------------------------------------
+// Litio por etapa (Sankey) y recuperaciones (indicadores)
+// ---------------------------------------------------------------------------
+/** Li que entra y que sale de una etapa, tal cual los KPIs del reporte: en el período
+ * (t, dinámico) o en estado estacionario (t/d, estático). */
+export interface LiFlow { stage: Stage; li_in: number | null; li_out: number | null }
+
+export function liFlows(stages: StageReport[], dynamic: boolean): LiFlow[] {
+  const [kIn, kOut] = dynamic ? ['li_in_t', 'li_out_t'] : ['li_in_t_d', 'li_out_t_d'];
+  return stages.map((s) => ({ stage: s.stage, li_in: num(s.kpis[kIn]), li_out: num(s.kpis[kOut]) }));
+}
+
+/** Recuperación de Li de cada etapa (`li_recovery_pct`) y la del proceso
+ * (`process_li_recovery_pct`, solo si el reporte la trae). */
+export function recoveries(stages: StageReport[], processKpis: Record<string, number | null>):
+  { key: Stage | 'process'; value: number | null }[] {
+  const filas: { key: Stage | 'process'; value: number | null }[] =
+    stages.map((s) => ({ key: s.stage, value: num(s.kpis.li_recovery_pct) }));
+  if ('process_li_recovery_pct' in processKpis) {
+    filas.push({ key: 'process', value: num(processKpis.process_li_recovery_pct) });
+  }
+  return filas;
+}
+
+// ---------------------------------------------------------------------------
+// Mapa de calor poza × día
+// ---------------------------------------------------------------------------
+/** Una variable del mapa de calor: un grupo con una serie por poza, o la composición de
+ * una especie. */
+export interface HeatVariable { key: string; unit: string; ponds: string[]; values: (number | null)[][]; species?: string }
+
+export function heatVariables(d: DailySeries): HeatVariable[] {
+  const grupos: HeatVariable[] = d.groups
+    .filter((g) => g.series.length > 0 && g.series.every((s) => s.pond))
+    .map((g) => ({ key: g.key, unit: g.unit, ponds: g.series.map((s) => s.key), values: g.series.map((s) => s.values) }));
+  const comp: HeatVariable[] = (d.composition?.species ?? []).map((sp) => {
+    const ponds = Object.keys(d.composition!.ponds);
+    return { key: `composition_${sp}`, unit: '%p/p', species: sp, ponds,
+      values: ponds.map((p) => d.composition!.ponds[p][sp] ?? []) };
+  });
+  return [...grupos, ...comp].filter((v) => v.values.some((s) => s.some((x) => x !== null && x !== undefined)));
+}
+
+// ---------------------------------------------------------------------------
+// Comparación de ejecuciones
+// ---------------------------------------------------------------------------
+/** Una serie de la comparación: el grupo (o la composición de una especie) y la serie
+ * dentro de él (poza, especie, sal o corriente). */
+export interface SeriesRef { group: string; series: string }
+
+/** Los valores de una serie de una ejecución, alineados a `fechas` (null si ese día no
+ * está en su período). */
+export function seriesOnDates(d: DailySeries, ref: SeriesRef, fechas: string[]): (number | null)[] {
+  let valores: (number | null)[] | undefined;
+  if (ref.group.startsWith('composition_')) {
+    valores = d.composition?.ponds[ref.series]?.[ref.group.slice('composition_'.length)];
+  } else {
+    valores = d.groups.find((g) => g.key === ref.group)?.series.find((s) => s.key === ref.series)?.values;
+  }
+  const porFecha = new Map(d.dates.map((f, i) => [f, valores?.[i] ?? null]));
+  return fechas.map((f) => porFecha.get(f) ?? null);
+}
+
+/** Las fechas de varias ejecuciones, sin repetir y en orden. */
+export function unionDates(series: DailySeries[]): string[] {
+  return [...new Set(series.flatMap((s) => s.dates))].sort();
+}
+
+/** Columnas numéricas de la comparativa del estático (por escenario). */
+export function comparisonColumns(t: ReportTable): { key: string; unit: string }[] {
+  return t.columns.filter((c) => c.key !== 'id' && t.rows.some((r) => typeof r[c.key] === 'number'))
+    .map((c) => ({ key: c.key, unit: c.unit }));
+}
+
+/**
+ * Evaporación y sal precipitada (t/d) de cada escenario, de la última etapa de pozas que
+ * los trae (concentración si no está vacía, si no preconcentración), como el gráfico por
+ * día del estático de antes. Solo elige la columna: los valores salen de la comparativa.
+ */
+export function lastStageTotals(t: ReportTable): { rows: Row[]; formulas: Record<string, string> } {
+  const col = (key: string) => t.columns.find((c) => c.key === key);
+  const formulas: Record<string, string> = {};
+  const rows = t.rows.map((r) => {
+    const fila: Row = { id: String(r.id), evaporation_t_d: null, salt_precipitated_t_d: null };
+    for (const m of ['evaporation_t_d', 'salt_precipitated_t_d'] as const) {
+      for (const e of ['postliming', 'precon']) {
+        const v = num(r[`${e}_${m}`]);
+        if (v !== null) {
+          fila[m] = v;
+          const f = col(`${e}_${m}`)?.formula;
+          if (f) formulas[`${e}_${m}`] = f;
+          break;
+        }
+      }
+    }
+    return fila;
+  });
+  return { rows, formulas };
 }

@@ -729,6 +729,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/executions/{execution_id}/report.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Execution Report Pdf
+         * @description El mismo reporte en PDF, armado en el servidor: portada, KPIs, tablas, fórmulas
+         *     y, en el dinámico, los gráficos de las series diarias del período.
+         */
+        get: operations["get_execution_report_pdf_api_v1_executions__execution_id__report_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/executions/{execution_id}/series": {
         parameters: {
             query?: never;
@@ -802,6 +823,23 @@ export interface paths {
         };
         /** Get Chain Report Excel */
         get: operations["get_chain_report_excel_api_v1_executions__execution_id__chain_report_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/executions/{execution_id}/chain/report.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chain Report Pdf */
+        get: operations["get_chain_report_pdf_api_v1_executions__execution_id__chain_report_pdf_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3820,6 +3858,42 @@ export interface operations {
             };
         };
     };
+    get_execution_report_pdf_api_v1_executions__execution_id__report_pdf_get: {
+        parameters: {
+            query?: {
+                scale_factor?: number | null;
+                period_start?: string | null;
+                period_end?: string | null;
+                language?: "es" | "en";
+            };
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_execution_series_api_v1_executions__execution_id__series_get: {
         parameters: {
             query?: {
@@ -3922,6 +3996,42 @@ export interface operations {
         };
     };
     get_chain_report_excel_api_v1_executions__execution_id__chain_report_xlsx_get: {
+        parameters: {
+            query?: {
+                scale_factor?: number | null;
+                period_start?: string | null;
+                period_end?: string | null;
+                language?: "es" | "en";
+            };
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chain_report_pdf_api_v1_executions__execution_id__chain_report_pdf_get: {
         parameters: {
             query?: {
                 scale_factor?: number | null;

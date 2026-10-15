@@ -326,6 +326,11 @@ export function downloadReport(id: string, language: Language, q: ReportQuery = 
   return blob(`/executions/${id}/report.xlsx`, clean({ ...q, language }));
 }
 
+/** El reporte en PDF armado en el servidor (mismos parámetros que el Excel). */
+export function downloadReportPdf(id: string, language: Language, q: ReportQuery = {}): Promise<Blob> {
+  return blob(`/executions/${id}/report.pdf`, clean({ ...q, language }));
+}
+
 /** Series diarias del dinámico en el período. `allSpecies`: la composición de todas las
  * especies de la versión de AQSOL (si no, las 8 de siempre). */
 export async function getExecutionSeries(
@@ -351,6 +356,26 @@ export function downloadChainReport(
   id: string, language: Language, q: ReportQuery = {},
 ): Promise<Blob> {
   return blob(`/executions/${id}/chain/report.xlsx`, clean({ ...q, language }));
+}
+
+export function downloadChainReportPdf(
+  id: string, language: Language, q: ReportQuery = {},
+): Promise<Blob> {
+  return blob(`/executions/${id}/chain/report.pdf`, clean({ ...q, language }));
+}
+
+/** El error de una descarga: con `responseType: 'blob'` el cuerpo del error (JSON del
+ * backend) llega como Blob; se lee para mostrar su mensaje y no el genérico de axios. */
+export async function blobApiError(err: unknown): Promise<ApiError> {
+  const r = (err as { response?: { data?: unknown } })?.response;
+  if (r?.data instanceof Blob) {
+    try {
+      r.data = JSON.parse(await r.data.text());
+    } catch {
+      // No era JSON: queda el mensaje de axios.
+    }
+  }
+  return apiError(err);
 }
 
 // ---------------------------------------------------------------------------

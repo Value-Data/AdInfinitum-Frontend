@@ -26,7 +26,7 @@ describe('gráficos', () => {
   it('una serie larga no se raleia: el gráfico se ensancha para alcanzar cada día', () => {
     const g = chartLayout(1460, 'auto', 'day');
     expect(g.minWidth).toBeGreaterThanOrEqual(1460 * 3);
-    expect(g.interval).toBe('preserveStartEnd');
+    expect(g.interval).toBe('auto');
     expect(chartLayout(30, 'auto', 'day').minWidth).toBe(0);
   });
   it('el paso de días pone una marca cada N días y ensancha si son muchas', () => {
@@ -37,11 +37,11 @@ describe('gráficos', () => {
     expect(chartLayout(100, 30, 'day')).toMatchObject({ interval: 29, angled: false });
   });
   it('para imprimir, al ancho de la página', () => {
-    expect(chartLayout(1460, 10, 'date', true)).toMatchObject({ minWidth: 0, interval: 'preserveStartEnd' });
+    expect(chartLayout(1460, 10, 'date', true)).toMatchObject({ minWidth: 0, interval: 'auto' });
   });
   it('desde la 9ª serie, el color se repite con trazo cortado', () => {
-    expect(seriesStyle(0).strokeDasharray).toBeUndefined();
-    expect(seriesStyle(8)).toEqual({ stroke: seriesStyle(0).stroke, strokeDasharray: '6 3' });
+    expect(seriesStyle(0).dashed).toBe(false);
+    expect(seriesStyle(8)).toEqual({ color: seriesStyle(0).color, dashed: true });
   });
 });
 

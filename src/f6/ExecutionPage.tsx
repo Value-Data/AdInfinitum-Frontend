@@ -7,7 +7,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  apiError, cancelExecution, deleteExecutionV2, downloadChainReport, downloadReport, getChain, getChainReport,
+  apiError, blobApiError, cancelExecution, deleteExecutionV2, downloadChainReport, downloadChainReportPdf,
+  downloadReport, downloadReportPdf, getChain, getChainReport,
   getExecutionDetail, getExecutionLog, getExecutionStatusV2, getReport, isDynamicType,
   reuploadExecution, saveBlob,
   type ExecutionDetail, type ExecutionStatus, type ReportQuery,
@@ -24,6 +25,7 @@ import { PartialRunBanner, RunStatusBadge, dmy, executionTypeLabel, partialInfo 
 import ReportView from './ReportView';
 import { InventoryBadge } from './ConfigPanel';
 import { DailyCharts, ReportCharts } from './Charts';
+import CompareExecutions from './CompareExecutions';
 
 const ACTIVE = new Set(['pending', 'running']);
 const POLL_MS = 5000;
@@ -85,6 +87,7 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [escenario, setEscenario] = useState(0);
+  const [comparar, setComparar] = useState<string[]>([]);
 
   useEffect(() => {
     let vivo = true;
@@ -103,7 +106,22 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
         : await downloadReport(detail.id, lang, q);
       saveBlob(b, `reporte_${detail.id.slice(0, 8)}${verCadena ? '_cadena' : ''}.xlsx`);
     } catch (err) {
-      setError(apiError(err).message);
+      setError((await blobApiError(err)).message);
+    }
+  };
+  // El PDF que arma el servidor (mismos parámetros que el Excel); el de la vista de
+  // impresión queda como alternativa en el navegador.
+  const [pdfServidor, setPdfServidor] = useState(false);
+  const bajarPdf = async () => {
+    setPdfServidor(true);
+    try {
+      const b = verCadena ? await downloadChainReportPdf(detail.id, lang, q)
+        : await downloadReportPdf(detail.id, lang, q);
+      saveBlob(b, `reporte_${detail.id.slice(0, 8)}${verCadena ? '_cadena' : ''}.pdf`);
+    } catch (err) {
+      setError((await blobApiError(err)).message);
+    } finally {
+      setPdfServidor(false);
     }
   };
 
@@ -142,9 +160,13 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
         <div className="flex-1" />
         <DecimalsSelect />
         <button className="btn btn-outline" onClick={bajar}>{t('f6_download_xlsx')}</button>
+        <button className="btn btn-outline" onClick={bajarPdf} disabled={pdfServidor} data-testid="download-pdf-server">
+          {pdfServidor ? t('f6_pdf_server_busy') : t('f6_download_pdf_server')}
+        </button>
         <button className="btn btn-outline" data-testid="print-report"
                 onClick={() => window.open(`/executions/${detail.id}/print?${new URLSearchParams(
-                  Object.entries({ ...q, chain: verCadena ? '1' : '' })
+                  Object.entries({ ...q, chain: verCadena ? '1' : '',
+                    compare: verCadena ? '' : comparar.join(',') })
                     .filter(([, v]) => v !== null && v !== undefined && v !== '')
                     .map(([k, v]) => [k, String(v)])).toString()}`, '_blank')}>
           {t('f6_print_pdf')}
@@ -156,6 +178,7 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
         <>
           {dinamico && !verCadena && <DailyCharts executionId={detail.id} query={q} />}
           <ReportCharts report={report} scenario={escenario} />
+          {!verCadena && <CompareExecutions detail={detail} query={q} ids={comparar} onChange={setComparar} />}
           <ReportView report={report} scenario={escenario} onScenario={setEscenario} />
         </>
       )}

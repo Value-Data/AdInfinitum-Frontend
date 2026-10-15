@@ -10,13 +10,16 @@ import LoginPage from './pages/LoginPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectPage from './f6/ProjectPage';
 import SectionEditorPage from './f6/SectionEditorPage';
-import ExecutionPage from './f6/ExecutionPage';
-import PrintReportPage from './f6/PrintReportPage';
-import UsersPage from './pages/UsersPage';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import UsersPage from './pages/UsersPage';
 
 // Ejecuciones de la versión anterior (solo lectura): chunk aparte.
 const LegacyExecutionPage = lazy(() => import('./legacy/LegacyExecutionPage'));
+
+// Las páginas con gráficos (ECharts) se cargan al abrirlas: no pesan en el resto de la app.
+const ExecutionPage = lazy(() => import('./f6/ExecutionPage'));
+const PrintReportPage = lazy(() => import('./f6/PrintReportPage'));
+const cargando = <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>;
 
 export default function App() {
   return (
@@ -32,12 +35,12 @@ export default function App() {
           {/* Protected */}
           <Route element={<ProtectedRoute />}>
             {/* Reporte para imprimir o guardar como PDF: sin la barra lateral. */}
-            <Route path="/executions/:id/print" element={<PrintReportPage />} />
+            <Route path="/executions/:id/print" element={<Suspense fallback={cargando}><PrintReportPage /></Suspense>} />
             <Route element={<AppLayout />}>
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectPage />} />
               <Route path="/projects/:id/sections/:kind" element={<SectionEditorPage />} />
-              <Route path="/executions/:id" element={<ExecutionPage />} />
+              <Route path="/executions/:id" element={<Suspense fallback={cargando}><ExecutionPage /></Suspense>} />
               <Route
                 path="/legacy-executions/:id"
                 element={
