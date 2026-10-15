@@ -894,11 +894,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-<<<<<<< HEAD
     "/api/v1/projects/{project_id}/legacy-executions": {
-=======
-    "/api/v1/inventario/escenarios": {
->>>>>>> origin/f6-inventario
         parameters: {
             query?: never;
             header?: never;
@@ -906,19 +902,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-<<<<<<< HEAD
          * List Legacy Executions
          * @description Ejecuciones de la versión anterior del proyecto, de la más nueva a la más vieja.
-         *     Las borradas en la versión anterior no salen salvo con `include_deleted`.
+         *     Las borradas en la versión anterior no salen salvo con `include_deleted`, que
+         *     solo vale para el admin.
          */
         get: operations["list_legacy_executions_api_v1_projects__project_id__legacy_executions_get"];
-=======
-         * List Escenarios
-         * @description Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,
-         *     por qué: así la UI los muestra deshabilitados en vez de fallar al cargar.
-         */
-        get: operations["list_escenarios_api_v1_inventario_escenarios_get"];
->>>>>>> origin/f6-inventario
         put?: never;
         post?: never;
         delete?: never;
@@ -927,18 +916,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-<<<<<<< HEAD
     "/api/v1/legacy-executions/{execution_id}": {
-=======
-    "/api/v1/projects/{project_id}/inventario/load": {
->>>>>>> origin/f6-inventario
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-<<<<<<< HEAD
         /**
          * Get Legacy Execution
          * @description El resumen más `parameters_snapshot` y `results` como los guardaba la versión
@@ -987,7 +971,40 @@ export interface paths {
         get: operations["download_legacy_execution_file_api_v1_legacy_executions__execution_id__files__name__get"];
         put?: never;
         post?: never;
-=======
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inventario/escenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Escenarios
+         * @description Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,
+         *     por qué: así la UI los muestra deshabilitados en vez de fallar al cargar.
+         */
+        get: operations["list_escenarios_api_v1_inventario_escenarios_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/inventario/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         get?: never;
         put?: never;
         /**
@@ -999,7 +1016,6 @@ export interface paths {
          *     errores responde igual 200, con `saved = false` y el informe de cada sección.
          */
         post: operations["load_escenario_api_v1_projects__project_id__inventario_load_post"];
->>>>>>> origin/f6-inventario
         delete?: never;
         options?: never;
         head?: never;
@@ -4088,37 +4104,10 @@ export interface operations {
             };
         };
     };
-<<<<<<< HEAD
     list_legacy_executions_api_v1_projects__project_id__legacy_executions_get: {
         parameters: {
             query?: {
                 include_deleted?: boolean;
-=======
-    list_escenarios_api_v1_inventario_escenarios_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InventarioEscenario"][];
-                };
-            };
-        };
-    };
-    load_escenario_api_v1_projects__project_id__inventario_load_post: {
-        parameters: {
-            query?: {
-                language?: "es" | "en";
->>>>>>> origin/f6-inventario
             };
             header?: never;
             path: {
@@ -4126,15 +4115,7 @@ export interface operations {
             };
             cookie?: never;
         };
-<<<<<<< HEAD
         requestBody?: never;
-=======
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InventarioLoadRequest"];
-            };
-        };
->>>>>>> origin/f6-inventario
         responses: {
             /** @description Successful Response */
             200: {
@@ -4142,7 +4123,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-<<<<<<< HEAD
                     "application/json": components["schemas"]["LegacyExecutionSummary"][];
                 };
             };
@@ -4238,9 +4218,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-=======
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_escenarios_api_v1_inventario_escenarios_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventarioEscenario"][];
+                };
+            };
+        };
+    };
+    load_escenario_api_v1_projects__project_id__inventario_load_post: {
+        parameters: {
+            query?: {
+                language?: "es" | "en";
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InventarioLoadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": components["schemas"]["InventarioLoadResponse"];
->>>>>>> origin/f6-inventario
                 };
             };
             /** @description Validation Error */
