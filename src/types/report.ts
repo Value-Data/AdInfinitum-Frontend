@@ -23,7 +23,7 @@ export type ReportRow = { id: string; formula?: string | null } & Record<string,
 
 export interface ReportTable {
   key: string;
-  row_kind: 'pond' | 'stream' | 'salt' | 'species' | 'scenario' | 'kpi';
+  row_kind: 'pond' | 'stream' | 'salt' | 'species' | 'scenario' | 'kpi' | 'step';
   columns: ReportColumn[];
   rows: ReportRow[];
   /** Nombres internos de notas al pie. */

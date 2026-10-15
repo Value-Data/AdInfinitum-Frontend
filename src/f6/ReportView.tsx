@@ -49,10 +49,27 @@ export function rowHeader(table: ReportTable, id: string, label: LabelFn): strin
   return label(`result.${id}`, id);
 }
 
+/**
+ * Orden de columnas de la "Tabla 1" de antes (balance por poza): área, entrada,
+ * evaporación (t y mm/d), salida, fugas, impregnación (t y % de la salida), sal
+ * precipitada; lo demás después, como venga. En otras tablas por poza, el área primero.
+ */
+const ORDEN_TABLA_1 = ['area_m2', 'inflow_t', 'inflow_t_d_avg', 'inflow_t_d', 'evaporation_t', 'evaporation_t_d_avg',
+  'evaporation_t_d', 'evaporation_mm_d_avg', 'outflow_t', 'outflow_t_d_avg', 'outflow_t_d', 'leakage_t',
+  'leakage_t_d_avg', 'leakage_t_d', 'entrainment_t', 'entrainment_t_d_avg', 'entrainment_t_d',
+  'entrainment_of_outflow_pct', 'salt_precipitated_t', 'salt_precipitated_t_d_avg', 'salt_precipitated_t_d'];
+
+export function orderColumns(table: ReportTable): ReportColumn[] {
+  const columnas = table.columns.filter((c) => c.key !== 'id');
+  const orden = table.key === 'pond_balance' ? ORDEN_TABLA_1 : table.row_kind === 'pond' ? ['area_m2'] : [];
+  const lugar = (c: ReportColumn) => (orden.includes(c.key) ? orden.indexOf(c.key) : orden.length);
+  return [...columnas].sort((a, b) => lugar(a) - lugar(b));
+}
+
 export function ReportTableView({ table }: { table: ReportTable }) {
   useDecimals();
   const { label } = useLabels();
-  const columnas = table.columns.filter((c) => c.key !== 'id');
+  const columnas = orderColumns(table);
   return (
     <div className="card overflow-x-auto mb-4 pdf-block" data-testid={`report-table-${table.key}`}>
       <div className="px-3 py-2 text-sm font-semibold"
@@ -104,20 +121,45 @@ export function ReportTableView({ table }: { table: ReportTable }) {
   );
 }
 
+/** Las tarjetas que iban primero en el reporte de antes: recuperación, producción de Li y
+ * convergencia del AQSOL; después las demás, como las manda el backend. */
+export const KPI_FIRST = ['li_recovery_pct', 'li_out_t_y', 'aqsol_converged_pct'];
+/** Van dentro de la tarjeta de la convergencia del AQSOL, no solas. */
+const KPI_IN_AQSOL = ['n_aqsol_failed_days', 'n_aqsol_ok_days', 'n_aqsol_days'];
+
+export function orderKpis(kpis: Record<string, number | null>): [string, number | null][] {
+  const entradas = Object.entries(kpis).filter(([k]) => !KPI_IN_AQSOL.includes(k));
+  const lugar = (k: string) => (KPI_FIRST.includes(k) ? KPI_FIRST.indexOf(k) : KPI_FIRST.length);
+  return [...entradas].sort((a, b) => lugar(a[0]) - lugar(b[0]));
+}
+
 export function KpiCards({ kpis }: { kpis: Record<string, number | null> }) {
   const { label } = useLabels();
-  const entradas = Object.entries(kpis);
+  const t = useT();
+  const entradas = orderKpis(kpis);
   if (entradas.length === 0) return null;
+  // "AQSOL convergencia" como antes: "x %" y debajo los días (ok/total si el reporte los
+  // trae; si no, los que fallaron).
+  const aqsol = (v: number | null) => {
+    const ok = kpis.n_aqsol_ok_days;
+    const total = kpis.n_aqsol_days;
+    const fallas = kpis.n_aqsol_failed_days;
+    const sub = typeof ok === 'number' && typeof total === 'number' ? `(${formatCell(ok)}/${formatCell(total)} ${t('f6_days')})`
+      : typeof fallas === 'number' ? `(${fallas} ${t('dynres_days_failed')})` : null;
+    return { titulo: t('aqsol_convergence'), valor: v === null ? '–' : `${formatCell(v)} %`, sub };
+  };
   return (
     <div className="grid gap-3 mb-4 pdf-block" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
-      {entradas.map(([k, v]) => (
-        <div key={k} className="card p-3" data-testid={`kpi-${k}`}>
-          <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            {label(`result.${k}`, k)}
+      {entradas.map(([k, v]) => {
+        const c = k === 'aqsol_converged_pct' ? aqsol(v) : { titulo: label(`result.${k}`, k), valor: formatCell(v), sub: null };
+        return (
+          <div key={k} className="card p-3" data-testid={`kpi-${k}`}>
+            <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{c.titulo}</div>
+            <div className="text-lg font-semibold font-mono">{c.valor}</div>
+            {c.sub && <div className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>{c.sub}</div>}
           </div>
-          <div className="text-lg font-semibold font-mono">{formatCell(v)}</div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -159,13 +201,26 @@ export function RecoveryBars({ stages, processKpis }: {
   );
 }
 
+/** Tablas del detalle de la planta (el "Detalle planta de reactivos" de antes). */
+const LIMING_DETAIL = ['liming_steps', 'liming_step_composition', 'liming_reagent_detail'];
+
 function StageBlock({ stage }: { stage: StageReport }) {
   const t = useT();
+  const detalle = stage.tables.filter((tb) => LIMING_DETAIL.includes(tb.key));
+  const dias = detalle.flatMap((tb) => tb.rows).map((r) => r.n_days_averaged).find((v) => typeof v === 'number');
   return (
     <section className="mb-6">
       <h3 className="text-base font-semibold mb-2 pdf-block">{t(`f6_stage_${stage.stage}` as never)}</h3>
       <KpiCards kpis={stage.kpis} />
-      {stage.tables.map((t) => <ReportTableView key={t.key} table={t} />)}
+      {stage.tables.filter((tb) => !LIMING_DETAIL.includes(tb.key)).map((tb) => <ReportTableView key={tb.key} table={tb} />)}
+      {detalle.length > 0 && (
+        <>
+          <h4 className="text-sm font-semibold mb-2 pdf-block" data-testid="liming-detail">
+            {t('dynreport_reagent_detail_prefix')} {dias ?? '–'} {t('dynreport_reagent_detail_suffix')}
+          </h4>
+          {detalle.map((tb) => <ReportTableView key={tb.key} table={tb} />)}
+        </>
+      )}
     </section>
   );
 }
