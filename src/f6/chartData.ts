@@ -2,7 +2,9 @@
  * Datos y geometría de los gráficos, sin React: lo que se puede probar sin dibujar.
  * Los valores salen tal cual de lo que devuelve el backend; aquí solo se ordenan.
  */
-import type { ReportTable, StageReport } from '../types/report';
+import type {
+  DailySeries, DailySeriesGroup, DailySeriesItem, ReportTable, StageReport,
+} from '../types/report';
 
 /** Paleta categórica (mismo orden que `--chart-series-*` en tokens.css). Va en hex y no
  * como variable CSS porque el SVG exportado a PNG no resuelve variables. Validada con
@@ -145,4 +147,54 @@ export function climateRows(comparison: ReportTable): Row[] {
   return comparison.rows.map((r) => ({
     id: String(r.id), temperature_C: num(r.temperature_C), evaporation_mm_d: num(r.evaporation_mm_d),
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Series diarias del dinámico
+// ---------------------------------------------------------------------------
+/** Un grupo de series a dibujar: los del backend, la composición de cada especie elegida
+ * (una línea por poza) y las sales de la poza elegida (una línea por sal). */
+export interface DailyGroup extends DailySeriesGroup {
+  /** "group": el título sale de la clave; "composition"/"salts": de la clave + `subject`. */
+  origin: 'group' | 'composition' | 'salts';
+  subject?: string;
+}
+
+const conDatos = (g: DailySeriesGroup) =>
+  g.series.some((s) => s.values.some((v) => v !== null && v !== undefined));
+
+export function dailyGroups(d: DailySeries, especies: string[], pozaSales: string | null): DailyGroup[] {
+  const comp: DailyGroup[] = (d.composition?.species ?? []).filter((sp) => especies.includes(sp))
+    .map((sp) => ({
+      key: `composition_${sp}`, unit: '%p/p', origin: 'composition', subject: sp,
+      series: Object.entries(d.composition!.ponds).map(([pozo, c]) => ({ key: pozo, pond: true, values: c[sp] ?? [] })),
+    }));
+  const sales: DailyGroup[] = [];
+  const dePoza = pozaSales ? d.salts?.ponds[pozaSales] : undefined;
+  if (pozaSales && dePoza) {
+    sales.push({
+      key: `salts_${pozaSales}`, unit: 't/d', origin: 'salts', subject: pozaSales,
+      series: (d.salts!.salts).filter((s) => s in dePoza).map((s) => ({ key: s, salt: true, values: dePoza[s] })),
+    });
+  }
+  return [...d.groups.map((g) => ({ ...g, origin: 'group' as const })), ...comp, ...sales].filter(conDatos);
+}
+
+/** Pozas con alguna sal en el período (las que tienen sentido en el selector). */
+export function saltPonds(d: DailySeries): string[] {
+  return Object.entries(d.salts?.ponds ?? {}).filter(([, s]) => Object.keys(s).length > 0).map(([p]) => p);
+}
+
+/** Filas del gráfico: una por día (todas, sin ralear), con la fecha y el día de la corrida. */
+export function dailyRows(d: DailySeries, g: DailySeriesGroup): Record<string, string | number | null>[] {
+  return d.dates.map((fecha, i) => {
+    const fila: Record<string, string | number | null> = { date: fecha, day: d.days?.[i] ?? i + 1 };
+    g.series.forEach((s) => { fila[s.key] = s.values[i] ?? null; });
+    return fila;
+  });
+}
+
+/** El nombre de una serie que no es una poza, especie o sal sale del diccionario. */
+export function seriesUsesOwnName(s: DailySeriesItem): boolean {
+  return Boolean(s.pond || s.species || s.salt);
 }

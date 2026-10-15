@@ -10,36 +10,21 @@ import {
   Bar, BarChart, CartesianGrid, LabelList, Legend, Line, LineChart, ResponsiveContainer, Scatter, ScatterChart,
   Tooltip, XAxis, YAxis,
 } from 'recharts';
-import api from '../services/api';
-import { apiError, saveBlob, type ReportQuery } from '../services/apiV2';
-import type { Report, ReportTable, StageReport } from '../types/report';
+import { apiError, getExecutionSeries, saveBlob, type ReportQuery } from '../services/apiV2';
+import type { DailySeries, Report, ReportTable, StageReport } from '../types/report';
 import { isStaticReport } from '../types/report';
 import { useT } from '../i18n/LanguageContext';
 import { useLabels } from './labels';
 import { formatCell } from './ReportView';
 import { dmy } from './common';
 import {
-  DAY_STEPS, SERIES_COLORS, chartLayout, climateRows, hasPondCharts, liVsSpecies, pondRows, saltEvolution,
-  seriesStyle, type DayStep, type Row,
+  DAY_STEPS, SERIES_COLORS, chartLayout, climateRows, dailyGroups, dailyRows, hasPondCharts, liVsSpecies,
+  pondRows, saltEvolution, saltPonds, seriesStyle, seriesUsesOwnName, type DailyGroup, type DayStep, type Row,
 } from './chartData';
 
 export const GRID = '#e1e0d9';
 /** Lado máximo del lienzo del PNG (los navegadores no dibujan lienzos mucho mayores). */
 const MAX_CANVAS = 16000;
-
-interface SeriesGroup {
-  key: string;
-  unit: string;
-  series: { key: string; pond?: boolean; values: (number | null)[] }[];
-}
-interface DailySeries {
-  stage: string;
-  dates: string[];
-  product_pond: string | null;
-  groups: SeriesGroup[];
-  /** Composición de la salmuera de cada poza (%p/p), por especie. */
-  composition?: { species: string[]; ponds: Record<string, Record<string, (number | null)[]>> } | null;
-}
 
 /** Los gráficos de un panel (SVG de recharts, uno debajo del otro) como un PNG, con
  * fondo blanco y su título arriba. Un gráfico ancho (serie larga) baja la escala para
@@ -149,47 +134,37 @@ export function DailyCharts({ executionId, query, print = false }: {
   const [eje, setEje] = useState<'date' | 'day'>('date');
   const [paso, setPaso] = useState<DayStep>('auto');
   const [especies, setEspecies] = useState<string[]>(['Li+']);
+  const [todas, setTodas] = useState(false);
+  const [pozaSales, setPozaSales] = useState<string | null>(null);
   const caja = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let vivo = true;
-    const params = Object.fromEntries(Object.entries({
-      period_start: query.period_start, period_end: query.period_end,
-    }).filter(([, v]) => v));
-    api.get<DailySeries>(`/executions/${executionId}/series`, { params })
-      .then(({ data: d }) => { if (vivo) { setData(d); setError(null); } })
+    getExecutionSeries(executionId, query, todas)
+      .then((d) => { if (vivo) { setData(d); setError(null); } })
       .catch((err) => { if (vivo) setError(apiError(err).message); });
     return () => { vivo = false; };
-  }, [executionId, query.period_start, query.period_end]);
+  }, [executionId, query.period_start, query.period_end, todas]);
 
-  const grupos = useMemo(() => {
-    if (!data) return [];
-    // La composición se dibuja como un grupo más por especie elegida: una línea por poza.
-    const comp: (SeriesGroup & { title: string })[] = (data.composition?.species ?? [])
-      .filter((sp) => especies.includes(sp))
-      .map((sp) => ({
-        key: `composition_${sp}`, unit: '%p/p', title: `${t('f6_series_composition')} ${sp}`,
-        series: Object.entries(data.composition!.ponds).map(([pozo, c]) => ({
-          key: pozo, pond: true, values: c[sp] ?? [] })),
-      }));
-    const todos = [
-      ...data.groups.map((g) => ({ ...g, title: t(`f6_series_${g.key}` as never) })),
-      ...comp,
-    ];
-    // Todos los días: nada se ralea, el cursor tiene que poder llegar a cada uno.
-    return todos.filter((g) => g.series.some((s) => s.values.some((v) => v !== null && v !== undefined)))
-      .map((g) => ({
-        ...g,
-        rows: data.dates.map((fecha, i) => {
-          const fila: Record<string, string | number | null> = { date: fecha, day: i + 1 };
-          g.series.forEach((s) => { fila[s.key] = s.values[i] ?? null; });
-          return fila;
-        }),
-      }));
-  }, [data, especies, t]);
+  const pozasConSal = useMemo(() => (data ? saltPonds(data) : []), [data]);
+  // La poza de las sales: la elegida si sigue en la serie; si no, la de producto o la primera.
+  const poza = pozaSales && pozasConSal.includes(pozaSales) ? pozaSales
+    : (data?.product_pond && pozasConSal.includes(data.product_pond) ? data.product_pond : pozasConSal[0] ?? null);
+
+  const grupos = useMemo(() => (data ? dailyGroups(data, especies, poza) : [])
+    .map((g) => ({ ...g, rows: dailyRows(data!, g) })), [data, especies, poza]);
+
+  const titulo = (g: DailyGroup) => {
+    if (g.origin === 'composition') return `${t('f6_series_composition')} ${g.subject}`;
+    if (g.origin === 'salts') return `${t('f6_series_salts_pond')} · ${g.subject}`;
+    const k = `f6_series_${g.key}`;
+    const v = t(k as never);
+    return v && v !== k ? v : label(`result.${g.key}`, g.key);
+  };
 
   if (error) return <p className="text-sm mb-4" style={{ color: 'var(--color-danger)' }}>{error}</p>;
   if (!data) return null;
   const geo = chartLayout(data.dates.length, print ? 'auto' : paso, eje, print);
+  const listaEspecies = data.composition?.species ?? [];
   return (
     <section className="mb-6" data-testid="daily-charts" ref={caja}>
       <div className="flex flex-wrap items-center gap-3 mb-2">
@@ -205,10 +180,19 @@ export function DailyCharts({ executionId, query, print = false }: {
             ))}
           </select>
         </label>
-        {(data.composition?.species.length ?? 0) > 0 && (
+        {pozasConSal.length > 0 && (
+          <label className="flex gap-1 items-center text-xs no-print">
+            <span style={{ color: 'var(--color-text-secondary)' }}>{t('f6_series_salts_pond')}:</span>
+            <select className="input text-xs" style={{ width: 'auto' }} value={poza ?? ''} data-testid="salt-pond"
+                    onChange={(e) => setPozaSales(e.target.value)}>
+              {pozasConSal.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+        )}
+        {(listaEspecies.length > 0 || data.groups.some((g) => g.series.some((s) => s.species))) && (
           <div className="flex flex-wrap items-center gap-1 text-xs" data-testid="species-chips">
             <span>{t('f6_series_composition')}:</span>
-            {data.composition!.species.map((sp) => (
+            {listaEspecies.map((sp) => (
               <button key={sp} className={`btn btn-sm ${especies.includes(sp) ? 'btn-primary' : 'btn-outline'}`}
                       style={{ textTransform: 'none' }}
                       onClick={() => setEspecies(especies.includes(sp) ? especies.filter((x) => x !== sp)
@@ -216,6 +200,11 @@ export function DailyCharts({ executionId, query, print = false }: {
                 {sp}
               </button>
             ))}
+            <button className={`btn btn-sm ${todas ? 'btn-primary' : 'btn-outline'}`} data-testid="all-species"
+                    style={{ textTransform: 'none' }} title={t('f6_all_species_hint')}
+                    onClick={() => setTodas(!todas)}>
+              {todas ? t('f6_default_species') : t('f6_all_species')}
+            </button>
           </div>
         )}
         <div className="flex-1" />
@@ -231,7 +220,7 @@ export function DailyCharts({ executionId, query, print = false }: {
       )}
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
         {grupos.map((g) => (
-          <Panel key={g.key} title={`${g.title} (${g.unit})`} minWidth={geo.minWidth}>
+          <Panel key={g.key} title={g.unit ? `${titulo(g)} (${g.unit})` : titulo(g)} minWidth={geo.minWidth}>
             <LineChart data={g.rows} margin={{ top: 5, right: 16, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
               <XAxis dataKey={eje} tick={{ fontSize: 10 }} interval={geo.interval}
@@ -244,7 +233,7 @@ export function DailyCharts({ executionId, query, print = false }: {
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {g.series.map((s, i) => (
                 <Line key={s.key} type="monotone" dataKey={s.key} dot={false} connectNulls
-                      name={s.pond ? s.key : label(`result.${s.key}`, s.key)}
+                      name={seriesUsesOwnName(s) ? s.key : label(`result.${s.key}`, s.key)}
                       {...seriesStyle(i)}
                       strokeWidth={s.key === data.product_pond ? 2.5 : 1.5} isAnimationActive={false} />
               ))}

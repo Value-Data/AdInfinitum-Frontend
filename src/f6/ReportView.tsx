@@ -29,6 +29,17 @@ export function columnHeader(c: ReportColumn, label: LabelFn): string {
   return c.unit ? `${nombre} (${c.unit})` : nombre;
 }
 
+/**
+ * Una fórmula del backend (con nombres internos) para leer: cada nombre con su etiqueta
+ * del diccionario, y debajo la fórmula tal cual. Sin etiqueta, el nombre queda igual.
+ */
+export function formulaText(formula: string, label: LabelFn): string {
+  const legible = formula.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (tok) => label(`result.${tok}`, tok));
+  return legible === formula ? formula : `${legible}\n${formula}`;
+}
+
+const MARCA: React.CSSProperties = { color: 'var(--color-primary)', cursor: 'help', marginLeft: 4 };
+
 /** Lo que identifica la fila: las pozas y escenarios se llaman como los nombró el usuario. */
 export function rowHeader(table: ReportTable, id: string, label: LabelFn): string {
   if (table.row_kind === 'pond' || table.row_kind === 'scenario' || table.row_kind === 'salt') {
@@ -53,21 +64,34 @@ export function ReportTableView({ table }: { table: ReportTable }) {
             <th />
             {columnas.map((c) => (
               <th key={c.key} className="text-right whitespace-nowrap"
-                  style={c.kind === 'label' ? undefined : { textTransform: 'none' }}>
+                  style={c.kind === 'label' ? undefined : { textTransform: 'none' }}
+                  title={c.formula ? formulaText(c.formula, label) : undefined}>
                 {columnHeader(c, label)}
+                {c.formula && <span style={MARCA} aria-label={formulaText(c.formula, label)}>ⓘ</span>}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {table.rows.map((r, i) => (
-            <tr key={`${r.id}-${i}`}>
-              <td className="font-medium whitespace-nowrap">{rowHeader(table, String(r.id), label)}</td>
-              {columnas.map((c) => (
-                <td key={c.key} className="text-right font-mono">{formatCell(r[c.key])}</td>
-              ))}
-            </tr>
-          ))}
+          {table.rows.map((r, i) => {
+            const deFila = typeof r.formula === 'string' && r.formula ? formulaText(r.formula, label) : undefined;
+            return (
+              <tr key={`${r.id}-${i}`}>
+                <td className="font-medium whitespace-nowrap" title={deFila}>
+                  {rowHeader(table, String(r.id), label)}
+                  {deFila && <span style={MARCA} aria-label={deFila}>ⓘ</span>}
+                </td>
+                {columnas.map((c) => {
+                  // La celda derivada lleva la fórmula de su columna o, si no, la de su fila.
+                  const f = c.formula ? formulaText(c.formula, label) : (typeof r[c.key] === 'number' ? deFila : undefined);
+                  return (
+                    <td key={c.key} className="text-right font-mono" title={f}
+                        style={f ? { cursor: 'help' } : undefined}>{formatCell(r[c.key])}</td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {table.notes.length > 0 && (

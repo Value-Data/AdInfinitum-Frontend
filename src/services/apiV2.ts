@@ -7,7 +7,7 @@
  */
 import api from './api';
 import type { components } from '../types/api';
-import type { ChainSummary, LogTail, Report } from '../types/report';
+import type { ChainSummary, DailySeries, LogTail, Report } from '../types/report';
 
 export type Schemas = components['schemas'];
 export type ProjectV2 = Schemas['ProjectResponse'];
@@ -305,6 +305,17 @@ export async function getReport(id: string, q: ReportQuery = {}): Promise<Report
 
 export function downloadReport(id: string, language: Language, q: ReportQuery = {}): Promise<Blob> {
   return blob(`/executions/${id}/report.xlsx`, clean({ ...q, language }));
+}
+
+/** Series diarias del dinámico en el período. `allSpecies`: la composición de todas las
+ * especies de la versión de AQSOL (si no, las 8 de siempre). */
+export async function getExecutionSeries(
+  id: string, q: { period_start?: string | null; period_end?: string | null }, allSpecies = false,
+): Promise<DailySeries> {
+  const params = clean({ period_start: q.period_start, period_end: q.period_end });
+  if (allSpecies) params.species = 'all';
+  const { data } = await api.get<DailySeries>(`/executions/${id}/series`, { params });
+  return data;
 }
 
 export async function getChain(id: string): Promise<ChainSummary> {

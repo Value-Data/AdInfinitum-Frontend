@@ -204,6 +204,18 @@ export const F6_TRANSLATIONS = {
   f6_params_loading: { es: 'Cargando parámetros…', en: 'Loading parameters…' },
   f6_params_error: { es: 'No se pudieron leer los parámetros', en: 'The parameters could not be read' },
   f6_params_empty: { es: 'La ejecución no registra secciones.', en: 'The run records no sections.' },
+  f6_series_water_activity: { es: 'Actividad de agua por poza', en: 'Water activity per pond' },
+  f6_series_salts_pond: { es: 'Sales precipitadas de la poza', en: 'Salts precipitated in the pond' },
+  f6_series_outlet_composition_pct: { es: 'Composición de la salmuera tratada', en: 'Treated brine composition' },
+  f6_series_salt_cake_t_d: { es: 'Torta de sales (seca y húmeda)', en: 'Salt cake (dry and wet)' },
+  f6_series_liming_solids_t_d: { es: 'Sólidos de la planta por sal', en: 'Plant solids by salt' },
+  f6_series_so4_mg_ratio: { es: 'Razón SO4/Mg (masa)', en: 'SO4/Mg ratio (mass)' },
+  f6_all_species: { es: 'Todas las especies', en: 'All species' },
+  f6_default_species: { es: 'Solo las 8 de siempre', en: 'Only the usual 8' },
+  f6_all_species_hint: {
+    es: 'Pide la composición de todas las especies de la versión de AQSOL.',
+    en: 'Requests the composition of every species of the AQSOL version.',
+  },
   f6_day_step: { es: 'Marca cada (días)', en: 'Tick every (days)' },
   f6_day_step_auto: { es: 'Automático', en: 'Automatic' },
   f6_chart_scroll_hint: {
