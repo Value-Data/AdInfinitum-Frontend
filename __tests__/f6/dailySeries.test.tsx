@@ -31,13 +31,17 @@ const cascada: DailySeries = {
 describe('series diarias del dinámico', () => {
   it('grupos del backend (sin los vacíos), composición por especie elegida y sales de la poza elegida', () => {
     const g = dailyGroups(cascada, ['Na+'], 'P2');
-    // La composición es de los gráficos de antes: va primero; después los demás.
-    expect(g.map((x) => [x.key, x.origin])).toEqual([
+    // Li % de la salmuera y la composición son de los gráficos de antes: van primero.
+    expect(g.map((x) => [x.key, x.origin])).toEqual([['li_brine_pct', 'group'],
       ['composition_Na+', 'composition'], ['outflow_t_d', 'group'], ['water_activity', 'group'], ['salts_P2', 'salts']]);
-    const sales = g[3];
+    // "Li% por poza (por día)" = Li+ de la salmuera de cada poza (la composición), no la salida.
+    expect(g[0]).toMatchObject({ unit: '%', series: [{ key: 'P1', pond: true, values: [0.1, 0.2, 0.3] }] });
+    const sales = g[4];
     expect(sales.series.map((s) => s.key)).toEqual(['Gypsum', 'Halite']);
     expect(sales.series.every((s) => s.salt)).toBe(true);
-    expect(dailyGroups(cascada, [], null).map((x) => x.key)).toEqual(['outflow_t_d', 'water_activity']);
+    expect(dailyGroups(cascada, [], null).map((x) => x.key)).toEqual(['li_brine_pct', 'outflow_t_d', 'water_activity']);
+    // Li+ no se repite como composición.
+    expect(dailyGroups(cascada, ['Li+'], null).map((x) => x.key)).not.toContain('composition_Li+');
   });
 
   it('cascada: entrada por poza, altura, Li % y composición primero, en el orden del reporte de antes', () => {
@@ -48,7 +52,7 @@ describe('series diarias del dinámico', () => {
       { key: 'height_m', unit: 'm', series: [{ key: 'P1', pond: true, values: [1, 1, 1] }] },
     ] };
     expect(dailyGroups(d, ['Li+', 'Na+'], 'P2').map((x) => x.key)).toEqual(
-      ['inflow_t_d', 'height_m', 'li_pct', 'composition_Li+', 'composition_Na+', 'feed_flow', 'salts_P2']);
+      ['inflow_t_d', 'height_m', 'li_brine_pct', 'composition_Na+', 'feed_flow', 'li_pct', 'salts_P2']);
   });
 
   it('solo las pozas con sal van al selector', () => {

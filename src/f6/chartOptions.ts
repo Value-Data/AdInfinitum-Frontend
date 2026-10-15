@@ -8,6 +8,7 @@ import type {
   BarSeriesOption, EChartsOption, HeatmapSeriesOption, LineSeriesOption, SankeySeriesOption,
 } from 'echarts';
 import { formatCell } from './ReportView';
+import { fmtNum } from '../utils/numberFormat';
 import { seriesStyle } from './chartData';
 
 export const GRID = '#e1e0d9';
@@ -48,9 +49,11 @@ export const COMPARE_LINE_TYPES: LineType[] = ['solid', 'dashed', 'dotted', 'das
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-export function withUnit(v: unknown, unit: string): string {
+/** El valor con el formato de decimales de la app (o `digits` decimales, que el selector
+ * global de decimales igual puede cambiar) y su unidad. */
+export function withUnit(v: unknown, unit: string, digits?: number): string {
   const n = typeof v === 'number' ? v : Array.isArray(v) ? v[v.length - 1] : null;
-  const txt = formatCell(n);
+  const txt = digits === undefined ? formatCell(n) : (fmtNum(n, digits) || '–');
   return unit && txt !== '–' ? `${txt} ${unit}` : txt;
 }
 
@@ -63,13 +66,13 @@ interface AxisParam { marker?: string; seriesName?: string; value?: unknown; axi
 
 /** Tooltip de eje: el título (fecha, día o poza) y cada serie con su valor y unidad (una
  * para todas, o la de cada serie por su nombre en los gráficos de dos ejes). */
-export function axisTooltip(title: (v: string) => string, unit: string | ((serie: string) => string)) {
+export function axisTooltip(title: (v: string) => string, unit: string | ((serie: string) => string), digits?: number) {
   return (params: unknown): string => {
     const ps = (Array.isArray(params) ? params : [params]) as AxisParam[];
     if (ps.length === 0) return '';
     const cabeza = esc(title(String(ps[0].axisValue ?? ps[0].name ?? '')));
     const filas = ps.map((p) => `${p.marker ?? ''}${esc(p.seriesName ?? '')}`
-      + `<span style="float:right;margin-left:16px;font-weight:600">${esc(withUnit(p.value, typeof unit === 'string' ? unit : unit(p.seriesName ?? '')))}</span>`);
+      + `<span style="float:right;margin-left:16px;font-weight:600">${esc(withUnit(p.value, typeof unit === 'string' ? unit : unit(p.seriesName ?? ''), digits))}</span>`);
     return [`<b>${cabeza}</b>`, ...filas].join('<br/>');
   };
 }
@@ -116,14 +119,15 @@ function toolbox(o: Base, zoom: boolean): EChartsOption['toolbox'] {
   };
 }
 
-function valueAxis(name: string, unit: string, scale: boolean) {
+function valueAxis(name: string, unit: string, scale: boolean, digits?: number) {
   return {
     type: 'value' as const,
     scale,
     name: axisName(name, unit),
     nameLocation: 'end' as const,
     nameTextStyle: { fontSize: FUENTE, color: TEXTO, align: 'left' as const },
-    axisLabel: { fontSize: FUENTE, color: TEXTO, formatter: (v: number) => formatCell(v) },
+    axisLabel: { fontSize: FUENTE, color: TEXTO,
+      formatter: (v: number) => (digits === undefined ? formatCell(v) : fmtNum(v, digits)) },
     splitLine: { lineStyle: { color: GRID, type: 'dashed' as const } },
   };
 }
@@ -202,6 +206,8 @@ export function categoryOption(o: Base & {
   scale?: boolean;
   /** Sin leyenda (una sola serie, nombrada en el eje). */
   legend?: boolean;
+  /** Decimales fijos (p. ej. densidad en g/cm3, donde 2 no alcanzan). */
+  digits?: number;
 }): EChartsOption {
   const print = Boolean(o.print);
   const ley = o.legend === false ? { option: undefined, height: 0 } : legend(o.series.map((s) => s.name), print);
@@ -217,13 +223,13 @@ export function categoryOption(o: Base & {
     animation: false,
     legend: ley.option,
     toolbox: toolbox(o, false),
-    tooltip: { trigger: 'axis', confine: true, formatter: axisTooltip((v) => v, o.unit) },
+    tooltip: { trigger: 'axis', confine: true, formatter: axisTooltip((v) => v, o.unit, o.digits) },
     grid: grid(ley.height + 26, 8),
     xAxis: {
       type: 'category', data: o.categories, boundaryGap: o.kind === 'bars',
       axisLabel: { fontSize: FUENTE, color: TEXTO, interval: 0, hideOverlap: false },
     },
-    yAxis: valueAxis(o.yName, o.unit, Boolean(o.scale)),
+    yAxis: valueAxis(o.yName, o.unit, Boolean(o.scale), o.digits),
     series,
   };
 }

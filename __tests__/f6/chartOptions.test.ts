@@ -279,3 +279,13 @@ describe('ECharts acepta los gráficos nuevos', () => {
       right: { name: 'Na+', unit: 't/d', values: [2], color: '#111' } }))).toContain('Na+ (t/d)');
   });
 });
+
+describe('decimales fijos por gráfico', () => {
+  it('densidad en g/cm3 con 4 decimales en el eje y el tooltip', () => {
+    const o = categoryOption({ categories: ['P1'], series: [{ name: 'Densidad', values: [1.21346] }], kind: 'lines',
+      yName: 'Densidad', unit: 'g/cm3', digits: 4 }) as Any;
+    expect(o.yAxis.name).toBe('Densidad (g/cm3)');
+    expect(o.yAxis.axisLabel.formatter(1.21346)).toBe('1,2135');
+    expect(o.tooltip.formatter([{ seriesName: 'Densidad', value: 1.21346, axisValue: 'P1' }])).toContain('1,2135 g/cm3');
+  });
+});

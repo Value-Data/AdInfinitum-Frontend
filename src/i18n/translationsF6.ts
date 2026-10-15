@@ -233,7 +233,7 @@ export const F6_TRANSLATIONS = {
   f6_day: { es: 'Día', en: 'Day' },
   f6_series_brine_mass_t: { es: 'Masa de salmuera por poza', en: 'Brine mass per pond' },
   f6_series_evaporation_t_d: { es: 'Evaporación por poza', en: 'Evaporation per pond' },
-  f6_series_li_pct: { es: 'Li en la salida', en: 'Li in the outflow' },
+  f6_series_li_pct: { es: 'Li % de la salida de cada poza', en: 'Li % of each pond outflow' },
   f6_series_liming_flows: { es: 'Caudales de la planta', en: 'Plant flows' },
   f6_series_reagents: { es: 'Reactivos', en: 'Reagents' },
   f6_series_inflow_t_d: { es: 'Caudal de entrada a cada poza (entra)', en: 'Inflow to each pond (in)' },

@@ -141,7 +141,10 @@ describe('ReportCharts del estático', () => {
     expect(pos(/Li\+ vs Na\+ por poza/)).toBe(0);
     expect(pos(/Li\+ \(t\/d\) vs Densidad \(kg\/m3\) por poza/)).toBe(1);
     expect(pos(/Flujo y Actividad de Agua/)).toBe(2);
-    expect(pos(/Densidad por poza \(kg\/m3\)/)).toBe(3);
+    expect(pos(/Densidad por poza \(g\/cm3\)/)).toBe(3);
+    // Densidad en g/cm3 como el PDF de antes: kg/m3 ÷ 1000, eje con la unidad.
+    const dens = dibujados.find((d) => String((d.option.yAxis as { name?: string }).name ?? '').includes('g/cm3'));
+    expect((dens?.option.series as { data: number[] }[])[0].data).toEqual([1.2, 1.25]);
     expect(pos(/Sales precipitadas por poza \(t\/d\)/)).toBe(4);
     expect(pos(/Evolución por sal precipitada/)).toBe(5);
     expect(pos(/scenario_comparison/)).toBeGreaterThan(5);

@@ -16,7 +16,7 @@ import { useDecimals } from '../context/DecimalsContext';
 import { useLabels } from './labels';
 import { dmy } from './common';
 import {
-  DAY_STEPS, SERIES_COLORS, chartLayout, climateRows, dailyGroups, dailyRows, hasPondCharts, liVsSpecies,
+  DAY_STEPS, LI_BRINE, SERIES_COLORS, chartLayout, climateRows, dailyGroups, dailyRows, hasPondCharts, liVsSpecies,
   pondRows, saltEvolution, saltPonds, seriesUsesOwnName, type DailyGroup, type DayStep, type Row,
 } from './chartData';
 import {
@@ -61,7 +61,8 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
   const [error, setError] = useState<string | null>(null);
   const [eje, setEje] = useState<'date' | 'day'>('date');
   const [paso, setPaso] = useState<DayStep>('auto');
-  const [especies, setEspecies] = useState<string[]>(['Li+']);
+  // Li+ ya va en "Li% por poza" (de la salmuera); las demás especies, a elección.
+  const [especies, setEspecies] = useState<string[]>([]);
   const [todas, setTodas] = useState(false);
   const [pozaSales, setPozaSales] = useState<string | null>(null);
   const caja = useRef<HTMLDivElement>(null);
@@ -101,7 +102,7 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
           salt_cake_t_d: ['dynres_enc_total_salts', true], reagents: ['reagent_consumption', true],
           liming_flows: ['flow_out', true], so4_mg_ratio: ['so4_mg_ratio', true] }
       : { inflow_t_d: ['inflow_per_pond', false], height_m: ['height_per_pond', false],
-          li_pct: ['li_per_pond_per_day', true] };
+          [LI_BRINE]: ['li_per_pond_per_day', true] };
     const c = claves[g.key];
     return c ? { texto: t(c[0]), conUnidad: c[1] } : null;
   };
@@ -141,7 +142,7 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
 
   if (error) return <p className="text-sm mb-4" style={{ color: 'var(--color-danger)' }}>{error}</p>;
   if (!data) return null;
-  const listaEspecies = data.composition?.species ?? [];
+  const listaEspecies = (data.composition?.species ?? []).filter((sp) => data.stage === 'liming' || sp !== 'Li+');
   return (
     <section className="mb-6" data-testid="daily-charts" ref={caja}>
       <div className="flex flex-wrap items-center gap-3 mb-2">
@@ -254,17 +255,21 @@ const ESPECIE_COLOR: Record<string, string> = {
 };
 
 /** Una magnitud por poza (eje X = pozas de la cascada), con su eje Y nombrado con la unidad. */
-function PondLinePanel({ title, data, valueKey, name, unit, color }: {
+function PondLinePanel({ title, data, valueKey, name, unit, color, factor = 1, digits }: {
   title: string; data: Row[]; valueKey: string; name: string; unit: string; color: string;
+  /** Solo para mostrar en otra unidad (p. ej. kg/m3 → g/cm3 = ÷ 1000). */
+  factor?: number;
+  digits?: number;
 }) {
   const { decimals } = useDecimals();
   const tools = useTools();
   const print = useChartPrint();
   const option = useMemo(() => categoryOption({
-    categories: data.map((r) => r.id), kind: 'lines', yName: name, unit, scale: true, print, tools,
-    fileName: nombreArchivo(title), series: [{ name, values: valores(data, valueKey), color }],
+    categories: data.map((r) => r.id), kind: 'lines', yName: name, unit, scale: true, print, tools, digits,
+    fileName: nombreArchivo(title),
+    series: [{ name, values: valores(data, valueKey).map((v) => (v === null ? null : v * factor)), color }],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [data, valueKey, name, unit, print, decimals, title]);
+  }), [data, valueKey, name, unit, factor, digits, print, decimals, title]);
   return <Panel title={title}><EChart option={option} height={280} /></Panel>;
 }
 
@@ -330,8 +335,10 @@ function StagePondCharts({ stage, mode, prefix }: { stage: StageReport; mode: 'a
       <DualAxisPanel title={`${nombre} · ${t('charts_flow_water_activity')}`} data={pozas}
                      left={{ key: 'outflow_t_d', name: t('charts_outlet_flow'), unit: 't/d', color: SERIES_COLORS[0] }}
                      right={{ key: 'water_activity', name: t('props_water_activity'), unit: '', color: SERIES_COLORS[6] }} />
-      <PondLinePanel title={`${nombre} · ${t('charts_density_per_pond')} (kg/m3)`} data={pozas}
-                     valueKey="liquid_density" name={t('charts_density')} unit="kg/m3" color={SERIES_COLORS[7]} />
+      {/* En g/cm3, como el PDF de antes (el backend la da en kg/m3: ÷ 1000 solo para mostrar). */}
+      <PondLinePanel title={`${nombre} · ${t('charts_density_per_pond')} (g/cm3)`} data={pozas}
+                     valueKey="liquid_density" name={t('charts_density')} unit="g/cm3" factor={1 / 1000} digits={4}
+                     color={SERIES_COLORS[7]} />
       <PondLinePanel title={`${nombre} · ${t('charts_salts_per_pond')} (t/d)`} data={pozas}
                      valueKey="salt_precipitated_t_d" name={t('charts_precipitated_salts')} unit="t/d" color="#0891b2" />
       {sales.salts.length > 0 && (

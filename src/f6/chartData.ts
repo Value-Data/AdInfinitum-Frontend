@@ -163,8 +163,22 @@ export interface DailyGroup extends DailySeriesGroup {
 const conDatos = (g: DailySeriesGroup) =>
   g.series.some((s) => s.values.some((v) => v !== null && v !== undefined));
 
+/** Li % de la salmuera de cada poza (de la composición): el "Li% por poza (por día)" de
+ * antes. Va siempre en la cascada; por eso la composición de Li+ no se repite. */
+export const LI_BRINE = 'li_brine_pct';
+
+function liSalmuera(d: DailySeries): DailyGroup | null {
+  if (d.stage === 'liming' || !d.composition?.species.includes('Li+')) return null;
+  return {
+    key: LI_BRINE, unit: '%', origin: 'group',
+    series: Object.entries(d.composition.ponds).map(([pozo, c]) => ({ key: pozo, pond: true, values: c['Li+'] ?? [] })),
+  };
+}
+
 export function dailyGroups(d: DailySeries, especies: string[], pozaSales: string | null): DailyGroup[] {
-  const comp: DailyGroup[] = (d.composition?.species ?? []).filter((sp) => especies.includes(sp))
+  const li = liSalmuera(d);
+  const comp: DailyGroup[] = (d.composition?.species ?? [])
+    .filter((sp) => especies.includes(sp) && !(li && sp === 'Li+'))
     .map((sp) => ({
       key: `composition_${sp}`, unit: '%p/p', origin: 'composition', subject: sp,
       series: Object.entries(d.composition!.ponds).map(([pozo, c]) => ({ key: pozo, pond: true, values: c[sp] ?? [] })),
@@ -177,19 +191,20 @@ export function dailyGroups(d: DailySeries, especies: string[], pozaSales: strin
       series: (d.salts!.salts).filter((s) => s in dePoza).map((s) => ({ key: s, salt: true, values: dePoza[s] })),
     });
   }
-  const grupos = d.groups.map((g) => ({ ...g, origin: 'group' as const }));
+  const grupos: DailyGroup[] = [...(li ? [li] : []), ...d.groups.map((g) => ({ ...g, origin: 'group' as const }))];
   return ordenBase([...grupos, ...comp, ...sales], d.stage).filter(conDatos);
 }
 
 /**
  * Los gráficos del reporte de antes van primero y en su orden (`COMPOSICION` = la
  * composición de cada especie elegida); después los demás, como los manda el backend.
- * Cascada: entrada por poza, altura, Li %, composición. Planta: Li % de la salida,
+ * Cascada: entrada por poza, altura, Li % de la salmuera, composición (el Li % de la
+ * salida de cada poza queda entre los demás). Planta: Li % de la salida,
  * composición de la salida, sales (torta), reactivos, flujo de salida, razón SO4/Mg.
  */
 export const COMPOSICION = '*composition';
 export const BASE_DAILY_ORDER: Record<'cascade' | 'liming', string[]> = {
-  cascade: ['inflow_t_d', 'height_m', 'li_pct', COMPOSICION],
+  cascade: ['inflow_t_d', 'height_m', LI_BRINE, COMPOSICION],
   liming: ['li_pct', 'outlet_composition_pct', 'salt_cake_t_d', 'reagents', 'liming_flows', 'so4_mg_ratio'],
 };
 
