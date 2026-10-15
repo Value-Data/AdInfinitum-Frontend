@@ -147,3 +147,114 @@ export function cleanPayload(payload: Record<string, unknown>): Record<string, u
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Serie diaria como archivo CSV (importar y exportar)
+// ---------------------------------------------------------------------------
+export type SeriesCsvResult =
+  | { ok: true; n: number; start: string | null; values: Record<string, (number | null)[]>;
+      composition: (Record<string, number> | null)[] | null }
+  | { ok: false; error: 'empty' | 'no_columns' };
+
+/** Cómo se reconoce cada columna de la serie en un encabezado (también el CSV antiguo). */
+const PREFIJOS: Record<string, string[]> = {
+  evaporation_mm_d: ['evap'],
+  temperature_C: ['temp'],
+  brine_flow_t_d: ['brine_flow', 'flow', 'caudal'],
+};
+
+/** "2024-01-23", "23-01-2024" o "23/01/2024" → "2024-01-23"; otra cosa, null. */
+export function toIsoDate(text: string): string | null {
+  const s = text.trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+}
+
+/** Filas de un CSV: separador tabulador, `;` o `,` (el que traiga la primera línea). Con
+ * `,` como separador, el decimal tiene que ser punto; con `;` o tabulador, vale la coma. */
+export function parseCsvRows(text: string): string[][] {
+  const lineas = text.replace(/^﻿/, '').replace(/\r/g, '').split('\n').filter((l) => l.trim() !== '');
+  if (lineas.length === 0) return [];
+  const sep = lineas[0].includes('\t') ? '\t' : lineas[0].includes(';') ? ';' : ',';
+  return lineas.map((l) => l.split(sep).map((c) => c.trim().replace(/^"(.*)"$/, '$1')));
+}
+
+function normal(h: string): string {
+  return h.toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').trim();
+}
+
+/**
+ * Un CSV de la serie diaria. Con encabezado, las columnas se reconocen por nombre (la
+ * fecha, cada columna de la serie y cada especie); sin él, por posición: fecha
+ * (opcional), las columnas de la serie y las especies, como al pegar. La fecha de la
+ * primera fila, si viene, es el inicio de la serie.
+ */
+export function parseSeriesCsv(text: string, cols: string[], species: string[] = []): SeriesCsvResult {
+  const filas = parseCsvRows(text);
+  if (filas.length === 0) return { ok: false, error: 'empty' };
+  const esEncabezado = filas[0].some((c) => c !== '' && parseNumber(c) === null && toIsoDate(c) === null);
+  let idxFecha = -1;
+  const idx: Record<string, number> = {};
+  const idxEsp: Record<string, number> = {};
+  let datos = filas;
+  if (esEncabezado) {
+    const h = filas[0].map(normal);
+    idxFecha = h.findIndex((x) => x === 'date' || x === 'fecha');
+    cols.forEach((c) => {
+      const exacta = h.indexOf(c.toLowerCase());
+      idx[c] = exacta >= 0 ? exacta : h.findIndex((x) => (PREFIJOS[c] ?? []).some((p) => x.startsWith(p)));
+    });
+    const crudos = filas[0].map((x) => x.replace(/\s*\([^)]*\)\s*$/, '').trim());
+    species.forEach((sp) => { idxEsp[sp] = crudos.indexOf(sp); });
+    datos = filas.slice(1);
+    if (cols.every((c) => idx[c] < 0) && species.every((sp) => idxEsp[sp] < 0)) {
+      return { ok: false, error: 'no_columns' };
+    }
+  } else {
+    const conFecha = toIsoDate(filas[0][0]) !== null;
+    idxFecha = conFecha ? 0 : -1;
+    const base = conFecha ? 1 : 0;
+    cols.forEach((c, j) => { idx[c] = base + j; });
+    species.forEach((sp, j) => { idxEsp[sp] = base + cols.length + j; });
+  }
+  if (datos.length === 0) return { ok: false, error: 'empty' };
+  const celda = (f: string[], i: number) => (i >= 0 ? parseNumber(f[i] ?? '') : null);
+  const values: Record<string, (number | null)[]> = {};
+  cols.filter((c) => idx[c] >= 0).forEach((c) => { values[c] = datos.map((f) => celda(f, idx[c])); });
+  const conEspecies = species.some((sp) => idxEsp[sp] >= 0 && datos.some((f) => celda(f, idxEsp[sp]) !== null));
+  const composition = conEspecies ? datos.map((f) => {
+    const comp: Record<string, number> = {};
+    species.forEach((sp) => { const v = celda(f, idxEsp[sp]); if (v !== null) comp[sp] = v; });
+    return Object.keys(comp).length ? comp : null;
+  }) : null;
+  return {
+    ok: true, n: datos.length, values, composition,
+    start: idxFecha >= 0 ? toIsoDate(datos[0][idxFecha] ?? '') : null,
+  };
+}
+
+/**
+ * La serie como CSV para abrir en Excel y volver a importar: en español con `;` y coma
+ * decimal, en inglés con `,` y punto. Una fila por día: día, fecha, columnas, especies.
+ */
+export function serializeSeriesCsv(
+  start: string | null, cols: string[], values: Record<string, (number | null | undefined)[] | undefined>,
+  lang: 'es' | 'en', species: string[] = [], composition: (Record<string, unknown> | null)[] | null = null,
+): string {
+  const sep = lang === 'es' ? ';' : ',';
+  const numero = (v: unknown) => (typeof v === 'number' && Number.isFinite(v)
+    ? (lang === 'es' ? String(v).replace('.', ',') : String(v)) : '');
+  const conComp = Boolean(composition && species.length);
+  const n = Math.max(0, ...cols.map((c) => values[c]?.length ?? 0), composition?.length ?? 0);
+  const lineas = [['day', 'date', ...cols, ...(conComp ? species : [])].join(sep)];
+  for (let i = 0; i < n; i++) {
+    lineas.push([
+      String(i + 1), start ? addDays(start, i) : '',
+      ...cols.map((c) => numero(values[c]?.[i])),
+      ...(conComp ? species.map((sp) => numero(composition![i]?.[sp])) : []),
+    ].join(sep));
+  }
+  return `﻿${lineas.join('\r\n')}\r\n`;
+}

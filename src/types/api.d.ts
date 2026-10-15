@@ -186,70 +186,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/projects/{project_id}/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Config
-         * @description Get current project configuration (admin only).
-         */
-        get: operations["get_config_api_v1_projects__project_id__config_get"];
-        /**
-         * Update Config
-         * @description Update project configuration (admin only). Supports partial updates.
-         */
-        put: operations["update_config_api_v1_projects__project_id__config_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/{project_id}/config/defaults": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Config Defaults
-         * @description Get default configuration values from engine data files (admin only).
-         */
-        get: operations["get_config_defaults_api_v1_projects__project_id__config_defaults_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/aqsol/catalog/{version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Aqsol Catalog
-         * @description Especies y fases editables de una version de AQSOL.
-         */
-        get: operations["get_aqsol_catalog_api_v1_projects_aqsol_catalog__version__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/projects/inventario/escenarios": {
         parameters: {
             query?: never;
@@ -616,7 +552,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Execution
-         * @description Soft delete an execution (admin only).
+         * @description Borra una ejecución (admin; borrado lógico). No se borra una que está en la cola o
+         *     corriendo, ni una de la que otra se alimenta o continúa.
          */
         delete: operations["delete_execution_api_v1_executions__execution_id__delete"];
         options?: never;
@@ -749,26 +686,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/executions/{execution_id}/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Export Execution
-         * @description Download execution results as Excel file.
-         */
-        get: operations["export_execution_api_v1_executions__execution_id__export_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/executions/{execution_id}/report": {
         parameters: {
             query?: never;
@@ -804,6 +721,29 @@ export interface paths {
          * @description El mismo reporte en Excel, en el idioma pedido.
          */
         get: operations["get_execution_report_excel_api_v1_executions__execution_id__report_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/executions/{execution_id}/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Execution Series
+         * @description Series diarias del dinámico en el período, para los gráficos. `species`: especies
+         *     (separadas por coma) de la composición de la salmuera de cada poza, o `all` para
+         *     todas las de la versión de AQSOL. En una cascada trae además `salts`: las sales
+         *     precipitadas por poza y por sal (t/d).
+         */
+        get: operations["get_execution_series_api_v1_executions__execution_id__series_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1001,27 +941,6 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * AqsolCatalog
-         * @description Especies y fases editables de una version de AQSOL.
-         *
-         *     El frontend renderiza a partir de esto en vez de constantes hardcodeadas, para que
-         *     al cambiar de base aparezcan (o desaparezcan) filas sin tocar codigo.
-         */
-        AqsolCatalog: {
-            /** Version */
-            version: string;
-            /** Species */
-            species: string[];
-            /** Salts */
-            salts: Record<string, never>[];
-            /** N Aqueous */
-            n_aqueous: number;
-            /** N Salts */
-            n_salts: number;
-            /** Faktor Length */
-            faktor_length: number;
-        };
-        /**
          * AqsolCatalogOut
          * @description Especies de usuario y fases sólidas de una versión, en el orden del catálogo.
          */
@@ -1162,6 +1081,11 @@ export interface components {
             deactivated: number;
             /** Labels Created */
             labels_created: number;
+            /**
+             * Descriptions Filled
+             * @default 0
+             */
+            descriptions_filled: number;
         };
         /**
          * DosingStep
@@ -1848,142 +1772,6 @@ export interface components {
             ponds: components["schemas"]["StaticPond"][];
             /** Scenarios */
             scenarios: components["schemas"]["Scenario"][];
-        };
-        /**
-         * ProjectConfigDefaults
-         * @description Schema for default configuration values loaded from engine data.
-         */
-        ProjectConfigDefaults: {
-            /** Brine */
-            brine: {
-                [key: string]: number;
-            };
-            /** Brine Total Flow */
-            brine_total_flow: number;
-            /** Precon Ponds */
-            precon_ponds: Record<string, never>[];
-            /** Precon Faktor */
-            precon_faktor: number[];
-            /** Encalado Config */
-            encalado_config: Record<string, never>;
-            /** Encalado Faktor */
-            encalado_faktor: number[];
-            /** Postliming Ponds */
-            postliming_ponds: Record<string, never>[];
-            /** Postliming Faktor */
-            postliming_faktor: number[];
-            /** Daily Schedule */
-            daily_schedule: Record<string, never>[];
-            /** Salt Names */
-            salt_names: string[];
-            /** Precon Days Year */
-            precon_days_year: number;
-            /** Encalado Days Year */
-            encalado_days_year: number;
-            /** Postliming Days Year */
-            postliming_days_year: number;
-            /** Dynamic Config */
-            dynamic_config: Record<string, never>;
-            /**
-             * Inventario Config
-             * @default {}
-             */
-            inventario_config: Record<string, never>;
-        };
-        /**
-         * ProjectConfigResponse
-         * @description Schema for project configuration response.
-         */
-        ProjectConfigResponse: {
-            /** Id */
-            id: string;
-            /** Project Id */
-            project_id: string;
-            /** Brine */
-            brine?: {
-                [key: string]: number;
-            } | null;
-            /** Brine Total Flow */
-            brine_total_flow?: number | null;
-            /** Precon Ponds */
-            precon_ponds?: Record<string, never>[] | null;
-            /** Precon Faktor */
-            precon_faktor?: number[] | null;
-            /** Encalado Config */
-            encalado_config?: Record<string, never> | null;
-            /** Encalado Faktor */
-            encalado_faktor?: number[] | null;
-            /** Postliming Ponds */
-            postliming_ponds?: Record<string, never>[] | null;
-            /** Postliming Faktor */
-            postliming_faktor?: number[] | null;
-            /** Daily Schedule */
-            daily_schedule?: Record<string, never>[] | null;
-            /** Precon Days Year */
-            precon_days_year?: number | null;
-            /** Encalado Days Year */
-            encalado_days_year?: number | null;
-            /** Postliming Days Year */
-            postliming_days_year?: number | null;
-            /** Dynamic Config */
-            dynamic_config?: Record<string, never> | null;
-            /** Inventario Config */
-            inventario_config?: Record<string, never> | null;
-            /**
-             * Aqsol Version
-             * @default 027
-             */
-            aqsol_version: string;
-            /**
-             * Entrainment Basis
-             * @default wet
-             */
-            entrainment_basis: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * ProjectConfigUpdate
-         * @description Schema for updating project configuration. All fields optional for partial update.
-         */
-        ProjectConfigUpdate: {
-            /** Brine */
-            brine?: {
-                [key: string]: number;
-            } | null;
-            /** Brine Total Flow */
-            brine_total_flow?: number | null;
-            /** Precon Ponds */
-            precon_ponds?: Record<string, never>[] | null;
-            /** Precon Faktor */
-            precon_faktor?: number[] | null;
-            /** Encalado Config */
-            encalado_config?: Record<string, never> | null;
-            /** Encalado Faktor */
-            encalado_faktor?: number[] | null;
-            /** Postliming Ponds */
-            postliming_ponds?: Record<string, never>[] | null;
-            /** Postliming Faktor */
-            postliming_faktor?: number[] | null;
-            /** Daily Schedule */
-            daily_schedule?: Record<string, never>[] | null;
-            /** Precon Days Year */
-            precon_days_year?: number | null;
-            /** Encalado Days Year */
-            encalado_days_year?: number | null;
-            /** Postliming Days Year */
-            postliming_days_year?: number | null;
-            /** Dynamic Config */
-            dynamic_config?: Record<string, never> | null;
-            /** Inventario Config */
-            inventario_config?: Record<string, never> | null;
-            /** Aqsol Version */
-            aqsol_version?: ("027" | "066") | null;
-            /** Entrainment Basis */
-            entrainment_basis?: ("wet" | "dry") | null;
         };
         /**
          * ProjectCreate
@@ -2782,134 +2570,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_config_api_v1_projects__project_id__config_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectConfigResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_config_api_v1_projects__project_id__config_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProjectConfigUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectConfigResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_config_defaults_api_v1_projects__project_id__config_defaults_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectConfigDefaults"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_aqsol_catalog_api_v1_projects_aqsol_catalog__version__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                version: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AqsolCatalog"];
-                };
             };
             /** @description Validation Error */
             422: {
@@ -3799,37 +3459,6 @@ export interface operations {
             };
         };
     };
-    export_execution_api_v1_executions__execution_id__export_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                execution_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_execution_report_api_v1_executions__execution_id__report_get: {
         parameters: {
             query?: {
@@ -3872,6 +3501,41 @@ export interface operations {
                 period_start?: string | null;
                 period_end?: string | null;
                 language?: "es" | "en";
+            };
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_execution_series_api_v1_executions__execution_id__series_get: {
+        parameters: {
+            query?: {
+                period_start?: string | null;
+                species?: string | null;
+                period_end?: string | null;
             };
             header?: never;
             path: {
