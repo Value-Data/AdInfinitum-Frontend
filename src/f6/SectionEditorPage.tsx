@@ -112,10 +112,14 @@ function headerOf(e: DictionaryEntry): string {
   return e.unit ? `${e.label} (${e.unit})` : e.label;
 }
 
-function tooltipOf(e: DictionaryEntry): string {
+/** La ayuda del campo: qué es, la nota adicional, unidad y rango, y su nombre interno. */
+export function tooltipOf(e: DictionaryEntry): string {
+  const abre = e.min_inclusive === false ? '(' : '[';
+  const cierra = e.max_inclusive === false ? ')' : ']';
   const rango = e.min_value != null || e.max_value != null
-    ? ` [${e.min_value ?? '−∞'}, ${e.max_value ?? '∞'}]` : '';
-  return `${e.description ?? ''}${rango} — ${e.key}`.trim();
+    ? `${abre}${e.min_value ?? '−∞'}, ${e.max_value ?? '∞'}${cierra}` : '';
+  const unidad = [e.unit, rango].filter(Boolean).join(' ');
+  return [e.description, e.help_text, unidad, e.key].filter(Boolean).join('\n');
 }
 
 // ---------------------------------------------------------------------------
