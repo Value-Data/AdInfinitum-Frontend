@@ -1,22 +1,34 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import type { EChartsOption } from 'echarts';
 
 vi.mock('../../src/services/apiV2', async (orig) => ({
   ...(await orig<typeof import('../../src/services/apiV2')>()),
   getDictionaryLabels: vi.fn(async () => ({})),
 }));
+// jsdom no tiene lienzo: el gráfico se reemplaza por una caja que guarda sus opciones.
+const dibujados: { option: EChartsOption; group?: string; print: boolean }[] = [];
+vi.mock('../../src/f6/EChart', async (orig) => {
+  const real = await orig<typeof import('../../src/f6/EChart')>();
+  return {
+    ...real,
+    EChart: ({ option, group }: { option: EChartsOption; group?: string }) => {
+      dibujados.push({ option, group, print: real.useChartPrint() });
+      return <div data-testid="echart" />;
+    },
+  };
+});
 
 import {
   climateRows, hasPondCharts, liVsSpecies, pondRows, saltEvolution,
 } from '../../src/f6/chartData';
 import { ReportCharts } from '../../src/f6/Charts';
+import { ChartPrintContext } from '../../src/f6/EChart';
 import { __setLabelsCache } from '../../src/f6/labels';
 import type { ReportTable, StageReport, StaticReport } from '../../src/types/report';
 
 __setLabelsCache('es', {});
-// recharts mide con ResizeObserver, que jsdom no trae.
-globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as never;
 
 const L = (key: string, unit = '') => ({ key, unit, kind: 'label' as const });
 const S = (key: string, unit: string) => ({ key, unit, kind: 'species' as const });
@@ -103,8 +115,25 @@ describe('ReportCharts del estático', () => {
   });
 
   it('para imprimir, todos los escenarios', () => {
-    render(<ReportCharts report={rep} allScenarios />);
+    dibujados.length = 0;
+    render(<ChartPrintContext.Provider value><ReportCharts report={rep} allScenarios /></ChartPrintContext.Provider>);
     expect(screen.getByText(/Escenario E1 · Preconcentración · Li\+ vs Na\+/)).toBeTruthy();
     expect(screen.getByText(/Escenario E2 · Preconcentración · Li\+ vs Na\+/)).toBeTruthy();
+    // En la vista de impresión, todos en SVG y sin caja de herramientas.
+    expect(dibujados.length).toBeGreaterThan(0);
+    expect(dibujados.every((d) => d.print && d.option.toolbox === undefined)).toBe(true);
+  });
+
+  it('los gráficos apilados comparten cursor; barras o líneas a elección', () => {
+    dibujados.length = 0;
+    render(<ReportCharts report={rep} scenario={0} />);
+    const grupos = dibujados.map((d) => d.group).filter(Boolean);
+    expect(grupos).toContain('clima');
+    expect(grupos.filter((g) => g === 'Escenario E1 · precon-Na+')).toHaveLength(2);
+    const tipo = () => (dibujados[0].option.series as { type: string }[])[0].type;
+    expect(tipo()).toBe('bar');
+    dibujados.length = 0;
+    fireEvent.click(screen.getByRole('tab', { name: 'Líneas' }));
+    expect(tipo()).toBe('line');
   });
 });

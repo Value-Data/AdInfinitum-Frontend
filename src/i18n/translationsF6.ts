@@ -242,6 +242,16 @@ export const F6_TRANSLATIONS = {
   f6_series_density_kg_m3: { es: 'Densidad de la salmuera por poza', en: 'Brine density per pond' },
   f6_series_composition: { es: 'Composición', en: 'Composition' },
   f6_factors_all: { es: 'Todos', en: 'All' },
+  f6_chart_save_png: { es: 'Guardar como PNG', en: 'Save as PNG' },
+  f6_chart_zoom: { es: 'Acercar un tramo', en: 'Zoom into a range' },
+  f6_chart_zoom_back: { es: 'Deshacer acercamiento', en: 'Undo zoom' },
+  f6_chart_restore: { es: 'Restablecer', en: 'Reset' },
+  f6_chart_zoom_hint: {
+    es: 'Rueda del mouse o barra inferior para acercar un tramo de días.',
+    en: 'Mouse wheel or the bottom bar to zoom into a range of days.',
+  },
+  f6_download_pdf_server: { es: 'PDF (servidor)', en: 'PDF (server)' },
+  f6_pdf_server_busy: { es: 'Generando PDF en el servidor…', en: 'Generating PDF on the server…' },
   f6_factors_hint: {
     es: 'Sin cargar vale 1: solo se guardan los distintos de 1.',
     en: 'Unset means 1: only factors other than 1 are stored.',

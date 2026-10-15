@@ -5,7 +5,7 @@
  * diccionario (DECISIONES §14): el front no las traduce. `translations.ts` queda para los
  * textos de la interfaz.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getDictionaryLabels, type Language } from '../services/apiV2';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -39,7 +39,9 @@ export function useLabels(): { label: LabelFn; loaded: boolean } {
     load(lang).then((d) => { if (vivo) { setLabels(d); setLoaded(true); } });
     return () => { vivo = false; };
   }, [lang]);
-  return { label: makeLabel(labels), loaded };
+  // Estable entre renders: los gráficos la usan para decidir si rearman sus opciones.
+  const label = useMemo(() => makeLabel(labels), [labels]);
+  return { label, loaded };
 }
 
 /** Solo para tests. */

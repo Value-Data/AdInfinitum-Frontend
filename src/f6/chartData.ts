@@ -7,16 +7,15 @@ import type {
 } from '../types/report';
 
 /** Paleta categórica (mismo orden que `--chart-series-*` en tokens.css). Va en hex y no
- * como variable CSS porque el SVG exportado a PNG no resuelve variables. Validada con
+ * como variable CSS porque ECharts dibuja en un lienzo, que no resuelve variables. Validada con
  * el validador de dataviz (banda de luminosidad, croma, separación CVD). */
 export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300',
   '#6250d6', '#e34948'];
 
 /** Estilo de la serie i: las 8 primeras por color; desde la 9ª se repiten con trazo
  * cortado, para que nunca dos series se distingan solo por un color generado. */
-export function seriesStyle(i: number): { stroke: string; strokeDasharray?: string } {
-  const stroke = SERIES_COLORS[i % SERIES_COLORS.length];
-  return i >= SERIES_COLORS.length ? { stroke, strokeDasharray: '6 3' } : { stroke };
+export function seriesStyle(i: number): { color: string; dashed: boolean } {
+  return { color: SERIES_COLORS[i % SERIES_COLORS.length], dashed: i >= SERIES_COLORS.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -31,8 +30,9 @@ const PX_PER_TICK = 46;
 export const PX_PER_DAY = 3;
 
 export interface ChartLayout {
-  /** Prop `interval` del eje X de recharts. */
-  interval: number | 'preserveStartEnd';
+  /** `axisLabel.interval` del eje X de ECharts: una marca cada `interval + 1` días, o
+   * 'auto' (las que quepan sin pisarse). */
+  interval: number | 'auto';
   angled: boolean;
   /** Alto del eje X (las etiquetas en ángulo necesitan más). */
   axisHeight: number;
@@ -51,12 +51,12 @@ export function chartLayout(nDays: number, step: DayStep, mode: 'day' | 'date', 
   const marcas = paso ? Math.floor(Math.max(0, nDays - 1) / paso) + 1 : 0;
   const angled = mode === 'date' || marcas > 10;
   if (fit) {
-    return { interval: 'preserveStartEnd', angled: mode === 'date', axisHeight: mode === 'date' ? 62 : 30, minWidth: 0 };
+    return { interval: 'auto', angled: mode === 'date', axisHeight: mode === 'date' ? 62 : 30, minWidth: 0 };
   }
   const porMarcas = marcas > 16 ? Math.round(marcas * PX_PER_TICK) : 0;
   const porDias = nDays * PX_PER_DAY > 900 ? nDays * PX_PER_DAY : 0;
   return {
-    interval: paso ? paso - 1 : 'preserveStartEnd',
+    interval: paso ? paso - 1 : 'auto',
     angled,
     axisHeight: angled ? 62 : 30,
     minWidth: Math.max(porMarcas, porDias),
