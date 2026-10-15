@@ -3220,7 +3220,7 @@
           "inventario"
         ],
         "summary": "List Escenarios",
-        "description": "Escenarios de la entrega de Mariana que se pueden cargar en un proyecto.",
+        "description": "Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,\npor qué: así la UI los muestra deshabilitados en vez de fallar al cargar.",
         "operationId": "list_escenarios_api_v1_inventario_escenarios_get",
         "responses": {
           "200": {
@@ -5063,6 +5063,22 @@
           "con_inventario": {
             "type": "boolean",
             "title": "Con Inventario"
+          },
+          "loadable": {
+            "type": "boolean",
+            "title": "Loadable",
+            "default": true
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           }
         },
         "type": "object",

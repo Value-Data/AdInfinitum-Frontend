@@ -903,7 +903,8 @@ export interface paths {
         };
         /**
          * List Escenarios
-         * @description Escenarios de la entrega de Mariana que se pueden cargar en un proyecto.
+         * @description Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,
+         *     por qué: así la UI los muestra deshabilitados en vez de fallar al cargar.
          */
         get: operations["list_escenarios_api_v1_inventario_escenarios_get"];
         put?: never;
@@ -1543,6 +1544,13 @@ export interface components {
             start_date?: string | null;
             /** Con Inventario */
             con_inventario: boolean;
+            /**
+             * Loadable
+             * @default true
+             */
+            loadable: boolean;
+            /** Reason */
+            reason?: string | null;
         };
         /** InventarioLoadRequest */
         InventarioLoadRequest: {

@@ -278,5 +278,14 @@ export const F6_TRANSLATIONS = {
     es: 'El escenario tiene errores y no se guardó.',
     en: 'The scenario has errors and was not saved.',
   },
+  f6_inventory_not_loadable: { es: 'no se puede cargar', en: 'cannot be loaded' },
+  f6_inventory_other_version: {
+    es: 'Los escenarios de Mariana son de AQSOL 027: no se pueden cargar en un proyecto de otra versión',
+    en: 'Mariana scenarios are AQSOL 027: they cannot be loaded into a project of another version',
+  },
+  f6_inventory_prefilled: {
+    es: 'precargados en Ejecuciones → Lanzar (se pueden cambiar)',
+    en: 'prefilled in Executions → Launch (can be changed)',
+  },
   f6_inventory_launch_with: { es: 'Para correrlo como la entrega: inicio', en: 'To run it as delivered: start' },
 } as const;

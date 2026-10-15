@@ -12,7 +12,7 @@ import {
 } from '../services/apiV2';
 import { useT } from '../i18n/LanguageContext';
 import { executionTypeLabel, formatDateTime } from './common';
-import { InventoryBadge } from './ConfigPanel';
+import { InventoryBadge, type LaunchDefaults } from './ConfigPanel';
 
 const RUN_TAG = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
 
@@ -78,12 +78,14 @@ export function buildLaunchRequest(f: {
 }
 
 export default function LaunchPanel({
-  projectId, executions, sections, onLaunched,
+  projectId, executions, sections, onLaunched, defaults,
 }: {
   projectId: string;
   executions: ExecutionSummary[];
   sections: SectionState[];
   onLaunched: (e: ExecutionSummary) => void;
+  /** Fecha y días de un escenario de inventario recién cargado: precargan una precon dinámica. */
+  defaults?: LaunchDefaults | null;
 }) {
   const t = useT();
   const [tipo, setTipo] = useState<ExecutionTypeV2>('static_full');
@@ -105,6 +107,15 @@ export default function LaunchPanel({
       setEscenariosPrecon(filas.map((f) => f.label));
     }).catch(() => setEscenariosPrecon([]));
   }, [tipo, projectId]);
+  useEffect(() => {
+    if (!defaults) return;
+    setTipo('dynamic_precon');
+    setSource('');
+    setContinuar('');
+    setDia('');
+    setInicio(defaults.start_date);
+    setDias(defaults.n_days != null ? String(defaults.n_days) : '');
+  }, [defaults]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -194,13 +205,15 @@ export default function LaunchPanel({
         {tipo === 'dynamic_precon' && !continuar && (
           <label className="text-sm">
             <span className="label">{t('f6_start_date')}</span>
-            <input type="date" className="input" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+            <input type="date" className="input" value={inicio} data-testid="launch-start"
+                   onChange={(e) => setInicio(e.target.value)} />
           </label>
         )}
         {(tipo === 'dynamic_precon' || tipo === 'dynamic_postliming') && (
           <label className="text-sm">
             <span className="label">{t('f6_n_days')}{tipo === 'dynamic_postliming' ? ` (${t('f6_optional')})` : ''}</span>
-            <input type="number" className="input" min={1} value={dias} onChange={(e) => setDias(e.target.value)} />
+            <input type="number" className="input" min={1} value={dias} data-testid="launch-days"
+                   onChange={(e) => setDias(e.target.value)} />
           </label>
         )}
         {dinamico && (

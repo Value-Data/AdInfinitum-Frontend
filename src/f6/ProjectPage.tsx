@@ -12,7 +12,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import ConfigPanel from './ConfigPanel';
+import ConfigPanel, { type LaunchDefaults } from './ConfigPanel';
 import LaunchPanel from './LaunchPanel';
 import { RunStatusBadge, executionTypeLabel, formatDateTime } from './common';
 
@@ -79,6 +79,8 @@ export default function ProjectPage() {
   const [sections, setSections] = useState<SectionState[]>([]);
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Fecha y días del último escenario de inventario cargado: precargan Lanzar.
+  const [precarga, setPrecarga] = useState<LaunchDefaults | null>(null);
 
   const cargarSecciones = useCallback(() => {
     getSectionStates(id).then(setSections).catch(() => setSections([]));
@@ -129,12 +131,13 @@ export default function ProjectPage() {
         ))}
       </div>
       {tab === 'config' ? (
-        <ConfigPanel projectId={id} sections={sections} onChanged={cargarSecciones} />
+        <ConfigPanel projectId={id} sections={sections} onChanged={cargarSecciones}
+                     aqsolVersion={project.aqsol_version} onInventoryLoaded={setPrecarga} />
       ) : (
         <>
           {isAdmin && (
             <LaunchPanel projectId={id} executions={executions} sections={sections}
-                         onLaunched={() => cargarEjecuciones()} />
+                         defaults={precarga} onLaunched={() => cargarEjecuciones()} />
           )}
           <ExecutionsTable executions={executions} />
         </>
