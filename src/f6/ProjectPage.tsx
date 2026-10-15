@@ -3,7 +3,7 @@
  * ejecuciones (lanzar y seguir). Reemplaza a la pantalla de antes, que editaba la
  * config en JSON del proyecto.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   apiError, getProjectV2, getSectionStates, isV2Type, listExecutions,
@@ -15,6 +15,10 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import ConfigPanel from './ConfigPanel';
 import LaunchPanel from './LaunchPanel';
 import { RunStatusBadge, executionTypeLabel, formatDateTime } from './common';
+
+// Las pantallas de la versión anterior (y sus dependencias: xlsx, recharts) van en un
+// chunk aparte: solo se cargan al entrar a la pestaña de ejecuciones.
+const LegacyExecutionsSection = lazy(() => import('../legacy/LegacyExecutionsSection'));
 
 const POLL_MS = 5000;
 
@@ -137,6 +141,9 @@ export default function ProjectPage() {
                          onLaunched={() => cargarEjecuciones()} />
           )}
           <ExecutionsTable executions={executions} />
+          <Suspense fallback={null}>
+            <LegacyExecutionsSection projectId={id} projectName={project.name} isAdmin={isAdmin} />
+          </Suspense>
         </>
       )}
     </div>

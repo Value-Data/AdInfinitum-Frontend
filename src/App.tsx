@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { LanguageProvider } from './i18n/LanguageContext';
@@ -13,6 +13,10 @@ import SectionEditorPage from './f6/SectionEditorPage';
 import ExecutionPage from './f6/ExecutionPage';
 import PrintReportPage from './f6/PrintReportPage';
 import UsersPage from './pages/UsersPage';
+import LoadingSpinner from './components/common/LoadingSpinner';
+
+// Ejecuciones de la versión anterior (solo lectura): chunk aparte.
+const LegacyExecutionPage = lazy(() => import('./legacy/LegacyExecutionPage'));
 
 export default function App() {
   return (
@@ -34,6 +38,14 @@ export default function App() {
               <Route path="/projects/:id" element={<ProjectPage />} />
               <Route path="/projects/:id/sections/:kind" element={<SectionEditorPage />} />
               <Route path="/executions/:id" element={<ExecutionPage />} />
+              <Route
+                path="/legacy-executions/:id"
+                element={
+                  <Suspense fallback={<LoadingSpinner size="lg" />}>
+                    <LegacyExecutionPage />
+                  </Suspense>
+                }
+              />
               <Route
                 path="/users"
                 element={

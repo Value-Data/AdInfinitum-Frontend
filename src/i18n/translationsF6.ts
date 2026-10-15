@@ -246,4 +246,26 @@ export const F6_TRANSLATIONS = {
     es: 'Sin cargar vale 1: solo se guardan los distintos de 1.',
     en: 'Unset means 1: only factors other than 1 are stored.',
   },
+
+  // Ejecuciones de la versión anterior (solo lectura)
+  f6_status_interrupted: { es: 'Interrumpida', en: 'Interrupted' },
+  legacy_section_title: { es: 'Ejecuciones anteriores (versión antigua)', en: 'Previous executions (old version)' },
+  legacy_section_hint: {
+    es: 'Corridas hechas con la versión anterior de la aplicación. Se pueden consultar, no volver a correr.',
+    en: 'Runs made with the previous version of the application. They can be viewed, not re-run.',
+  },
+  legacy_banner: { es: 'Ejecución de la versión anterior — solo lectura', en: 'Execution from the previous version — read only' },
+  legacy_show_deleted: { es: 'Mostrar borradas', en: 'Show deleted' },
+  legacy_deleted: { es: 'Borrada', en: 'Deleted' },
+  legacy_interrupted_note: {
+    es: 'Quedó corriendo en la versión anterior y nunca terminó.',
+    en: 'It was left running in the previous version and never finished.',
+  },
+  legacy_no_results: { es: 'Esta ejecución no guardó resultados.', en: 'This execution saved no results.' },
+  legacy_not_found: { es: 'Ejecución no encontrada.', en: 'Execution not found.' },
+  legacy_created_by: { es: 'Creada por', en: 'Created by' },
+  legacy_started: { es: 'Inicio', en: 'Started' },
+  legacy_completed: { es: 'Término', en: 'Finished' },
+  legacy_error: { es: 'Error', en: 'Error' },
+  legacy_source: { es: 'Alimentada por', en: 'Fed by' },
 } as const;
