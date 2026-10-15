@@ -28,8 +28,11 @@ export const BLOCK_TIMEOUT_MS = 30000;
 
 type Html2Canvas = (typeof import('html2canvas'))['default'];
 
+/** Lo que html2canvas no copia. Los gráficos de ECharts tampoco: se capturan aparte
+ * (`panelCanvas`) y copiar sus miles de nodos SVG para cada bloque congela la página. */
 function ignorar(el: Element): boolean {
-  return el.classList?.contains('no-print') || el.hasAttribute?.('data-pdf-ignore');
+  return el.classList?.contains('no-print') || el.hasAttribute?.('data-pdf-ignore')
+    || el.classList?.contains('echarts-for-react');
 }
 
 function nombreBloque(el: HTMLElement): string {
