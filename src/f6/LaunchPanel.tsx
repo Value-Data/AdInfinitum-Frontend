@@ -12,6 +12,7 @@ import {
 } from '../services/apiV2';
 import { useT } from '../i18n/LanguageContext';
 import { executionTypeLabel, formatDateTime } from './common';
+import { InventoryBadge, type LaunchDefaults } from './ConfigPanel';
 
 const RUN_TAG = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
 
@@ -42,6 +43,18 @@ export function needsSource(tipo: ExecutionTypeV2, secciones: SectionState[]): b
   return false;
 }
 
+/**
+ * Pozas que arrancan cargadas con el estado inicial de la sección (el "modo con
+ * inventario"): solo en las cascadas del dinámico y si no se continúa otra ejecución
+ * (una continuación toma el estado de esa ejecución). 0 = arrancan vacías.
+ */
+export function inventoryPonds(tipo: ExecutionTypeV2, continuar: string, secciones: SectionState[]): number {
+  if (continuar) return 0;
+  const kind = tipo === 'dynamic_precon' ? 'precon_dynamic'
+    : tipo === 'dynamic_postliming' ? 'postliming_dynamic' : null;
+  return kind ? (secciones.find((s) => s.kind === kind)?.n_initial_states ?? 0) : 0;
+}
+
 export function buildLaunchRequest(f: {
   tipo: ExecutionTypeV2; runTag: string; source: string; continuar: string; dia: string;
   inicio: string; dias: string; reintento: boolean; timeout: string; escenarios?: number[];
@@ -65,12 +78,14 @@ export function buildLaunchRequest(f: {
 }
 
 export default function LaunchPanel({
-  projectId, executions, sections, onLaunched,
+  projectId, executions, sections, onLaunched, defaults,
 }: {
   projectId: string;
   executions: ExecutionSummary[];
   sections: SectionState[];
   onLaunched: (e: ExecutionSummary) => void;
+  /** Fecha y días de un escenario de inventario recién cargado: precargan una precon dinámica. */
+  defaults?: LaunchDefaults | null;
 }) {
   const t = useT();
   const [tipo, setTipo] = useState<ExecutionTypeV2>('static_full');
@@ -92,6 +107,15 @@ export default function LaunchPanel({
       setEscenariosPrecon(filas.map((f) => f.label));
     }).catch(() => setEscenariosPrecon([]));
   }, [tipo, projectId]);
+  useEffect(() => {
+    if (!defaults) return;
+    setTipo('dynamic_precon');
+    setSource('');
+    setContinuar('');
+    setDia('');
+    setInicio(defaults.start_date);
+    setDias(defaults.n_days != null ? String(defaults.n_days) : '');
+  }, [defaults]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,6 +124,7 @@ export default function LaunchPanel({
   const elegidaContinuacion = continuaciones.find((e) => e.id === continuar);
   const pideOrigen = needsSource(tipo, sections);
   const dinamico = isDynamicType(tipo);
+  const conInventario = inventoryPonds(tipo, continuar, sections);
 
   const cambiarTipo = (nuevo: ExecutionTypeV2) => {
     setTipo(nuevo);
@@ -127,7 +152,10 @@ export default function LaunchPanel({
 
   return (
     <div className="card p-4 mb-4">
-      <h3 className="text-base font-semibold mb-3">{t('f6_launch_title')}</h3>
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <h3 className="text-base font-semibold">{t('f6_launch_title')}</h3>
+        {conInventario > 0 && <InventoryBadge n={conInventario} />}
+      </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
         <label className="text-sm">
           <span className="label">{t('f6_execution_type')}</span>
@@ -177,13 +205,15 @@ export default function LaunchPanel({
         {tipo === 'dynamic_precon' && !continuar && (
           <label className="text-sm">
             <span className="label">{t('f6_start_date')}</span>
-            <input type="date" className="input" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+            <input type="date" className="input" value={inicio} data-testid="launch-start"
+                   onChange={(e) => setInicio(e.target.value)} />
           </label>
         )}
         {(tipo === 'dynamic_precon' || tipo === 'dynamic_postliming') && (
           <label className="text-sm">
             <span className="label">{t('f6_n_days')}{tipo === 'dynamic_postliming' ? ` (${t('f6_optional')})` : ''}</span>
-            <input type="number" className="input" min={1} value={dias} onChange={(e) => setDias(e.target.value)} />
+            <input type="number" className="input" min={1} value={dias} data-testid="launch-days"
+                   onChange={(e) => setDias(e.target.value)} />
           </label>
         )}
         {dinamico && (

@@ -228,6 +228,25 @@ export async function importConfiguration(
 }
 
 // ---------------------------------------------------------------------------
+// Escenarios de inventario (Mariana): una precon dinámica con las pozas cargadas
+// ---------------------------------------------------------------------------
+export type InventarioEscenario = Schemas['InventarioEscenario'];
+export type InventarioLoadResult = Schemas['InventarioLoadResponse'];
+
+export async function listInventarioEscenarios(): Promise<InventarioEscenario[]> {
+  const { data } = await api.get<InventarioEscenario[]>('/inventario/escenarios');
+  return data;
+}
+
+export async function loadInventarioEscenario(
+  projectId: string, escenario: string, language: Language,
+): Promise<InventarioLoadResult> {
+  const { data } = await api.post<InventarioLoadResult>(
+    `/projects/${projectId}/inventario/load`, { escenario }, { params: { language } });
+  return data;
+}
+
+// ---------------------------------------------------------------------------
 // Ejecuciones
 // ---------------------------------------------------------------------------
 export interface LaunchRequest {
@@ -307,13 +326,20 @@ export function downloadReport(id: string, language: Language, q: ReportQuery = 
   return blob(`/executions/${id}/report.xlsx`, clean({ ...q, language }));
 }
 
-/** Series diarias del dinámico en el período. `allSpecies`: la composición de todas las
- * especies de la versión de AQSOL (si no, las 8 de siempre). */
+/** El reporte en PDF armado en el servidor (mismos parámetros que el Excel). */
+export function downloadReportPdf(id: string, language: Language, q: ReportQuery = {}): Promise<Blob> {
+  return blob(`/executions/${id}/report.pdf`, clean({ ...q, language }));
+}
+
+/** Series diarias del dinámico en el período. `species`: `true` para la composición de
+ * todas las especies de la versión de AQSOL, una lista para esas, o `false` para las 8
+ * de siempre. */
 export async function getExecutionSeries(
-  id: string, q: { period_start?: string | null; period_end?: string | null }, allSpecies = false,
+  id: string, q: { period_start?: string | null; period_end?: string | null }, species: boolean | string[] = false,
 ): Promise<DailySeries> {
   const params = clean({ period_start: q.period_start, period_end: q.period_end });
-  if (allSpecies) params.species = 'all';
+  if (species === true) params.species = 'all';
+  else if (Array.isArray(species) && species.length > 0) params.species = species.join(',');
   const { data } = await api.get<DailySeries>(`/executions/${id}/series`, { params });
   return data;
 }
@@ -332,6 +358,26 @@ export function downloadChainReport(
   id: string, language: Language, q: ReportQuery = {},
 ): Promise<Blob> {
   return blob(`/executions/${id}/chain/report.xlsx`, clean({ ...q, language }));
+}
+
+export function downloadChainReportPdf(
+  id: string, language: Language, q: ReportQuery = {},
+): Promise<Blob> {
+  return blob(`/executions/${id}/chain/report.pdf`, clean({ ...q, language }));
+}
+
+/** El error de una descarga: con `responseType: 'blob'` el cuerpo del error (JSON del
+ * backend) llega como Blob; se lee para mostrar su mensaje y no el genérico de axios. */
+export async function blobApiError(err: unknown): Promise<ApiError> {
+  const r = (err as { response?: { data?: unknown } })?.response;
+  if (r?.data instanceof Blob) {
+    try {
+      r.data = JSON.parse(await r.data.text());
+    } catch {
+      // No era JSON: queda el mensaje de axios.
+    }
+  }
+  return apiError(err);
 }
 
 // ---------------------------------------------------------------------------

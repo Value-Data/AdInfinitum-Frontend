@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { Project } from '../types';
 import { getProjects } from '../services/api';
 import { createProjectV2, deleteProjectV2, apiError } from '../services/apiV2';
 import Modal from '../components/common/Modal';
-import StatusBadge from '../components/common/StatusBadge';
+import { RunStatusBadge } from '../f6/common';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import WelcomeOverlay from '../components/common/WelcomeOverlay';
 import { useT } from '../i18n/LanguageContext';
@@ -15,6 +15,8 @@ export default function ProjectsPage() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [menu, setMenu] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
@@ -56,8 +58,10 @@ export default function ProjectsPage() {
     try {
       const data = await getProjects();
       setProjects(data);
-    } catch {
-      // handled by interceptor
+      setLoadError(null);
+    } catch (err) {
+      // Antes se tragaba el error y se veía "No tiene proyectos asignados".
+      setLoadError(apiError(err).message);
     } finally {
       setLoading(false);
     }
@@ -118,7 +122,16 @@ export default function ProjectsPage() {
         )}
       </div>
 
-      {projects.length === 0 ? (
+      {loadError ? (
+        <div className="card p-6 text-center" role="alert">
+          <p className="mb-3" style={{ color: 'var(--color-danger)' }}>
+            {t('f7_projects_load_error')}: {loadError}
+          </p>
+          <button className="btn btn-outline" onClick={() => { setLoading(true); fetchProjects(); }}>
+            {t('f7_retry')}
+          </button>
+        </div>
+      ) : projects.length === 0 ? (
         <div className="card p-8 text-center">
           <p style={{ color: 'var(--color-text-secondary)' }}>
             {isAdmin
@@ -136,6 +149,7 @@ export default function ProjectsPage() {
                 <th>AQSOL</th>
                 <th>{t('projects_created')}</th>
                 <th>{t('projects_last_execution')}</th>
+                {!isAdmin && <th>{t('f7_my_role')}</th>}
                 {isAdmin && <th />}
               </tr>
             </thead>
@@ -146,8 +160,12 @@ export default function ProjectsPage() {
                   className="cursor-pointer"
                   onClick={() => navigate(`/projects/${project.id}`)}
                 >
-                  <td className="font-medium" style={{ color: 'var(--color-primary)' }}>
-                    {project.name}
+                  <td className="font-medium">
+                    {/* Enlace de verdad: se llega con Tab y se abre en otra pestaña. */}
+                    <Link to={`/projects/${project.id}`} style={{ color: 'var(--color-primary)' }}
+                          onClick={(e) => e.stopPropagation()}>
+                      {project.name}
+                    </Link>
                   </td>
                   <td className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     {project.description || '-'}
@@ -156,20 +174,31 @@ export default function ProjectsPage() {
                   <td className="font-mono text-sm">{formatDate(project.created_at)}</td>
                   <td>
                     {project.last_execution_status ? (
-                      <StatusBadge status={project.last_execution_status} />
+                      <RunStatusBadge status={project.last_execution_status} />
                     ) : (
                       <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                         {t('projects_no_executions')}
                       </span>
                     )}
                   </td>
+                  {!isAdmin && (
+                    <td className="text-sm">
+                      {project.my_role ? t(`f7_role_${project.my_role}` as never) : '–'}
+                    </td>
+                  )}
                   {isAdmin && (
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <button className="btn btn-outline btn-sm" data-testid={`delete-project-${project.id}`}
-                              style={aBorrar === project.id ? { borderColor: '#dc2626', color: '#b91c1c' } : undefined}
-                              onClick={() => borrar(project.id)}>
-                        {aBorrar === project.id ? t('f6_delete_confirm') : t('delete')}
-                      </button>
+                    <td onClick={(e) => e.stopPropagation()} className="text-right whitespace-nowrap">
+                      {/* Borrar no compite con los datos: va en el menú de la fila. */}
+                      {menu === project.id ? (
+                        <button className="btn btn-outline btn-sm" data-testid={`delete-project-${project.id}`}
+                                style={{ borderColor: '#dc2626', color: '#b91c1c' }}
+                                onClick={() => borrar(project.id)}>
+                          {aBorrar === project.id ? t('f6_delete_confirm') : t('delete')}
+                        </button>
+                      ) : (
+                        <button className="btn btn-outline btn-sm" aria-label={`${t('f7_row_actions')} ${project.name}`}
+                                onClick={() => { setMenu(project.id); setABorrar(null); }}>⋯</button>
+                      )}
                     </td>
                   )}
                 </tr>

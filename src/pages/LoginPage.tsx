@@ -4,6 +4,20 @@ import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useT } from '../i18n/LanguageContext';
 
+// Solo en desarrollo local: VITE_DEV_LOGINS="usuario:clave,usuario:clave" en .env.local
+// (ignorado por git). En el build de producción import.meta.env.DEV es false y esto no
+// existe.
+function devLogins(): { username: string; password: string }[] {
+  if (!import.meta.env.DEV) return [];
+  const host = window.location.hostname;
+  if (host !== 'localhost' && host !== '127.0.0.1') return [];
+  const raw = (import.meta.env.VITE_DEV_LOGINS as string | undefined) ?? '';
+  return raw.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+    const i = x.indexOf(':');
+    return { username: x.slice(0, i), password: x.slice(i + 1) };
+  }).filter((x) => x.username && x.password);
+}
+
 export default function LoginPage() {
   const t = useT();
   const { login } = useAuth();
@@ -12,6 +26,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const cuentasDev = devLogins();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +123,26 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        {cuentasDev.length > 0 && (
+          <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+            <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+              Desarrollo local: autollenar
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {cuentasDev.map((c) => (
+                <button
+                  key={c.username}
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => { setUsername(c.username); setPassword(c.password); setError(null); }}
+                >
+                  {c.username}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

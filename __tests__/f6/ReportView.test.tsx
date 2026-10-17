@@ -7,7 +7,7 @@ vi.mock('../../src/services/apiV2', async (orig) => ({
   getDictionaryLabels: vi.fn(async () => ({})),
 }));
 
-import ReportView, { formatCell } from '../../src/f6/ReportView';
+import ReportView, { KpiCards, formatCell, orderColumns, orderKpis } from '../../src/f6/ReportView';
 import { __setLabelsCache } from '../../src/f6/labels';
 import type { DynamicReport, StaticReport } from '../../src/types/report';
 
@@ -73,5 +73,53 @@ describe('formato de celdas', () => {
     expect(formatCell(true)).toBe('✓');
     expect(formatCell('Pz1')).toBe('Pz1');
     expect(formatCell(0.01234)).toMatch(/0[,.]0123/);
+  });
+});
+
+describe('lo del reporte de antes', () => {
+  it('tarjetas: recuperación, producción y "AQSOL convergencia" primero; los días van en la tarjeta', () => {
+    const kpis = { li_in_t: 10, li_out_t: 8, li_out_t_y: 97, li_recovery_pct: 80, aqsol_converged_pct: 98.5,
+      n_aqsol_failed_days: 3 };
+    expect(orderKpis(kpis).map(([k]) => k)).toEqual(['li_recovery_pct', 'li_out_t_y', 'aqsol_converged_pct',
+      'li_in_t', 'li_out_t']);
+    render(<KpiCards kpis={kpis} />);
+    const c = screen.getByTestId('kpi-aqsol_converged_pct');
+    expect(within(c).getByText('AQSOL convergencia')).toBeTruthy();
+    expect(within(c).getByText('98,50 %')).toBeTruthy();
+    expect(within(c).getByText('(3 días fallaron)')).toBeTruthy();
+    expect(screen.queryByTestId('kpi-n_aqsol_failed_days')).toBeNull();
+  });
+
+  it('Tabla 1 por poza en el orden de antes: área, entrada, evaporación (t y mm/d), salida, fugas, impregnación (t y %), sal', () => {
+    const L = (key: string, unit = 't') => ({ key, unit, kind: 'label' as const });
+    const t = { key: 'pond_balance', row_kind: 'pond' as const, notes: [], rows: [],
+      columns: ['inflow_t', 'inflow_t_d_avg', 'outflow_t', 'outflow_t_d_avg', 'evaporation_t', 'evaporation_t_d_avg',
+        'leakage_t', 'leakage_t_d_avg', 'entrainment_t', 'entrainment_t_d_avg', 'salt_precipitated_t',
+        'salt_precipitated_t_d_avg', 'dilution_water_t', 'dilution_water_t_d_avg', 'area_m2', 'evaporation_mm_d_avg',
+        'entrainment_of_outflow_pct'].map((k) => L(k)) };
+    expect(orderColumns(t).map((c) => c.key)).toEqual(['area_m2', 'inflow_t', 'inflow_t_d_avg', 'evaporation_t',
+      'evaporation_t_d_avg', 'evaporation_mm_d_avg', 'outflow_t', 'outflow_t_d_avg', 'leakage_t', 'leakage_t_d_avg',
+      'entrainment_t', 'entrainment_t_d_avg', 'entrainment_of_outflow_pct', 'salt_precipitated_t',
+      'salt_precipitated_t_d_avg', 'dilution_water_t', 'dilution_water_t_d_avg']);
+    const props = { ...t, key: 'pond_properties', columns: [L('liquid_density', 'kg/m3'), L('area_m2', 'm2')] };
+    expect(orderColumns(props).map((c) => c.key)).toEqual(['area_m2', 'liquid_density']);
+  });
+
+  it('planta: el detalle de antes al final de la etapa, con los días promediados', () => {
+    const tb = (key: string) => ({ key, row_kind: 'step' as const, notes: [],
+      columns: [{ key: 'n_days_averaged', unit: 'd', kind: 'label' as const }],
+      rows: [{ id: 'step_1', n_days_averaged: 120 }] });
+    const rep: DynamicReport = {
+      kind: 'dynamic', period: { start: '2024-01-01', end: '2024-12-31', n_days: 366 },
+      params: { period_start: null, period_end: null, scale_factor: 1, days_year: {} },
+      stages: [{ stage: 'liming', kpis: {}, tables: [tb('liming_streams'), tb('liming_steps'),
+        tb('liming_step_composition'), tb('liming_reagent_detail'), tb('liming_solids')] }],
+      process_kpis: {}, global_balance: null,
+    };
+    render(<ReportView report={rep} />);
+    expect(screen.getByTestId('liming-detail').textContent).toContain('Detalle planta de reactivos (promedio de 120 días con feed)');
+    const orden = Array.from(document.querySelectorAll('[data-testid^="report-table-"]')).map((e) => e.getAttribute('data-testid'));
+    expect(orden).toEqual(['report-table-liming_streams', 'report-table-liming_solids', 'report-table-liming_steps',
+      'report-table-liming_step_composition', 'report-table-liming_reagent_detail']);
   });
 });

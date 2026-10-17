@@ -3,8 +3,10 @@
  * ejecuciones (lanzar y seguir). Reemplaza a la pantalla de antes, que editaba la
  * config en JSON del proyecto.
  */
-import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Pager, pageSlice } from './paging';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { usePageTrail } from '../components/common/trail';
 import {
   apiError, getProjectV2, getSectionStates, isV2Type, listExecutions,
   type ExecutionSummary, type ProjectV2, type SectionState,
@@ -12,9 +14,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import ConfigPanel from './ConfigPanel';
+import ConfigPanel, { type LaunchDefaults } from './ConfigPanel';
 import LaunchPanel from './LaunchPanel';
+import { canDo } from './executionTabs';
 import { RunStatusBadge, executionTypeLabel, formatDateTime } from './common';
+
+// Las pantallas de la versión anterior (y sus dependencias: xlsx, recharts) van en un
+// chunk aparte: solo se cargan al entrar a la pestaña de ejecuciones.
+const LegacyExecutionsSection = lazy(() => import('../legacy/LegacyExecutionsSection'));
 
 const POLL_MS = 5000;
 
@@ -30,6 +37,8 @@ export function duration(desde?: string | null, hasta?: string | null, ahora = D
 
 function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
   const t = useT();
+  const [pagina, setPagina] = useState(0);
+  const hoja = pageSlice(executions, pagina);
   if (executions.length === 0) {
     return <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_no_executions')}</p>;
   }
@@ -47,7 +56,7 @@ function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
           </tr>
         </thead>
         <tbody>
-          {executions.map((e) => (
+          {hoja.items.map((e) => (
             <tr key={e.id}>
               <td>
                 <Link to={`/executions/${e.id}`} style={{ color: 'var(--color-primary)' }}>
@@ -65,6 +74,7 @@ function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
           ))}
         </tbody>
       </table>
+      <Pager {...hoja} total={executions.length} onPage={setPagina} />
     </div>
   );
 }
@@ -74,18 +84,24 @@ export default function ProjectPage() {
   const t = useT();
   const { isAdmin } = useAuth();
   const [search, setSearch] = useSearchParams();
-  const tab = search.get('tab') === 'executions' ? 'executions' : 'config';
+  const tabPedida = search.get('tab') === 'executions' ? 'executions' : 'config';
   const [project, setProject] = useState<ProjectV2 | null>(null);
   const [sections, setSections] = useState<SectionState[]>([]);
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Fecha y días del último escenario de inventario cargado: precargan Lanzar.
+  const [precarga, setPrecarga] = useState<LaunchDefaults | null>(null);
 
+  // Antes un error dejaba la lista vacía en silencio; ahora se dice.
+  const [errorSecciones, setErrorSecciones] = useState<string | null>(null);
+  const [errorEjecuciones, setErrorEjecuciones] = useState<string | null>(null);
   const cargarSecciones = useCallback(() => {
-    getSectionStates(id).then(setSections).catch(() => setSections([]));
+    getSectionStates(id).then((l) => { setSections(l); setErrorSecciones(null); })
+      .catch((err) => { setSections([]); setErrorSecciones(apiError(err).message); });
   }, [id]);
   const cargarEjecuciones = useCallback(() => {
-    listExecutions(id).then((l) => setExecutions(l.filter((e) => isV2Type(e.execution_type))))
-      .catch(() => setExecutions([]));
+    listExecutions(id).then((l) => { setExecutions(l.filter((e) => isV2Type(e.execution_type))); setErrorEjecuciones(null); })
+      .catch((err) => { setExecutions([]); setErrorEjecuciones(apiError(err).message); });
   }, [id]);
 
   useEffect(() => {
@@ -93,6 +109,10 @@ export default function ProjectPage() {
     cargarSecciones();
     cargarEjecuciones();
   }, [id, cargarSecciones, cargarEjecuciones]);
+
+  const loc = useLocation();
+  usePageTrail(loc.pathname, [{ label: t('topbar_projects'), path: '/projects' },
+    project ? { label: project.name } : null]);
 
   const activas = executions.some((e) => e.status === 'pending' || e.status === 'running');
   useEffect(() => {
@@ -104,6 +124,12 @@ export default function ProjectPage() {
   if (error) return <div className="card p-4">{error}</div>;
   if (!project) return <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>;
 
+  // Lo que el rol permite: el cliente no ve la configuración y abre directo en las ejecuciones.
+  const caps = project.capabilities ?? [];
+  const conConfig = canDo(caps, 'view_config');
+  const tab = conConfig ? tabPedida : 'executions';
+  const tabs = conConfig ? (['config', 'executions'] as const) : (['executions'] as const);
+
   return (
     <div>
       <div className="mb-4">
@@ -114,12 +140,19 @@ export default function ProjectPage() {
         <span className="text-sm font-mono" style={{ color: 'var(--color-text-secondary)' }}>
           AQSOL {project.aqsol_version}
         </span>
+        {project.my_role && (
+          <span className="text-xs px-2 py-0.5 rounded-full" data-testid="my-role"
+                style={{ background: 'var(--color-bg)', color: 'var(--color-text-secondary)' }}
+                title={t('f7_my_role')}>
+            {t(`f7_role_${project.my_role}` as never)}
+          </span>
+        )}
       </div>
       {project.description && (
         <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{project.description}</p>
       )}
       <div className="flex gap-2 mb-4 border-b" style={{ borderColor: 'var(--color-border)' }} role="tablist">
-        {(['config', 'executions'] as const).map((k) => (
+        {tabs.map((k) => (
           <button key={k} role="tab" aria-selected={tab === k}
                   className={`px-3 py-2 text-sm ${tab === k ? 'font-semibold' : ''}`}
                   style={tab === k ? { borderBottom: '2px solid var(--color-primary)' } : undefined}
@@ -128,15 +161,28 @@ export default function ProjectPage() {
           </button>
         ))}
       </div>
+      {(tab === 'config' ? errorSecciones : errorEjecuciones) && (
+        <div className="card p-3 mb-4 text-sm flex items-center gap-3" role="alert" style={{ borderColor: '#fca5a5' }}>
+          <span style={{ color: 'var(--color-danger)' }}>{tab === 'config' ? errorSecciones : errorEjecuciones}</span>
+          <button className="btn btn-outline btn-sm"
+                  onClick={tab === 'config' ? cargarSecciones : cargarEjecuciones}>{t('f7_retry')}</button>
+        </div>
+      )}
       {tab === 'config' ? (
-        <ConfigPanel projectId={id} sections={sections} onChanged={cargarSecciones} />
+        <ConfigPanel projectId={id} sections={sections} onChanged={cargarSecciones}
+                     aqsolVersion={project.aqsol_version} onInventoryLoaded={setPrecarga} />
       ) : (
         <>
-          {isAdmin && (
+          {canDo(caps, 'launch') && (
             <LaunchPanel projectId={id} executions={executions} sections={sections}
-                         onLaunched={() => cargarEjecuciones()} />
+                         defaults={precarga} onLaunched={() => cargarEjecuciones()} />
           )}
           <ExecutionsTable executions={executions} />
+          {canDo(caps, 'view_legacy') && (
+            <Suspense fallback={null}>
+              <LegacyExecutionsSection projectId={id} projectName={project.name} isAdmin={isAdmin} />
+            </Suspense>
+          )}
         </>
       )}
     </div>

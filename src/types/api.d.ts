@@ -122,9 +122,30 @@ export interface paths {
         get: operations["get_user_projects_api_v1_users__user_id__projects_get"];
         /**
          * Set User Projects
-         * @description Replace the user's project access list (admin only).
+         * @description Replace the user's project access list (admin only). Acepta `accesses` (con
+         *     rol) o `project_ids` (la forma de antes).
          */
         put: operations["set_user_projects_api_v1_users__user_id__projects_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/accesses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get User Accesses
+         * @description Los accesos del usuario con el rol en cada proyecto (admin only).
+         */
+        get: operations["get_user_accesses_api_v1_users__user_id__accesses_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -167,7 +188,7 @@ export interface paths {
         };
         /**
          * Get Project
-         * @description Get project detail.
+         * @description Get project detail, con el rol y las capacidades del usuario.
          */
         get: operations["get_project_api_v1_projects__project_id__get"];
         /**
@@ -521,13 +542,14 @@ export interface paths {
         };
         /**
          * List Executions
-         * @description List executions for a project.
+         * @description Las ejecuciones del proyecto. El que no ve los logs (el `cliente`) recibe solo
+         *     las completadas: las demás para él no existen.
          */
         get: operations["list_executions_api_v1_projects__project_id__executions_get"];
         put?: never;
         /**
          * Launch Execution
-         * @description Lanza una ejecución (solo admin): valida, crea el registro y encola el job.
+         * @description Lanza una ejecución (operador o admin): valida, crea el registro y encola el job.
          */
         post: operations["launch_execution_api_v1_projects__project_id__executions_post"];
         delete?: never;
@@ -546,6 +568,8 @@ export interface paths {
         /**
          * Get Execution Detail
          * @description Get execution detail with results.
+         *
+         *     El que no ve la configuración (el `cliente`) recibe `parameters_snapshot` en None.
          */
         get: operations["get_execution_detail_api_v1_executions__execution_id__get"];
         put?: never;
@@ -592,7 +616,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel Execution
-         * @description Cancela una ejecución de la cola (solo admin).
+         * @description Cancela una ejecución de la cola (operador o admin).
          *
          *     Si todavía nadie la tomó queda cancelada en el momento. Si ya está corriendo se
          *     deja el pedido: la precon y el postliming del dinámico cortan al terminar el día en
@@ -729,6 +753,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/executions/{execution_id}/report.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Execution Report Pdf
+         * @description El mismo reporte en PDF, armado en el servidor: portada, KPIs, tablas, fórmulas
+         *     y, en el dinámico, los gráficos de las series diarias del período.
+         */
+        get: operations["get_execution_report_pdf_api_v1_executions__execution_id__report_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/executions/{execution_id}/series": {
         parameters: {
             query?: never;
@@ -802,6 +847,23 @@ export interface paths {
         };
         /** Get Chain Report Excel */
         get: operations["get_chain_report_excel_api_v1_executions__execution_id__chain_report_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/executions/{execution_id}/chain/report.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chain Report Pdf */
+        get: operations["get_chain_report_pdf_api_v1_executions__execution_id__chain_report_pdf_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -894,6 +956,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/legacy-executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Legacy Executions
+         * @description Ejecuciones de la versión anterior del proyecto, de la más nueva a la más vieja.
+         *     Las borradas en la versión anterior no salen salvo con `include_deleted`, que
+         *     solo vale para el admin.
+         */
+        get: operations["list_legacy_executions_api_v1_projects__project_id__legacy_executions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/legacy-executions/{execution_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Legacy Execution
+         * @description El resumen más `parameters_snapshot` y `results` como los guardaba la versión
+         *     anterior.
+         */
+        get: operations["get_legacy_execution_api_v1_legacy_executions__execution_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/legacy-executions/{execution_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Legacy Execution Files
+         * @description Archivos que dejó la ejecución (CSV, log, metadata).
+         */
+        get: operations["list_legacy_execution_files_api_v1_legacy_executions__execution_id__files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/legacy-executions/{execution_id}/files/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Legacy Execution File
+         * @description Descarga un archivo de la ejecución.
+         */
+        get: operations["download_legacy_execution_file_api_v1_legacy_executions__execution_id__files__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inventario/escenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Escenarios
+         * @description Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,
+         *     por qué: así la UI los muestra deshabilitados en vez de fallar al cargar.
+         */
+        get: operations["list_escenarios_api_v1_inventario_escenarios_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/inventario/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Load Escenario
+         * @description Carga un escenario de inventario en el proyecto.
+         *
+         *     Convierte el escenario a secciones, valida cada una y, si ninguna tiene errores,
+         *     las guarda todas como versiones nuevas (una transacción: todas o ninguna). Con
+         *     errores responde igual 200, con `saved = false` y el informe de cada sección.
+         */
+        post: operations["load_escenario_api_v1_projects__project_id__inventario_load_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -906,6 +1096,9 @@ export interface paths {
          * @description Estado de lo que rodea a la API: base, almacenamiento de resultados, DLL de
          *     cada versión de AQSOL y trabajador de la cola. Si el trabajador no late, las
          *     ejecuciones quedan en `pending` y nadie las corre.
+         *
+         *     El detalle (almacenamiento, motor, trabajador) es solo para el admin; al resto
+         *     le basta saber que la API y la base responden.
          */
         get: operations["system_health_api_v1_health_get"];
         put?: never;
@@ -1485,6 +1678,63 @@ export interface components {
              */
             at_operating_level: boolean;
         };
+        /** InventarioEscenario */
+        InventarioEscenario: {
+            /** Path */
+            path: string;
+            /** Nombre */
+            nombre: string;
+            /** Descripcion */
+            descripcion: string;
+            /** Dias */
+            dias?: number | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Con Inventario */
+            con_inventario: boolean;
+            /**
+             * Loadable
+             * @default true
+             */
+            loadable: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** InventarioLoadRequest */
+        InventarioLoadRequest: {
+            /** Escenario */
+            escenario: string;
+        };
+        /** InventarioLoadResponse */
+        InventarioLoadResponse: {
+            /** Escenario */
+            escenario: string;
+            /** Ok */
+            ok: boolean;
+            /** Saved */
+            saved: boolean;
+            /** Start Date */
+            start_date?: string | null;
+            /** Days Max */
+            days_max?: number | null;
+            /**
+             * Descripcion
+             * @default
+             */
+            descripcion: string;
+            /** N Initial States */
+            n_initial_states: number;
+            /** Sections */
+            sections: {
+                [key: string]: components["schemas"]["InventarioLoadedSection"];
+            };
+        };
+        /** InventarioLoadedSection */
+        InventarioLoadedSection: {
+            validation: components["schemas"]["ValidationReport"];
+            /** Saved Version */
+            saved_version?: number | null;
+        };
         /**
          * LabelUpdate
          * @description Texto de una entrada en un idioma. Lo que no se manda no cambia.
@@ -1508,6 +1758,106 @@ export interface components {
         LabelsUpdateResponse: {
             /** Updated */
             updated: number;
+        };
+        /**
+         * LegacyExecutionDetail
+         * @description El resumen más el JSON que la versión anterior guardaba en esas columnas.
+         */
+        LegacyExecutionDetail: {
+            /** Id */
+            id: string;
+            /** Project Id */
+            project_id: string;
+            /** Execution Type */
+            execution_type: string;
+            /** Status */
+            status: string;
+            /** Original Status */
+            original_status: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Source Execution Id */
+            source_execution_id: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Created By Username */
+            created_by_username?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Deleted At */
+            deleted_at: string | null;
+            /** Aqsol Version */
+            aqsol_version: string | null;
+            /** Has Results */
+            has_results: boolean;
+            /** N Files */
+            n_files: number;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
+            /** Parameters Snapshot */
+            parameters_snapshot: Record<string, never> | null;
+            /** Results */
+            results: Record<string, never> | null;
+        };
+        /** LegacyExecutionFile */
+        LegacyExecutionFile: {
+            /** Name */
+            name: string;
+            /** Size Bytes */
+            size_bytes: number;
+        };
+        /** LegacyExecutionSummary */
+        LegacyExecutionSummary: {
+            /** Id */
+            id: string;
+            /** Project Id */
+            project_id: string;
+            /** Execution Type */
+            execution_type: string;
+            /** Status */
+            status: string;
+            /** Original Status */
+            original_status: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Source Execution Id */
+            source_execution_id: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Created By Username */
+            created_by_username?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Deleted At */
+            deleted_at: string | null;
+            /** Aqsol Version */
+            aqsol_version: string | null;
+            /** Has Results */
+            has_results: boolean;
+            /** N Files */
+            n_files: number;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
         };
         /** LimingDynamic */
         LimingDynamic: {
@@ -1774,6 +2124,20 @@ export interface components {
             scenarios: components["schemas"]["Scenario"][];
         };
         /**
+         * ProjectAccessItem
+         * @description Acceso de un usuario a un proyecto, con su rol (F7).
+         */
+        ProjectAccessItem: {
+            /** Project Id */
+            project_id: string;
+            /**
+             * Role
+             * @default editor
+             * @enum {string}
+             */
+            role: "cliente" | "lector" | "editor" | "operador";
+        };
+        /**
          * ProjectCreate
          * @description Schema for creating a new project.
          */
@@ -1815,6 +2179,13 @@ export interface components {
             updated_at: string;
             /** Last Execution Status */
             last_execution_status?: string | null;
+            /** My Role */
+            my_role?: string | null;
+            /**
+             * Capabilities
+             * @default []
+             */
+            capabilities: string[];
         };
         /**
          * ProjectUpdate
@@ -2010,6 +2381,11 @@ export interface components {
             updated_by?: string | null;
             /** Feed Source */
             feed_source?: ("data" | "execution") | null;
+            /**
+             * N Initial States
+             * @default 0
+             */
+            n_initial_states: number;
         };
         /** SectionVersionSummary */
         SectionVersionSummary: {
@@ -2103,11 +2479,17 @@ export interface components {
         };
         /**
          * UserProjectsUpdate
-         * @description Schema for assigning/revoking project access.
+         * @description Asignar/revocar accesos. Dos formas, exactamente una:
+         *
+         *     - `accesses`: cada proyecto con su rol (F7).
+         *     - `project_ids`: la forma de antes. Los accesos nuevos quedan `editor` y los que
+         *       siguen conservan su rol.
          */
         UserProjectsUpdate: {
             /** Project Ids */
-            project_ids: string[];
+            project_ids?: string[] | null;
+            /** Accesses */
+            accesses?: components["schemas"]["ProjectAccessItem"][] | null;
         };
         /**
          * UserResponse
@@ -2421,6 +2803,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_user_accesses_api_v1_users__user_id__accesses_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectAccessItem"][];
                 };
             };
             /** @description Validation Error */
@@ -3530,6 +3943,42 @@ export interface operations {
             };
         };
     };
+    get_execution_report_pdf_api_v1_executions__execution_id__report_pdf_get: {
+        parameters: {
+            query?: {
+                scale_factor?: number | null;
+                period_start?: string | null;
+                period_end?: string | null;
+                language?: "es" | "en";
+            };
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_execution_series_api_v1_executions__execution_id__series_get: {
         parameters: {
             query?: {
@@ -3632,6 +4081,42 @@ export interface operations {
         };
     };
     get_chain_report_excel_api_v1_executions__execution_id__chain_report_xlsx_get: {
+        parameters: {
+            query?: {
+                scale_factor?: number | null;
+                period_start?: string | null;
+                period_end?: string | null;
+                language?: "es" | "en";
+            };
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chain_report_pdf_api_v1_executions__execution_id__chain_report_pdf_get: {
         parameters: {
             query?: {
                 scale_factor?: number | null;
@@ -3801,6 +4286,190 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_legacy_executions_api_v1_projects__project_id__legacy_executions_get: {
+        parameters: {
+            query?: {
+                include_deleted?: boolean;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyExecutionSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_legacy_execution_api_v1_legacy_executions__execution_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyExecutionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_legacy_execution_files_api_v1_legacy_executions__execution_id__files_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyExecutionFile"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_legacy_execution_file_api_v1_legacy_executions__execution_id__files__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_escenarios_api_v1_inventario_escenarios_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventarioEscenario"][];
+                };
+            };
+        };
+    };
+    load_escenario_api_v1_projects__project_id__inventario_load_post: {
+        parameters: {
+            query?: {
+                language?: "es" | "en";
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InventarioLoadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventarioLoadResponse"];
                 };
             };
             /** @description Validation Error */

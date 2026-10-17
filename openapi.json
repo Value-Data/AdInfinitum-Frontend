@@ -307,7 +307,7 @@
           "users"
         ],
         "summary": "Set User Projects",
-        "description": "Replace the user's project access list (admin only).",
+        "description": "Replace the user's project access list (admin only). Acepta `accesses` (con\nrol) o `project_ids` (la forma de antes).",
         "operationId": "set_user_projects_api_v1_users__user_id__projects_put",
         "security": [
           {
@@ -346,6 +346,58 @@
                     "type": "string"
                   },
                   "title": "Response Set User Projects Api V1 Users  User Id  Projects Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_id}/accesses": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get User Accesses",
+        "description": "Los accesos del usuario con el rol en cada proyecto (admin only).",
+        "operationId": "get_user_accesses_api_v1_users__user_id__accesses_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectAccessItem"
+                  },
+                  "title": "Response Get User Accesses Api V1 Users  User Id  Accesses Get"
                 }
               }
             }
@@ -445,7 +497,7 @@
           "projects"
         ],
         "summary": "Get Project",
-        "description": "Get project detail.",
+        "description": "Get project detail, con el rol y las capacidades del usuario.",
         "operationId": "get_project_api_v1_projects__project_id__get",
         "security": [
           {
@@ -1767,7 +1819,7 @@
           "executions"
         ],
         "summary": "List Executions",
-        "description": "List executions for a project.",
+        "description": "Las ejecuciones del proyecto. El que no ve los logs (el `cliente`) recibe solo\nlas completadas: las demás para él no existen.",
         "operationId": "list_executions_api_v1_projects__project_id__executions_get",
         "security": [
           {
@@ -1817,7 +1869,7 @@
           "executions"
         ],
         "summary": "Launch Execution",
-        "description": "Lanza una ejecución (solo admin): valida, crea el registro y encola el job.",
+        "description": "Lanza una ejecución (operador o admin): valida, crea el registro y encola el job.",
         "operationId": "launch_execution_api_v1_projects__project_id__executions_post",
         "security": [
           {
@@ -1875,7 +1927,7 @@
           "executions"
         ],
         "summary": "Get Execution Detail",
-        "description": "Get execution detail with results.",
+        "description": "Get execution detail with results.\n\nEl que no ve la configuración (el `cliente`) recibe `parameters_snapshot` en None.",
         "operationId": "get_execution_detail_api_v1_executions__execution_id__get",
         "security": [
           {
@@ -2010,7 +2062,7 @@
           "executions"
         ],
         "summary": "Cancel Execution",
-        "description": "Cancela una ejecución de la cola (solo admin).\n\nSi todavía nadie la tomó queda cancelada en el momento. Si ya está corriendo se\ndeja el pedido: la precon y el postliming del dinámico cortan al terminar el día en\ncurso y guardan los días completos (con un plazo; después el trabajador mata el\nproceso); cualquier otro tipo se detiene en la próxima vuelta del trabajador.",
+        "description": "Cancela una ejecución de la cola (operador o admin).\n\nSi todavía nadie la tomó queda cancelada en el momento. Si ya está corriendo se\ndeja el pedido: la precon y el postliming del dinámico cortan al terminar el día en\ncurso y guardan los días completos (con un plazo; después el trabajador mata el\nproceso); cualquier otro tipo se detiene en la próxima vuelta del trabajador.",
         "operationId": "cancel_execution_api_v1_executions__execution_id__cancel_post",
         "security": [
           {
@@ -2457,6 +2509,114 @@
         }
       }
     },
+    "/api/v1/executions/{execution_id}/report.pdf": {
+      "get": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Get Execution Report Pdf",
+        "description": "El mismo reporte en PDF, armado en el servidor: portada, KPIs, tablas, fórmulas\ny, en el dinámico, los gráficos de las series diarias del período.",
+        "operationId": "get_execution_report_pdf_api_v1_executions__execution_id__report_pdf_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "scale_factor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scale Factor"
+            }
+          },
+          {
+            "name": "period_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period Start"
+            }
+          },
+          {
+            "name": "period_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period End"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "es",
+                "en"
+              ],
+              "type": "string",
+              "default": "es",
+              "title": "Language"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/executions/{execution_id}/series": {
       "get": {
         "tags": [
@@ -2698,6 +2858,113 @@
         ],
         "summary": "Get Chain Report Excel",
         "operationId": "get_chain_report_excel_api_v1_executions__execution_id__chain_report_xlsx_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "scale_factor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scale Factor"
+            }
+          },
+          {
+            "name": "period_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period Start"
+            }
+          },
+          {
+            "name": "period_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period End"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "es",
+                "en"
+              ],
+              "type": "string",
+              "default": "es",
+              "title": "Language"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{execution_id}/chain/report.pdf": {
+      "get": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Get Chain Report Pdf",
+        "operationId": "get_chain_report_pdf_api_v1_executions__execution_id__chain_report_pdf_get",
         "security": [
           {
             "HTTPBearer": []
@@ -3214,10 +3481,330 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/legacy-executions": {
+      "get": {
+        "tags": [
+          "legacy-executions"
+        ],
+        "summary": "List Legacy Executions",
+        "description": "Ejecuciones de la versión anterior del proyecto, de la más nueva a la más vieja.\nLas borradas en la versión anterior no salen salvo con `include_deleted`, que\nsolo vale para el admin.",
+        "operationId": "list_legacy_executions_api_v1_projects__project_id__legacy_executions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Deleted"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LegacyExecutionSummary"
+                  },
+                  "title": "Response List Legacy Executions Api V1 Projects  Project Id  Legacy Executions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legacy-executions/{execution_id}": {
+      "get": {
+        "tags": [
+          "legacy-executions"
+        ],
+        "summary": "Get Legacy Execution",
+        "description": "El resumen más `parameters_snapshot` y `results` como los guardaba la versión\nanterior.",
+        "operationId": "get_legacy_execution_api_v1_legacy_executions__execution_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyExecutionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legacy-executions/{execution_id}/files": {
+      "get": {
+        "tags": [
+          "legacy-executions"
+        ],
+        "summary": "List Legacy Execution Files",
+        "description": "Archivos que dejó la ejecución (CSV, log, metadata).",
+        "operationId": "list_legacy_execution_files_api_v1_legacy_executions__execution_id__files_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LegacyExecutionFile"
+                  },
+                  "title": "Response List Legacy Execution Files Api V1 Legacy Executions  Execution Id  Files Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legacy-executions/{execution_id}/files/{name}": {
+      "get": {
+        "tags": [
+          "legacy-executions"
+        ],
+        "summary": "Download Legacy Execution File",
+        "description": "Descarga un archivo de la ejecución.",
+        "operationId": "download_legacy_execution_file_api_v1_legacy_executions__execution_id__files__name__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventario/escenarios": {
+      "get": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "List Escenarios",
+        "description": "Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,\npor qué: así la UI los muestra deshabilitados en vez de fallar al cargar.",
+        "operationId": "list_escenarios_api_v1_inventario_escenarios_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InventarioEscenario"
+                  },
+                  "type": "array",
+                  "title": "Response List Escenarios Api V1 Inventario Escenarios Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/inventario/load": {
+      "post": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Load Escenario",
+        "description": "Carga un escenario de inventario en el proyecto.\n\nConvierte el escenario a secciones, valida cada una y, si ninguna tiene errores,\nlas guarda todas como versiones nuevas (una transacción: todas o ninguna). Con\nerrores responde igual 200, con `saved = false` y el informe de cada sección.",
+        "operationId": "load_escenario_api_v1_projects__project_id__inventario_load_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "es",
+                "en"
+              ],
+              "type": "string",
+              "default": "es",
+              "title": "Language"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventarioLoadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventarioLoadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "summary": "System Health",
-        "description": "Estado de lo que rodea a la API: base, almacenamiento de resultados, DLL de\ncada versión de AQSOL y trabajador de la cola. Si el trabajador no late, las\nejecuciones quedan en `pending` y nadie las corre.",
+        "description": "Estado de lo que rodea a la API: base, almacenamiento de resultados, DLL de\ncada versión de AQSOL y trabajador de la cola. Si el trabajador no late, las\nejecuciones quedan en `pending` y nadie las corre.\n\nEl detalle (almacenamiento, motor, trabajador) es solo para el admin; al resto\nle basta saber que la API y la base responden.",
         "operationId": "system_health_api_v1_health_get",
         "responses": {
           "200": {
@@ -4920,6 +5507,173 @@
         "title": "InitialPondState",
         "description": "Estado con que arranca una poza cargada (el inventario a una fecha)."
       },
+      "InventarioEscenario": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "con_inventario": {
+            "type": "boolean",
+            "title": "Con Inventario"
+          },
+          "loadable": {
+            "type": "boolean",
+            "title": "Loadable",
+            "default": true
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "nombre",
+          "descripcion",
+          "con_inventario"
+        ],
+        "title": "InventarioEscenario"
+      },
+      "InventarioLoadRequest": {
+        "properties": {
+          "escenario": {
+            "type": "string",
+            "title": "Escenario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "escenario"
+        ],
+        "title": "InventarioLoadRequest"
+      },
+      "InventarioLoadResponse": {
+        "properties": {
+          "escenario": {
+            "type": "string",
+            "title": "Escenario"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "saved": {
+            "type": "boolean",
+            "title": "Saved"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "days_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Max"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion",
+            "default": ""
+          },
+          "n_initial_states": {
+            "type": "integer",
+            "title": "N Initial States"
+          },
+          "sections": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InventarioLoadedSection"
+            },
+            "type": "object",
+            "title": "Sections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "escenario",
+          "ok",
+          "saved",
+          "n_initial_states",
+          "sections"
+        ],
+        "title": "InventarioLoadResponse"
+      },
+      "InventarioLoadedSection": {
+        "properties": {
+          "validation": {
+            "$ref": "#/components/schemas/ValidationReport"
+          },
+          "saved_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "validation"
+        ],
+        "title": "InventarioLoadedSection"
+      },
       "LabelUpdate": {
         "properties": {
           "key": {
@@ -4990,6 +5744,369 @@
           "updated"
         ],
         "title": "LabelsUpdateResponse"
+      },
+      "LegacyExecutionDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "execution_type": {
+            "type": "string",
+            "title": "Execution Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "original_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Status"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "source_execution_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Execution Id"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_by_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Username"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "aqsol_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aqsol Version"
+          },
+          "has_results": {
+            "type": "boolean",
+            "title": "Has Results"
+          },
+          "n_files": {
+            "type": "integer",
+            "title": "N Files"
+          },
+          "imported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Imported At"
+          },
+          "parameters_snapshot": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters Snapshot"
+          },
+          "results": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "execution_type",
+          "status",
+          "original_status",
+          "error_message",
+          "source_execution_id",
+          "created_by",
+          "created_at",
+          "started_at",
+          "completed_at",
+          "deleted_at",
+          "aqsol_version",
+          "has_results",
+          "n_files",
+          "imported_at",
+          "parameters_snapshot",
+          "results"
+        ],
+        "title": "LegacyExecutionDetail",
+        "description": "El resumen más el JSON que la versión anterior guardaba en esas columnas."
+      },
+      "LegacyExecutionFile": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "size_bytes"
+        ],
+        "title": "LegacyExecutionFile"
+      },
+      "LegacyExecutionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "execution_type": {
+            "type": "string",
+            "title": "Execution Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "original_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Status"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "source_execution_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Execution Id"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_by_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Username"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "aqsol_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aqsol Version"
+          },
+          "has_results": {
+            "type": "boolean",
+            "title": "Has Results"
+          },
+          "n_files": {
+            "type": "integer",
+            "title": "N Files"
+          },
+          "imported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Imported At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "execution_type",
+          "status",
+          "original_status",
+          "error_message",
+          "source_execution_id",
+          "created_by",
+          "created_at",
+          "started_at",
+          "completed_at",
+          "deleted_at",
+          "aqsol_version",
+          "has_results",
+          "n_files",
+          "imported_at"
+        ],
+        "title": "LegacyExecutionSummary"
       },
       "LimingDynamic": {
         "properties": {
@@ -5755,6 +6872,31 @@
         ],
         "title": "PreconStatic"
       },
+      "ProjectAccessItem": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "cliente",
+              "lector",
+              "editor",
+              "operador"
+            ],
+            "title": "Role",
+            "default": "editor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "title": "ProjectAccessItem",
+        "description": "Acceso de un usuario a un proyecto, con su rol (F7)."
+      },
       "ProjectCreate": {
         "properties": {
           "name": {
@@ -5840,6 +6982,25 @@
               }
             ],
             "title": "Last Execution Status"
+          },
+          "my_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Role"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities",
+            "default": []
           }
         },
         "type": "object",
@@ -6362,6 +7523,11 @@
               }
             ],
             "title": "Feed Source"
+          },
+          "n_initial_states": {
+            "type": "integer",
+            "title": "N Initial States",
+            "default": 0
           }
         },
         "type": "object",
@@ -6592,19 +7758,37 @@
       "UserProjectsUpdate": {
         "properties": {
           "project_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Project Ids"
+          },
+          "accesses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProjectAccessItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accesses"
           }
         },
         "type": "object",
-        "required": [
-          "project_ids"
-        ],
         "title": "UserProjectsUpdate",
-        "description": "Schema for assigning/revoking project access."
+        "description": "Asignar/revocar accesos. Dos formas, exactamente una:\n\n- `accesses`: cada proyecto con su rol (F7).\n- `project_ids`: la forma de antes. Los accesos nuevos quedan `editor` y los que\n  siguen conservan su rol."
       },
       "UserResponse": {
         "properties": {

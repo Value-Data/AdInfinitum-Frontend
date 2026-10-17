@@ -10,6 +10,8 @@ const ESTILOS: Record<string, React.CSSProperties> = {
   completed_with_errors: { backgroundColor: '#fef9c3', color: '#854d0e', borderColor: '#fde047' },
   failed: { backgroundColor: '#fee2e2', color: '#991b1b', borderColor: '#fca5a5' },
   cancelled: { backgroundColor: '#f3f4f6', color: '#374151', borderColor: '#d1d5db' },
+  // Ejecuciones de la versión anterior que quedaron a medias.
+  interrupted: { backgroundColor: '#f3f4f6', color: '#374151', borderColor: '#d1d5db' },
 };
 
 /** Los seis estados de una ejecución de F4. */
