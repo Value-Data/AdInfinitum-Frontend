@@ -201,3 +201,18 @@
   .print-report .card { break-inside: avoid; box-shadow: none !important; }
   .print-report table { font-size: 9pt; }
 }
+
+/* ===== Tablas del reporte en pantalla: primera columna y cabecera fijas ===== */
+.report-table { max-height: 70vh; overflow: auto; }
+.report-table thead th { position: sticky; top: 0; background: var(--color-surface, #fff); z-index: 1; }
+.report-table .sticky-col { position: sticky; left: 0; background: var(--color-surface, #fff); z-index: 2;
+  box-shadow: 1px 0 0 var(--color-border); }
+.report-table tbody tr:nth-child(even) .sticky-col { background: var(--color-primary-lighter); }
+.print-report .report-table { max-height: none; }
+@media print {
+  .report-table { max-height: none; overflow: visible; }
+  .print-report td, .print-report th { padding: 3px 6px; }
+}
+/* Bloques de columnas impresos: cabeceras que parten línea y celdas compactas. */
+.print-table th { white-space: normal; padding: 4px 6px; vertical-align: bottom; }
+.print-table td { padding: 3px 6px; font-size: 0.75rem; }

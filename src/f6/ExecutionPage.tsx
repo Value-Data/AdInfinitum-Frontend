@@ -5,7 +5,7 @@
  * no recalcula nada.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   apiError, blobApiError, cancelExecution, deleteExecutionV2, downloadChainReport, downloadChainReportPdf,
   downloadReport, downloadReportPdf, getChain, getChainReport,
@@ -15,6 +15,7 @@ import {
 } from '../services/apiV2';
 import { listExecutionFiles } from '../services/api';
 import type { ChainSummary, LogTail, Report } from '../types/report';
+import { isStaticReport } from '../types/report';
 import type { ExecutionFile } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage, useT } from '../i18n/LanguageContext';
@@ -26,6 +27,7 @@ import ReportView from './ReportView';
 import { InventoryBadge } from './ConfigPanel';
 import { DailyCharts, ReportCharts } from './Charts';
 import CompareExecutions from './CompareExecutions';
+import { executionTabs, parseTab, type ExecutionTab } from './executionTabs';
 
 const ACTIVE = new Set(['pending', 'running']);
 const POLL_MS = 5000;
@@ -75,8 +77,16 @@ function LogPanel({ id, live }: { id: string; live: boolean }) {
   );
 }
 
-function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: ChainSummary | null }) {
+const TAB_LABEL: Record<ExecutionTab, string> = {
+  results: 'f6_tab_results', charts: 'f6_tab_charts', daily: 'f6_tab_daily', compare: 'f6_tab_compare',
+  files: 'f6_tab_files',
+};
+
+function ReportSection({ detail, chain, filesTab }: {
+  detail: ExecutionDetail; chain: ChainSummary | null; filesTab: React.ReactNode;
+}) {
   const t = useT();
+  const [search, setSearch] = useSearchParams();
   const { lang } = useLanguage();
   const dinamico = isDynamicType(detail.execution_type);
   const conCadena = Boolean(chain && chain.executions.length > 1);
@@ -88,6 +98,9 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
   const [cargando, setCargando] = useState(false);
   const [escenario, setEscenario] = useState(0);
   const [comparar, setComparar] = useState<string[]>([]);
+  const tabs = executionTabs({ dynamic: dinamico, chain: verCadena, files: Boolean(filesTab) });
+  const tab = parseTab(search.get('tab'), tabs);
+  const irA = (k: ExecutionTab) => setSearch(k === 'results' ? {} : { tab: k }, { replace: true });
 
   useEffect(() => {
     let vivo = true;
@@ -172,16 +185,45 @@ function ReportSection({ detail, chain }: { detail: ExecutionDetail; chain: Chai
           {t('f6_print_pdf')}
         </button>
       </div>
+      <div className="flex flex-wrap gap-1 mb-4 border-b" style={{ borderColor: 'var(--color-border)' }}
+           role="tablist" data-testid="execution-tabs">
+        {tabs.map((k) => (
+          <button key={k} role="tab" aria-selected={tab === k}
+                  className={`px-3 py-2 text-sm ${tab === k ? 'font-semibold' : ''}`}
+                  style={tab === k ? { borderBottom: '2px solid var(--color-primary)', color: 'var(--color-primary)' }
+                    : { color: 'var(--color-text-secondary)' }}
+                  onClick={() => irA(k)}>
+            {t(TAB_LABEL[k] as never)}
+          </button>
+        ))}
+      </div>
       {cargando && <LoadingSpinner />}
       {error && <div className="card p-3 mb-4 text-sm" style={{ borderColor: '#fca5a5' }}>{error}</div>}
       {report && !cargando && (
         <>
-          {dinamico && !verCadena && <DailyCharts executionId={detail.id} query={q} />}
-          <ReportCharts report={report} scenario={escenario} />
-          {!verCadena && <CompareExecutions detail={detail} query={q} ids={comparar} onChange={setComparar} />}
-          <ReportView report={report} scenario={escenario} onScenario={setEscenario} />
+          {tab === 'results' && <ReportView report={report} scenario={escenario} onScenario={setEscenario} />}
+          {tab === 'charts' && (
+            <>
+              {isStaticReport(report) && report.scenarios.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2 mb-3" role="tablist">
+                  <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_scenario')}:</span>
+                  {report.scenarios.map((s, j) => (
+                    <button key={s.index} role="tab" aria-selected={j === escenario}
+                            className={`btn btn-sm ${j === escenario ? 'btn-primary' : 'btn-outline'}`}
+                            onClick={() => setEscenario(j)}>
+                      {s.label}{s.status === 'failed' ? ' ⚠' : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <ReportCharts report={report} scenario={escenario} paged />
+            </>
+          )}
+          {tab === 'daily' && <DailyCharts executionId={detail.id} query={q} />}
+          {tab === 'compare' && <CompareExecutions detail={detail} query={q} ids={comparar} onChange={setComparar} />}
         </>
       )}
+      {tab === 'files' && filesTab}
     </section>
   );
 }
@@ -231,9 +273,10 @@ export default function ExecutionPage() {
       }
       if (isDynamicType(d.execution_type)) {
         getChain(id).then(setChain).catch(() => setChain(null));
-        if (d.upload_status === 'uploaded') {
-          listExecutionFiles(id).then(setFiles).catch(() => setFiles([]));
-        }
+      }
+      // Los archivos de salida (CSV, metadata, log del worker): también del estático.
+      if (d.upload_status === 'uploaded' || (!isDynamicType(d.execution_type) && !ACTIVE.has(d.status))) {
+        listExecutionFiles(id).then(setFiles).catch(() => setFiles([]));
       }
     } catch (err) {
       setError(apiError(err).message);
@@ -281,10 +324,24 @@ export default function ExecutionPage() {
     }
   };
 
+  const conResultados = hasResults(detail);
+  // El log y los archivos: en su pestaña cuando hay resultados; si no, a la vista.
+  const archivos = (
+    <>
+      {conResultados && <LogPanel id={id} live={activa} />}
+      {files.length > 0 && (
+        <section className="mb-6">
+          <h3 className="text-base font-semibold mb-2">{t('files')}</h3>
+          <div className="card overflow-x-auto"><ExecutionFilesTable executionId={id} files={files} /></div>
+        </section>
+      )}
+    </>
+  );
+
   return (
     <div>
       <div className="mb-4">
-        <Link to={`/projects/${detail.project_id}`} className="text-sm" style={{ color: 'var(--color-primary)' }}>
+        <Link to={`/projects/${detail.project_id}?tab=executions`} className="text-sm" style={{ color: 'var(--color-primary)' }}>
           ← {t('back')}
         </Link>
       </div>
@@ -357,21 +414,16 @@ export default function ExecutionPage() {
         </div>
       )}
 
-      <LogPanel id={id} live={activa} />
+      {!conResultados && <LogPanel id={id} live={activa} />}
 
       {chain && chain.executions.length > 1 && <ChainStrip chain={chain} current={id} />}
 
-      {hasResults(detail) && <PartialRunBanner info={partialInfo(detail)} />}
-      {hasResults(detail) ? <ReportSection detail={detail} chain={chain} /> : (!activa && (
+      {conResultados && <PartialRunBanner info={partialInfo(detail)} />}
+      {conResultados ? <ReportSection detail={detail} chain={chain} filesTab={archivos} /> : (!activa && (
         <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_no_results')}</p>
       ))}
 
-      {files.length > 0 && (
-        <section className="mb-6">
-          <h3 className="text-base font-semibold mb-2">{t('files')}</h3>
-          <div className="card overflow-x-auto"><ExecutionFilesTable executionId={id} files={files} /></div>
-        </section>
-      )}
+      {!conResultados && files.length > 0 && archivos}
     </div>
   );
 }

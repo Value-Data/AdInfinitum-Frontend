@@ -2,7 +2,7 @@
  * Un reporte del backend (`app/reporting`), dibujado tal cual: KPIs y tablas con sus
  * columnas y unidades. El front no calcula nada (§16): solo pone etiquetas y formato.
  */
-import React, { useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import type {
   DynamicReport, Report, ReportColumn, ReportTable, StageReport, StaticReport,
 } from '../types/report';
@@ -66,57 +66,109 @@ export function orderColumns(table: ReportTable): ReportColumn[] {
   return [...columnas].sort((a, b) => lugar(a) - lugar(b));
 }
 
+/**
+ * Al imprimir (vista de impresión, "Bajar PDF", "Imprimir"), una tabla ancha no cabe en
+ * la hoja y se cortaba a la derecha: se parte en bloques de columnas, cada uno con la
+ * columna de la fila, como el PDF del servidor ("columnas 1–8 de 15"). En pantalla es una
+ * sola tabla con la primera columna fija al desplazarse.
+ */
+export const PRINT_COLUMNS = 7;
+export const PrintTablesContext = createContext(false);
+
+export function splitColumns<T>(cols: T[], max: number): T[][] {
+  if (cols.length === 0) return [[]];
+  const bloques: T[][] = [];
+  for (let i = 0; i < cols.length; i += max) bloques.push(cols.slice(i, i + max));
+  return bloques;
+}
+
+function TableBody({ table, columnas, label, print = false }: {
+  table: ReportTable; columnas: ReportColumn[]; label: LabelFn; print?: boolean;
+}) {
+  return (
+    <table className={print ? 'text-xs print-table' : 'text-sm'}>
+      <thead>
+        <tr>
+          <th className="sticky-col" />
+          {columnas.map((c) => (
+            <th key={c.key} className={`text-right ${print ? '' : 'whitespace-nowrap'}`}
+                style={c.kind === 'label' ? undefined : { textTransform: 'none' }}
+                title={c.formula ? formulaText(c.formula, label) : undefined}>
+              {columnHeader(c, label)}
+              {c.formula && <span style={MARCA} aria-label={formulaText(c.formula, label)}>ⓘ</span>}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {table.rows.map((r, i) => {
+          const deFila = typeof r.formula === 'string' && r.formula ? formulaText(r.formula, label) : undefined;
+          return (
+            <tr key={`${r.id}-${i}`}>
+              <td className="font-medium whitespace-nowrap sticky-col" title={deFila}>
+                {rowHeader(table, String(r.id), label)}
+                {deFila && <span style={MARCA} aria-label={deFila}>ⓘ</span>}
+              </td>
+              {columnas.map((c) => {
+                // La celda derivada lleva la fórmula de su columna o, si no, la de su fila.
+                const f = c.formula ? formulaText(c.formula, label) : (typeof r[c.key] === 'number' ? deFila : undefined);
+                return (
+                  <td key={c.key} className="text-right font-mono" title={f}
+                      style={f ? { cursor: 'help' } : undefined}>{formatCell(r[c.key])}</td>
+                );
+              })}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 export function ReportTableView({ table }: { table: ReportTable }) {
   useDecimals();
   const { label } = useLabels();
+  const t = useT();
+  const impresa = useContext(PrintTablesContext);
   const columnas = orderColumns(table);
-  return (
-    <div className="card overflow-x-auto mb-4 pdf-block" data-testid={`report-table-${table.key}`}>
-      <div className="px-3 py-2 text-sm font-semibold"
-           style={{ color: 'var(--color-text)', borderBottom: '1px solid var(--color-border)' }}>
-        {label(`result.${table.key}`, table.key)}
+  const bloques = impresa ? splitColumns(columnas, PRINT_COLUMNS) : [columnas];
+  const titulo = label(`result.${table.key}`, table.key);
+  const notas = table.notes.length > 0 && (
+    <ul className="px-3 py-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+      {table.notes.map((n) => <li key={n}>{label(`result.${n}`, n)}</li>)}
+    </ul>
+  );
+  const cabeza = (sub?: string) => (
+    <div className="px-3 py-2 text-sm font-semibold"
+         style={{ color: 'var(--color-text)', borderBottom: '1px solid var(--color-border)' }}>
+      {titulo}
+      {sub && <span className="ml-2 text-xs font-normal" style={{ color: 'var(--color-text-secondary)' }}>{sub}</span>}
+    </div>
+  );
+  if (impresa) {
+    // Cada bloque es su propio `.pdf-block`: el PDF corta entre bloques y no dentro.
+    return (
+      <div className="mb-4" data-testid={`report-table-${table.key}`}>
+        {bloques.map((cols, k) => {
+          const desde = k * PRINT_COLUMNS + 1;
+          const sub = bloques.length === 1 ? undefined : t('f6_columns_range').replace('{a}', String(desde))
+            .replace('{b}', String(desde + cols.length - 1)).replace('{n}', String(columnas.length));
+          return (
+            <div key={k} className="card mb-2 pdf-block">
+              {cabeza(sub)}
+              <TableBody table={table} columnas={cols} label={label} print />
+              {k === bloques.length - 1 && notas}
+            </div>
+          );
+        })}
       </div>
-      <table className="text-sm">
-        <thead>
-          <tr>
-            <th />
-            {columnas.map((c) => (
-              <th key={c.key} className="text-right whitespace-nowrap"
-                  style={c.kind === 'label' ? undefined : { textTransform: 'none' }}
-                  title={c.formula ? formulaText(c.formula, label) : undefined}>
-                {columnHeader(c, label)}
-                {c.formula && <span style={MARCA} aria-label={formulaText(c.formula, label)}>ⓘ</span>}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {table.rows.map((r, i) => {
-            const deFila = typeof r.formula === 'string' && r.formula ? formulaText(r.formula, label) : undefined;
-            return (
-              <tr key={`${r.id}-${i}`}>
-                <td className="font-medium whitespace-nowrap" title={deFila}>
-                  {rowHeader(table, String(r.id), label)}
-                  {deFila && <span style={MARCA} aria-label={deFila}>ⓘ</span>}
-                </td>
-                {columnas.map((c) => {
-                  // La celda derivada lleva la fórmula de su columna o, si no, la de su fila.
-                  const f = c.formula ? formulaText(c.formula, label) : (typeof r[c.key] === 'number' ? deFila : undefined);
-                  return (
-                    <td key={c.key} className="text-right font-mono" title={f}
-                        style={f ? { cursor: 'help' } : undefined}>{formatCell(r[c.key])}</td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {table.notes.length > 0 && (
-        <ul className="px-3 py-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          {table.notes.map((n) => <li key={n}>{label(`result.${n}`, n)}</li>)}
-        </ul>
-      )}
+    );
+  }
+  return (
+    <div className="card overflow-x-auto mb-4 pdf-block report-table" data-testid={`report-table-${table.key}`}>
+      {cabeza()}
+      <TableBody table={table} columnas={columnas} label={label} />
+      {notas}
     </div>
   );
 }
@@ -314,7 +366,8 @@ function StaticReportView({ report, printAll, scenario, onScenario }: {
 export default function ReportView({ report, printAll, scenario, onScenario }: {
   report: Report; printAll?: boolean; scenario?: number; onScenario?: (i: number) => void;
 }) {
-  return isStaticReport(report)
+  const vista = isStaticReport(report)
     ? <StaticReportView report={report} printAll={printAll} scenario={scenario} onScenario={onScenario} />
     : <DynamicReportView report={report} />;
+  return printAll ? <PrintTablesContext.Provider value>{vista}</PrintTablesContext.Provider> : vista;
 }

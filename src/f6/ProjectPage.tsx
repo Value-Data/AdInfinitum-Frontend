@@ -4,6 +4,7 @@
  * config en JSON del proyecto.
  */
 import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Pager, pageSlice } from './paging';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   apiError, getProjectV2, getSectionStates, isV2Type, listExecutions,
@@ -34,6 +35,8 @@ export function duration(desde?: string | null, hasta?: string | null, ahora = D
 
 function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
   const t = useT();
+  const [pagina, setPagina] = useState(0);
+  const hoja = pageSlice(executions, pagina);
   if (executions.length === 0) {
     return <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_no_executions')}</p>;
   }
@@ -51,7 +54,7 @@ function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
           </tr>
         </thead>
         <tbody>
-          {executions.map((e) => (
+          {hoja.items.map((e) => (
             <tr key={e.id}>
               <td>
                 <Link to={`/executions/${e.id}`} style={{ color: 'var(--color-primary)' }}>
@@ -69,6 +72,7 @@ function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
           ))}
         </tbody>
       </table>
+      <Pager {...hoja} total={executions.length} onPage={setPagina} />
     </div>
   );
 }

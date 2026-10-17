@@ -3,6 +3,7 @@
  * importadas de la versión anterior, de solo lectura. No se muestra si no hay.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { Pager, pageSlice } from '../f6/paging';
 import { Link } from 'react-router-dom';
 import { useT } from '../i18n/LanguageContext';
 import { RunStatusBadge, formatDateTime } from '../f6/common';
@@ -27,6 +28,7 @@ export default function LegacyExecutionsSection({
   const [borradas, setBorradas] = useState(false);
   const [hayAlguna, setHayAlguna] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [pagina, setPagina] = useState(0);
 
   useEffect(() => {
     let vivo = true;
@@ -99,7 +101,7 @@ export default function LegacyExecutionsSection({
             </tr>
           </thead>
           <tbody>
-            {rows.map((e) => (
+            {pageSlice(rows, pagina).items.map((e) => (
               <tr key={e.id} style={e.deleted_at ? { opacity: 0.6 } : undefined}>
                 <td>
                   <Link to={`/legacy-executions/${e.id}`} style={{ color: 'var(--color-primary)' }}>
@@ -119,6 +121,7 @@ export default function LegacyExecutionsSection({
             ))}
           </tbody>
         </table>
+        <Pager {...pageSlice(rows, pagina)} total={rows.length} onPage={setPagina} />
       </div>
       <DynamicReportModal open={reportOpen} onClose={() => setReportOpen(false)}
                           executions={dinamicas} projectName={projectName} />

@@ -415,16 +415,38 @@ function ClimateChart({ comparison, lines }: { comparison: ReportTable; lines: b
   );
 }
 
+/** Las sub-pestañas de "Gráficos": una por etapa con pozas (los gráficos de antes), la
+ * comparativa de escenarios (estático) o el balance por poza (dinámico), y el balance de
+ * Li. Al imprimir no hay pestañas: salen todos. */
+export type ChartGroup = `stage:${string}` | 'compare' | 'balance';
+
+export function chartGroups(report: Report, scenario = 0): ChartGroup[] {
+  const grupos: ChartGroup[] = [];
+  if (isStaticReport(report)) {
+    const sc = report.scenarios[Math.min(scenario, report.scenarios.length - 1)];
+    (sc?.stages ?? []).filter(hasPondCharts).forEach((st) => grupos.push(`stage:${st.stage}`));
+    if (report.comparison) grupos.push('compare');
+  } else if (report.stages.some((s) => s.tables.some((tb) => tb.row_kind === 'pond'))) {
+    grupos.push('compare');
+  }
+  grupos.push('balance');
+  return grupos;
+}
+
 /**
  * Gráficos desde el reporte. Estático: comparativa y clima de los escenarios, y por poza
  * cada etapa de pozas del escenario elegido (`scenario`) o de todos (`allScenarios`, para
  * imprimir). Dinámico: el balance por poza de cada etapa. Barras o líneas a elección.
  */
-export function ReportCharts({ report, scenario = 0, allScenarios = false }: {
-  report: Report; scenario?: number; allScenarios?: boolean;
+export function ReportCharts({ report, scenario = 0, allScenarios = false, paged = false }: {
+  report: Report; scenario?: number; allScenarios?: boolean; paged?: boolean;
 }) {
   const t = useT();
   const caja = useRef<HTMLDivElement>(null);
+  const grupos = chartGroups(report, scenario);
+  const [elegido, setElegido] = useState<ChartGroup>(grupos[0]);
+  const grupo: ChartGroup | null = paged ? (grupos.includes(elegido) ? elegido : grupos[0]) : null;
+  const ver = (g: ChartGroup) => grupo === null || grupo === g;
   const [vista, setVista] = useState<'bars' | 'lines'>('bars');
   const [modo, setModo] = useState<'abs' | 'pct'>('abs');
   const estatico = isStaticReport(report);
@@ -435,13 +457,32 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false }: {
   const conPozas = escenarios.some((sc) => sc.stages.some(hasPondCharts));
   if (estatico && !comparativa) return null;
   const lineas = vista === 'lines';
+  const nombreGrupo = (g: ChartGroup) => (g === 'balance' ? t('f6_charts_group_balance')
+    : g === 'compare' ? t(estatico ? 'f6_charts_group_compare_static' : 'f6_charts_group_compare_dynamic')
+      : t(`f6_stage_${g.slice('stage:'.length)}` as never));
   return (
     <section className="mb-6" data-testid="report-charts" ref={caja}>
+      {grupo !== null && grupos.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-3 no-print" role="tablist" data-testid="chart-groups">
+          {grupos.map((g) => (
+            <button key={g} role="tab" aria-selected={g === grupo}
+                    className={`btn btn-sm ${g === grupo ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setElegido(g)}>
+              {nombreGrupo(g)}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-3 mb-2">
-        <h3 className="text-base font-semibold pdf-block pdf-page-break">{t('f6_charts')}</h3>
-        <Toggle value={vista} onChange={setVista} testId="chart-view"
-                options={[['bars', t('f6_view_bars')], ['lines', t('f6_view_lines')]]} />
-        {conPozas && (
+        <h3 className="text-base font-semibold pdf-block pdf-page-break">
+          {grupo === null ? t('f6_charts') : nombreGrupo(grupo)}
+        </h3>
+        {/* Barras o líneas: solo cambia la comparativa (los por poza son siempre líneas). */}
+        {ver('compare') && (
+          <Toggle value={vista} onChange={setVista} testId="chart-view"
+                  options={[['bars', t('f6_view_bars')], ['lines', t('f6_view_lines')]]} />
+        )}
+        {conPozas && (grupo === null || grupo.startsWith('stage:')) && (
           <>
             <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_chart_li_units')}:</span>
             <Toggle value={modo} onChange={setModo} testId="conc-mode"
@@ -456,24 +497,24 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false }: {
       </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
         {/* 1) Los de siempre (reporte de antes): por poza de cada etapa. */}
-        {escenarios.map((sc) => sc.stages.filter(hasPondCharts).map((st) => (
+        {escenarios.map((sc) => sc.stages.filter(hasPondCharts).filter((st) => ver(`stage:${st.stage}`)).map((st) => (
           <StagePondCharts key={`${sc.index}-${st.stage}`} stage={st} mode={modo}
                            prefix={`${t('f6_scenario')} ${sc.label} · `} />
         )))}
         {/* 2) Comparativa y clima de los escenarios; balance por poza del dinámico. */}
         {/* Los del estático por día de antes, ahora por escenario: recuperación, Li,
             evaporación / sales, clima. */}
-        {comparativa && <TableBars table={comparativa} unidades={['%']} lines={lineas} title={t('execres_recovery_pct')} />}
-        {comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas} title="Li (t/d)"
+        {ver('compare') && comparativa && <TableBars table={comparativa} unidades={['%']} lines={lineas} title={t('execres_recovery_pct')} />}
+        {ver('compare') && comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas} title="Li (t/d)"
                                    keys={['li_in_t_d', 'li_out_t_d']} />}
-        {comparativa && <EvapSaltsChart comparison={comparativa} lines={lineas} />}
-        {comparativa && <ClimateChart comparison={comparativa} lines={lineas} />}
-        {comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas}
+        {ver('compare') && comparativa && <EvapSaltsChart comparison={comparativa} lines={lineas} />}
+        {ver('compare') && comparativa && <ClimateChart comparison={comparativa} lines={lineas} />}
+        {ver('compare') && comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas}
                                    skip={['li_in_t_d', 'li_out_t_d', ...EVAP_SALES_COLS]} />}
-        {tablas.map((tb, i) => <TableBars key={`${tb.key}-${i}`} table={tb} unidades={['t/d']} lines={lineas} />)}
+        {ver('compare') && tablas.map((tb, i) => <TableBars key={`${tb.key}-${i}`} table={tb} unidades={['t/d']} lines={lineas} />)}
         {/* 3) Los nuevos: balance de litio. */}
-        {!estatico && <LiSankeyPanel stages={report.stages} dynamic />}
-        {escenarios.map((sc) => (
+        {ver('balance') && !estatico && <LiSankeyPanel stages={report.stages} dynamic />}
+        {ver('balance') && escenarios.map((sc) => (
           <LiSankeyPanel key={sc.index} stages={sc.stages} dynamic={false}
                          prefix={`${t('f6_scenario')} ${sc.label} · `} />
         ))}

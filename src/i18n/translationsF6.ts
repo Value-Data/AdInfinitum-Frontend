@@ -10,6 +10,16 @@ export const F6_TRANSLATIONS = {
     en: 'It cannot be changed after the project is created.',
   },
 
+  f6_columns_range: { es: 'columnas {a}–{b} de {n}', en: 'columns {a}–{b} of {n}' },
+  f6_tab_results: { es: 'Resultados', en: 'Results' },
+  f6_tab_charts: { es: 'Gráficos', en: 'Charts' },
+  f6_tab_daily: { es: 'Series diarias', en: 'Daily series' },
+  f6_tab_compare: { es: 'Comparar', en: 'Compare' },
+  f6_tab_files: { es: 'Archivos y log', en: 'Files and log' },
+  f6_charts_group_compare_static: { es: 'Comparativa de escenarios', en: 'Scenario comparison' },
+  f6_charts_group_compare_dynamic: { es: 'Balance por poza', en: 'Pond balance' },
+  f6_charts_group_balance: { es: 'Balance de litio', en: 'Lithium balance' },
+
   // Etapas, secciones y tipos
   f6_stage_precon: { es: 'Preconcentración', en: 'Preconcentration' },
   f6_stage_liming: { es: 'Planta de Reactivos', en: 'Liming Plant' },
