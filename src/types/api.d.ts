@@ -122,9 +122,30 @@ export interface paths {
         get: operations["get_user_projects_api_v1_users__user_id__projects_get"];
         /**
          * Set User Projects
-         * @description Replace the user's project access list (admin only).
+         * @description Replace the user's project access list (admin only). Acepta `accesses` (con
+         *     rol) o `project_ids` (la forma de antes).
          */
         put: operations["set_user_projects_api_v1_users__user_id__projects_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/accesses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get User Accesses
+         * @description Los accesos del usuario con el rol en cada proyecto (admin only).
+         */
+        get: operations["get_user_accesses_api_v1_users__user_id__accesses_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -167,7 +188,7 @@ export interface paths {
         };
         /**
          * Get Project
-         * @description Get project detail.
+         * @description Get project detail, con el rol y las capacidades del usuario.
          */
         get: operations["get_project_api_v1_projects__project_id__get"];
         /**
@@ -521,13 +542,14 @@ export interface paths {
         };
         /**
          * List Executions
-         * @description List executions for a project.
+         * @description Las ejecuciones del proyecto. El que no ve los logs (el `cliente`) recibe solo
+         *     las completadas: las demás para él no existen.
          */
         get: operations["list_executions_api_v1_projects__project_id__executions_get"];
         put?: never;
         /**
          * Launch Execution
-         * @description Lanza una ejecución (solo admin): valida, crea el registro y encola el job.
+         * @description Lanza una ejecución (operador o admin): valida, crea el registro y encola el job.
          */
         post: operations["launch_execution_api_v1_projects__project_id__executions_post"];
         delete?: never;
@@ -546,6 +568,8 @@ export interface paths {
         /**
          * Get Execution Detail
          * @description Get execution detail with results.
+         *
+         *     El que no ve la configuración (el `cliente`) recibe `parameters_snapshot` en None.
          */
         get: operations["get_execution_detail_api_v1_executions__execution_id__get"];
         put?: never;
@@ -592,7 +616,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel Execution
-         * @description Cancela una ejecución de la cola (solo admin).
+         * @description Cancela una ejecución de la cola (operador o admin).
          *
          *     Si todavía nadie la tomó queda cancelada en el momento. Si ya está corriendo se
          *     deja el pedido: la precon y el postliming del dinámico cortan al terminar el día en
@@ -1072,6 +1096,9 @@ export interface paths {
          * @description Estado de lo que rodea a la API: base, almacenamiento de resultados, DLL de
          *     cada versión de AQSOL y trabajador de la cola. Si el trabajador no late, las
          *     ejecuciones quedan en `pending` y nadie las corre.
+         *
+         *     El detalle (almacenamiento, motor, trabajador) es solo para el admin; al resto
+         *     le basta saber que la API y la base responden.
          */
         get: operations["system_health_api_v1_health_get"];
         put?: never;
@@ -2097,6 +2124,20 @@ export interface components {
             scenarios: components["schemas"]["Scenario"][];
         };
         /**
+         * ProjectAccessItem
+         * @description Acceso de un usuario a un proyecto, con su rol (F7).
+         */
+        ProjectAccessItem: {
+            /** Project Id */
+            project_id: string;
+            /**
+             * Role
+             * @default editor
+             * @enum {string}
+             */
+            role: "cliente" | "lector" | "editor" | "operador";
+        };
+        /**
          * ProjectCreate
          * @description Schema for creating a new project.
          */
@@ -2138,6 +2179,13 @@ export interface components {
             updated_at: string;
             /** Last Execution Status */
             last_execution_status?: string | null;
+            /** My Role */
+            my_role?: string | null;
+            /**
+             * Capabilities
+             * @default []
+             */
+            capabilities: string[];
         };
         /**
          * ProjectUpdate
@@ -2431,11 +2479,17 @@ export interface components {
         };
         /**
          * UserProjectsUpdate
-         * @description Schema for assigning/revoking project access.
+         * @description Asignar/revocar accesos. Dos formas, exactamente una:
+         *
+         *     - `accesses`: cada proyecto con su rol (F7).
+         *     - `project_ids`: la forma de antes. Los accesos nuevos quedan `editor` y los que
+         *       siguen conservan su rol.
          */
         UserProjectsUpdate: {
             /** Project Ids */
-            project_ids: string[];
+            project_ids?: string[] | null;
+            /** Accesses */
+            accesses?: components["schemas"]["ProjectAccessItem"][] | null;
         };
         /**
          * UserResponse
@@ -2749,6 +2803,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_user_accesses_api_v1_users__user_id__accesses_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectAccessItem"][];
                 };
             };
             /** @description Validation Error */

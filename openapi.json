@@ -307,7 +307,7 @@
           "users"
         ],
         "summary": "Set User Projects",
-        "description": "Replace the user's project access list (admin only).",
+        "description": "Replace the user's project access list (admin only). Acepta `accesses` (con\nrol) o `project_ids` (la forma de antes).",
         "operationId": "set_user_projects_api_v1_users__user_id__projects_put",
         "security": [
           {
@@ -346,6 +346,58 @@
                     "type": "string"
                   },
                   "title": "Response Set User Projects Api V1 Users  User Id  Projects Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_id}/accesses": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get User Accesses",
+        "description": "Los accesos del usuario con el rol en cada proyecto (admin only).",
+        "operationId": "get_user_accesses_api_v1_users__user_id__accesses_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectAccessItem"
+                  },
+                  "title": "Response Get User Accesses Api V1 Users  User Id  Accesses Get"
                 }
               }
             }
@@ -445,7 +497,7 @@
           "projects"
         ],
         "summary": "Get Project",
-        "description": "Get project detail.",
+        "description": "Get project detail, con el rol y las capacidades del usuario.",
         "operationId": "get_project_api_v1_projects__project_id__get",
         "security": [
           {
@@ -1767,7 +1819,7 @@
           "executions"
         ],
         "summary": "List Executions",
-        "description": "List executions for a project.",
+        "description": "Las ejecuciones del proyecto. El que no ve los logs (el `cliente`) recibe solo\nlas completadas: las demás para él no existen.",
         "operationId": "list_executions_api_v1_projects__project_id__executions_get",
         "security": [
           {
@@ -1817,7 +1869,7 @@
           "executions"
         ],
         "summary": "Launch Execution",
-        "description": "Lanza una ejecución (solo admin): valida, crea el registro y encola el job.",
+        "description": "Lanza una ejecución (operador o admin): valida, crea el registro y encola el job.",
         "operationId": "launch_execution_api_v1_projects__project_id__executions_post",
         "security": [
           {
@@ -1875,7 +1927,7 @@
           "executions"
         ],
         "summary": "Get Execution Detail",
-        "description": "Get execution detail with results.",
+        "description": "Get execution detail with results.\n\nEl que no ve la configuración (el `cliente`) recibe `parameters_snapshot` en None.",
         "operationId": "get_execution_detail_api_v1_executions__execution_id__get",
         "security": [
           {
@@ -2010,7 +2062,7 @@
           "executions"
         ],
         "summary": "Cancel Execution",
-        "description": "Cancela una ejecución de la cola (solo admin).\n\nSi todavía nadie la tomó queda cancelada en el momento. Si ya está corriendo se\ndeja el pedido: la precon y el postliming del dinámico cortan al terminar el día en\ncurso y guardan los días completos (con un plazo; después el trabajador mata el\nproceso); cualquier otro tipo se detiene en la próxima vuelta del trabajador.",
+        "description": "Cancela una ejecución de la cola (operador o admin).\n\nSi todavía nadie la tomó queda cancelada en el momento. Si ya está corriendo se\ndeja el pedido: la precon y el postliming del dinámico cortan al terminar el día en\ncurso y guardan los días completos (con un plazo; después el trabajador mata el\nproceso); cualquier otro tipo se detiene en la próxima vuelta del trabajador.",
         "operationId": "cancel_execution_api_v1_executions__execution_id__cancel_post",
         "security": [
           {
@@ -3752,7 +3804,7 @@
     "/api/v1/health": {
       "get": {
         "summary": "System Health",
-        "description": "Estado de lo que rodea a la API: base, almacenamiento de resultados, DLL de\ncada versión de AQSOL y trabajador de la cola. Si el trabajador no late, las\nejecuciones quedan en `pending` y nadie las corre.",
+        "description": "Estado de lo que rodea a la API: base, almacenamiento de resultados, DLL de\ncada versión de AQSOL y trabajador de la cola. Si el trabajador no late, las\nejecuciones quedan en `pending` y nadie las corre.\n\nEl detalle (almacenamiento, motor, trabajador) es solo para el admin; al resto\nle basta saber que la API y la base responden.",
         "operationId": "system_health_api_v1_health_get",
         "responses": {
           "200": {
@@ -6820,6 +6872,31 @@
         ],
         "title": "PreconStatic"
       },
+      "ProjectAccessItem": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "cliente",
+              "lector",
+              "editor",
+              "operador"
+            ],
+            "title": "Role",
+            "default": "editor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "title": "ProjectAccessItem",
+        "description": "Acceso de un usuario a un proyecto, con su rol (F7)."
+      },
       "ProjectCreate": {
         "properties": {
           "name": {
@@ -6905,6 +6982,25 @@
               }
             ],
             "title": "Last Execution Status"
+          },
+          "my_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Role"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities",
+            "default": []
           }
         },
         "type": "object",
@@ -7662,19 +7758,37 @@
       "UserProjectsUpdate": {
         "properties": {
           "project_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Project Ids"
+          },
+          "accesses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProjectAccessItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accesses"
           }
         },
         "type": "object",
-        "required": [
-          "project_ids"
-        ],
         "title": "UserProjectsUpdate",
-        "description": "Schema for assigning/revoking project access."
+        "description": "Asignar/revocar accesos. Dos formas, exactamente una:\n\n- `accesses`: cada proyecto con su rol (F7).\n- `project_ids`: la forma de antes. Los accesos nuevos quedan `editor` y los que\n  siguen conservan su rol."
       },
       "UserResponse": {
         "properties": {
