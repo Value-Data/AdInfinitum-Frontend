@@ -331,13 +331,15 @@ export function downloadReportPdf(id: string, language: Language, q: ReportQuery
   return blob(`/executions/${id}/report.pdf`, clean({ ...q, language }));
 }
 
-/** Series diarias del dinámico en el período. `allSpecies`: la composición de todas las
- * especies de la versión de AQSOL (si no, las 8 de siempre). */
+/** Series diarias del dinámico en el período. `species`: `true` para la composición de
+ * todas las especies de la versión de AQSOL, una lista para esas, o `false` para las 8
+ * de siempre. */
 export async function getExecutionSeries(
-  id: string, q: { period_start?: string | null; period_end?: string | null }, allSpecies = false,
+  id: string, q: { period_start?: string | null; period_end?: string | null }, species: boolean | string[] = false,
 ): Promise<DailySeries> {
   const params = clean({ period_start: q.period_start, period_end: q.period_end });
-  if (allSpecies) params.species = 'all';
+  if (species === true) params.species = 'all';
+  else if (Array.isArray(species) && species.length > 0) params.species = species.join(',');
   const { data } = await api.get<DailySeries>(`/executions/${id}/series`, { params });
   return data;
 }

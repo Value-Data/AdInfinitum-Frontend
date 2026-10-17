@@ -8,11 +8,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import {
-  apiError, blobApiError, downloadChainReportPdf, downloadReportPdf, getChainReport, getExecutionDetail,
+  apiError, blobApiError, downloadChainReportPdf, downloadReportPdf, getChain, getChainReport, getExecutionDetail,
   getProjectV2, getReport, isDynamicType, saveBlob,
   type ExecutionDetail, type ProjectV2, type ReportQuery,
 } from '../services/apiV2';
-import type { Report } from '../types/report';
+import type { ChainSummary, Report } from '../types/report';
+import { ChainDailyCharts } from './ChainDailyCharts';
 import { useLanguage, useT } from '../i18n/LanguageContext';
 import logo from '../media/logo-header.png';
 import { DailyCharts, ReportCharts } from './Charts';
@@ -43,6 +44,7 @@ export default function PrintReportPage() {
   const [detail, setDetail] = useState<ExecutionDetail | null>(null);
   const [project, setProject] = useState<ProjectV2 | null>(null);
   const [report, setReport] = useState<Report | null>(null);
+  const [chain, setChain] = useState<ChainSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pdf, setPdf] = useState<'idle' | 'busy' | 'error'>('idle');
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -57,9 +59,10 @@ export default function PrintReportPage() {
     (async () => {
       try {
         const d = await getExecutionDetail(id);
-        const [p, r] = await Promise.all([
-          getProjectV2(d.project_id), cadena ? getChainReport(id, q) : getReport(id, q)]);
-        setDetail(d); setProject(p); setReport(r);
+        const [p, r, c] = await Promise.all([
+          getProjectV2(d.project_id), cadena ? getChainReport(id, q) : getReport(id, q),
+          cadena ? getChain(id) : Promise.resolve(null)]);
+        setDetail(d); setProject(p); setReport(r); setChain(c);
       } catch (err) {
         setError(apiError(err).message);
       }
@@ -72,7 +75,7 @@ export default function PrintReportPage() {
   const dinamico = isDynamicType(detail.execution_type);
   const periodo = 'period' in report ? report.period : null;
   const conParams = (detail.sections?.length ?? 0) > 0;
-  const conSeries = dinamico && !cadena;
+  const conSeries = dinamico && (!cadena || Boolean(chain));
   // Lo que se imprime tiene que estar dibujado: los parámetros y las series diarias.
   const conComparacion = comparar.length > 0 && !cadena;
   const esperando = (conParams && !paramsListos) || (conSeries && !seriesListas)
@@ -154,7 +157,10 @@ export default function PrintReportPage() {
       )}
       <ChartPrintContext.Provider value>
         <section className="print-page-break">
-          {conSeries && <DailyCharts executionId={id} query={q} print onSettled={() => setSeriesListas(true)} />}
+          {conSeries && (cadena && chain && periodo
+            ? <ChainDailyCharts chain={chain} print onSettled={() => setSeriesListas(true)}
+                                query={{ ...q, period_start: periodo.start, period_end: periodo.end }} />
+            : <DailyCharts executionId={id} query={q} print onSettled={() => setSeriesListas(true)} />)}
           <ReportCharts report={report} allScenarios />
           {conComparacion && (
             <CompareExecutions detail={detail} query={q} ids={comparar} onSettled={() => setComparacionLista(true)} />

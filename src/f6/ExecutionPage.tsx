@@ -27,6 +27,7 @@ import ReportView from './ReportView';
 import { InventoryBadge } from './ConfigPanel';
 import { DailyCharts, ReportCharts } from './Charts';
 import CompareExecutions from './CompareExecutions';
+import { ChainDailyCharts } from './ChainDailyCharts';
 import { executionTabs, parseTab, type ExecutionTab } from './executionTabs';
 
 const ACTIVE = new Set(['pending', 'running']);
@@ -219,7 +220,10 @@ function ReportSection({ detail, chain, filesTab }: {
               <ReportCharts report={report} scenario={escenario} paged />
             </>
           )}
-          {tab === 'daily' && <DailyCharts executionId={detail.id} query={q} />}
+          {tab === 'daily' && (verCadena && chain && 'period' in report
+            ? <ChainDailyCharts chain={chain}
+                                query={{ ...q, period_start: report.period.start, period_end: report.period.end }} />
+            : <DailyCharts executionId={detail.id} query={q} />)}
           {tab === 'compare' && <CompareExecutions detail={detail} query={q} ids={comparar} onChange={setComparar} />}
         </>
       )}

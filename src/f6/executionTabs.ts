@@ -9,7 +9,7 @@ export function executionTabs({ dynamic, chain, files }: {
   dynamic: boolean; chain: boolean; files: boolean;
 }): ExecutionTab[] {
   const tabs: ExecutionTab[] = ['results', 'charts'];
-  if (dynamic && !chain) tabs.push('daily');
+  if (dynamic) tabs.push('daily');
   if (!chain) tabs.push('compare');
   if (files) tabs.push('files');
   return tabs;

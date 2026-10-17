@@ -43,6 +43,10 @@ export async function downloadChartsZip(contenedor: HTMLElement, nombre: string)
   saveBlob(await zip.generateAsync({ type: 'blob' }), `${nombre}.zip`);
 }
 
+/** Las especies de la composición impresa: las 8 de siempre y el H2O, como el PDF de
+ * antes y el del servidor. */
+export const PRINT_SERIES_SPECIES = ['Li+', 'Mg++', 'SO4--', 'K+', 'Na+', 'Ca++', 'Cl-', 'H3BO3', 'H2O'];
+
 /**
  * Series diarias del período. `print` (o la vista de impresión): el gráfico al ancho de
  * la página (sin desplazamiento ni zoom, que el papel no tiene) y en SVG.
@@ -68,13 +72,13 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
   const caja = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let vivo = true;
-    getExecutionSeries(executionId, query, todas)
+    getExecutionSeries(executionId, query, print && !todas ? PRINT_SERIES_SPECIES : todas)
       .then((d) => { if (vivo) { setData(d); setError(null); } })
       .catch((err) => { if (vivo) setError(apiError(err).message); })
       .finally(() => { if (vivo) onSettled?.(); });
     return () => { vivo = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executionId, query.period_start, query.period_end, todas]);
+  }, [executionId, query.period_start, query.period_end, todas, print]);
 
   const pozasConSal = useMemo(() => (data ? saltPonds(data) : []), [data]);
   // La poza de las sales: la elegida si sigue en la serie; si no, la de producto o la primera.

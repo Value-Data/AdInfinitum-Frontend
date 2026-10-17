@@ -58,8 +58,8 @@ describe('pestañas de la ejecución', () => {
       .toEqual(['results', 'charts', 'compare']);
     expect(executionTabs({ dynamic: true, chain: false, files: true }))
       .toEqual(['results', 'charts', 'daily', 'compare', 'files']);
-    // El reporte de la cadena no tiene series diarias ni comparación.
-    expect(executionTabs({ dynamic: true, chain: true, files: false })).toEqual(['results', 'charts']);
+    // El reporte de la cadena: las series diarias de cada etapa, sin comparación.
+    expect(executionTabs({ dynamic: true, chain: true, files: false })).toEqual(['results', 'charts', 'daily']);
   });
 
   it('una pestaña desconocida o que no aplica cae en resultados', () => {
