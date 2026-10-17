@@ -132,3 +132,12 @@ describe('sub-pestañas de Resultados', () => {
     expect(screen.getByTestId('report-table-t_postliming')).toBeTruthy();
   });
 });
+
+describe('lo que se muestra según el rol', () => {
+  it('sin las capacidades cargadas no se ofrece nada extra; con ellas, lo que el rol permite', async () => {
+    const { canDo } = await import('../../src/f6/executionTabs');
+    expect(canDo(null, 'view_logs')).toBe(false);
+    expect(canDo(['view_results'], 'view_logs')).toBe(false);
+    expect(canDo(['view_results', 'view_logs'], 'view_logs')).toBe(true);
+  });
+});

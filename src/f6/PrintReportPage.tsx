@@ -74,7 +74,8 @@ export default function PrintReportPage() {
   if (!detail || !project || !report) return <div className="p-6">…</div>;
   const dinamico = isDynamicType(detail.execution_type);
   const periodo = 'period' in report ? report.period : null;
-  const conParams = (detail.sections?.length ?? 0) > 0;
+  // Los parámetros de entrada son configuración: solo si el rol la puede ver.
+  const conParams = (detail.sections?.length ?? 0) > 0 && (project.capabilities ?? []).includes('view_config');
   const conSeries = dinamico && (!cadena || Boolean(chain));
   // Lo que se imprime tiene que estar dibujado: los parámetros y las series diarias.
   const conComparacion = comparar.length > 0 && !cadena;

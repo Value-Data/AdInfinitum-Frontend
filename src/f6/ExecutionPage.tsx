@@ -29,7 +29,7 @@ import { InventoryBadge } from './ConfigPanel';
 import { DailyCharts, ReportCharts } from './Charts';
 import CompareExecutions from './CompareExecutions';
 import { ChainDailyCharts } from './ChainDailyCharts';
-import { executionTabs, parseTab, type ExecutionTab } from './executionTabs';
+import { canDo, executionTabs, parseTab, type ExecutionTab } from './executionTabs';
 
 const ACTIVE = new Set(['pending', 'running']);
 const POLL_MS = 5000;
@@ -268,8 +268,14 @@ export default function ExecutionPage() {
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const navigate = useNavigate();
   const [nombreProyecto, setNombreProyecto] = useState<string | null>(null);
+  // Lo que el rol del usuario permite en el proyecto (el cliente no ve logs ni config).
+  const [caps, setCaps] = useState<string[] | null>(null);
   useEffect(() => {
-    if (detail?.project_id) getProjectV2(detail.project_id).then((p) => setNombreProyecto(p.name)).catch(() => undefined);
+    if (detail?.project_id) {
+      getProjectV2(detail.project_id)
+        .then((p) => { setNombreProyecto(p.name); setCaps(p.capabilities ?? []); })
+        .catch(() => undefined);
+    }
   }, [detail?.project_id]);
   const loc = useLocation();
   usePageTrail(loc.pathname, [
@@ -288,16 +294,19 @@ export default function ExecutionPage() {
       if (isDynamicType(d.execution_type)) {
         getChain(id).then(setChain).catch(() => setChain(null));
       }
-      // Los archivos de salida (CSV, metadata, log del worker): también del estático.
-      if (d.upload_status === 'uploaded' || (!isDynamicType(d.execution_type) && !ACTIVE.has(d.status))) {
-        listExecutionFiles(id).then(setFiles).catch(() => setFiles([]));
-      }
     } catch (err) {
       setError(apiError(err).message);
     }
   }, [id]);
 
   useEffect(() => { cargar(); }, [cargar]);
+  // Los archivos de salida (CSV, metadata, log del worker), también del estático; solo
+  // si el rol puede verlos.
+  const conArchivos = Boolean(detail && canDo(caps, 'view_logs') && (detail.upload_status === 'uploaded'
+    || (!isDynamicType(detail.execution_type) && !ACTIVE.has(detail.status))));
+  useEffect(() => {
+    if (conArchivos) listExecutionFiles(id).then(setFiles).catch(() => setFiles([]));
+  }, [id, conArchivos]);
   useEffect(() => {
     if (!detail || !ACTIVE.has(detail.status)) return undefined;
     const timer = setInterval(cargar, POLL_MS);
@@ -377,10 +386,12 @@ export default function ExecutionPage() {
         {detail.sections?.map((s, i) => (
           <React.Fragment key={s.section}>
             {i > 0 && ' · '}
-            <Link to={`/projects/${detail.project_id}/sections/${s.section}_${motor}?version=${s.version_no}`}
-                  style={{ color: 'var(--color-primary)' }} title={t('f6_view_config_used')}>
-              {t(`f6_stage_${s.section}` as never)} v{s.version_no}
-            </Link>
+            {canDo(caps, 'view_config') ? (
+              <Link to={`/projects/${detail.project_id}/sections/${s.section}_${motor}?version=${s.version_no}`}
+                    style={{ color: 'var(--color-primary)' }} title={t('f6_view_config_used')}>
+                {t(`f6_stage_${s.section}` as never)} v{s.version_no}
+              </Link>
+            ) : <span>{t(`f6_stage_${s.section}` as never)} v{s.version_no}</span>}
             {/* Arrancó con las pozas cargadas (estado inicial de la sección: inventario). */}
             {Number(s.n_initial_states ?? 0) > 0 && (
               <span className="ml-2"><InventoryBadge n={Number(s.n_initial_states)} /></span>
@@ -428,16 +439,17 @@ export default function ExecutionPage() {
         </div>
       )}
 
-      {!conResultados && <LogPanel id={id} live={activa} />}
+      {!conResultados && canDo(caps, 'view_logs') && <LogPanel id={id} live={activa} />}
 
       {chain && chain.executions.length > 1 && <ChainStrip chain={chain} current={id} />}
 
       {conResultados && <PartialRunBanner info={partialInfo(detail)} />}
-      {conResultados ? <ReportSection detail={detail} chain={chain} filesTab={archivos} /> : (!activa && (
+      {conResultados ? <ReportSection detail={detail} chain={chain}
+                                      filesTab={canDo(caps, 'view_logs') ? archivos : null} /> : (!activa && (
         <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_no_results')}</p>
       ))}
 
-      {!conResultados && files.length > 0 && archivos}
+      {!conResultados && files.length > 0 && canDo(caps, 'view_logs') && archivos}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 # STATE.md — AdInfinitum Frontend
 
 <!-- GENERADO por scripts/cartograph.py. No editar a mano: regenerar. -->
-Generado: 2026-10-16 16:43 · rama `f7-ux` @ `6122e45`
+Generado: 2026-10-17 04:59 · rama `f7-ux` @ `d61533d`
 
-**9 rutas en App.tsx · 60 archivos de componente (f6 15, legacy 28, pages 3, components 10, layouts 1, context 2, i18n 1) · 10 hooks · 43 llamadas a endpoints en 3 servicios · 61 operaciones en openapi.json · 24 archivos de test · 95 archivos .ts/.tsx en src**
+**9 rutas en App.tsx · 63 archivos de componente (f6 18, legacy 28, pages 3, components 10, layouts 1, context 2, i18n 1) · 13 hooks · 44 llamadas a endpoints en 3 servicios · 62 operaciones en openapi.json · 31 archivos de test · 100 archivos .ts/.tsx en src**
 
 ## Rutas (src/App.tsx)
 | Path | Elemento |
@@ -19,24 +19,27 @@ Generado: 2026-10-16 16:43 · rama `f7-ux` @ `6122e45`
 | `*` | `Navigate` |
 
 ## Componentes por árbol
-### src/f6 (15)
+### src/f6 (18)
 | Archivo | Exporta | Líneas |
 |---|---|---|
-| `src/f6/chartPanel.tsx` | Panel, Toggle | 70 |
-| `src/f6/Charts.tsx` | DailyCharts, ReportCharts | 484 |
+| `src/f6/ChainDailyCharts.tsx` | ChainDailyCharts | 34 |
+| `src/f6/chartPanel.tsx` | Panel, Toggle, SmoothContext | 75 |
+| `src/f6/Charts.tsx` | PRINT_SERIES_SPECIES, DailyCharts, ReportCharts | 543 |
 | `src/f6/common.tsx` | RunStatusBadge, PartialRunBanner | 92 |
 | `src/f6/CompareExecutions.tsx` | MAX_COMPARE, CompareExecutions | 274 |
 | `src/f6/ConfigPanel.tsx` | IssueList, InventoryBadge, INVENTARIO_AQSOL, InventarioPanel, ConfigPanel | 375 |
 | `src/f6/EChart.tsx` | ChartPrintContext, EChart | 54 |
-| `src/f6/ExecutionPage.tsx` | ExecutionPage | 378 |
-| `src/f6/InputParameters.tsx` | InputParameters | 183 |
-| `src/f6/labels.tsx` | — | 51 |
+| `src/f6/ExecutionPage.tsx` | ExecutionPage | 456 |
+| `src/f6/InputParameters.tsx` | InputParameters | 184 |
+| `src/f6/labels.tsx` | — | 63 |
 | `src/f6/LaunchPanel.tsx` | LaunchPanel | 258 |
-| `src/f6/PrintReportPage.tsx` | PrintReportPage | 168 |
+| `src/f6/paging.tsx` | PAGE_SIZE, Pager | 25 |
+| `src/f6/PdfPreview.tsx` | PdfPreview | 52 |
+| `src/f6/PrintReportPage.tsx` | PrintReportPage | 177 |
 | `src/f6/ProCharts.tsx` | LiSankeyPanel, PondHeatmap | 102 |
-| `src/f6/ProjectPage.tsx` | ProjectPage | 155 |
-| `src/f6/ReportView.tsx` | ReportTableView, KPI_FIRST, KpiCards, RecoveryBars, ReportView | 321 |
-| `src/f6/SectionEditorPage.tsx` | InitialStatesEditor, SectionEditorPage | 880 |
+| `src/f6/ProjectPage.tsx` | ProjectPage | 175 |
+| `src/f6/ReportView.tsx` | PRINT_COLUMNS, PrintTablesContext, ReportTableView, KPI_FIRST, KpiCards, RecoveryBars, ReportView | 425 |
+| `src/f6/SectionEditorPage.tsx` | InitialStatesEditor, SectionEditorPage | 892 |
 
 ### src/legacy (28)
 | Archivo | Exporta | Líneas |
@@ -66,16 +69,16 @@ Generado: 2026-10-16 16:43 · rama `f7-ux` @ `6122e45`
 | `src/legacy/components/WellBrineFeedTable.tsx` | WellBrineFeedTable | 59 |
 | `src/legacy/labels.tsx` | LegacyBanner | 36 |
 | `src/legacy/LegacyExecutionPage.tsx` | LegacyExecutionPage | 181 |
-| `src/legacy/LegacyExecutionsSection.tsx` | LegacyExecutionsSection | 128 |
+| `src/legacy/LegacyExecutionsSection.tsx` | LegacyExecutionsSection | 131 |
 | `src/legacy/pages/ExecutionResultsPage.tsx` | ExecutionResultsPage | 1306 |
 | `src/legacy/utils/chartDateAxis.tsx` | XAxisModeProvider, ScrollableChart, DayDateToggle, DayStepSelect | 157 |
 
 ### src/pages (3)
 | Archivo | Exporta | Líneas |
 |---|---|---|
-| `src/pages/LoginPage.tsx` | LoginPage | 115 |
-| `src/pages/ProjectsPage.tsx` | ProjectsPage | 245 |
-| `src/pages/UsersPage.tsx` | UsersPage | 342 |
+| `src/pages/LoginPage.tsx` | LoginPage | 150 |
+| `src/pages/ProjectsPage.tsx` | ProjectsPage | 274 |
+| `src/pages/UsersPage.tsx` | UsersPage | 341 |
 
 ### src/components (10)
 | Archivo | Exporta | Líneas |
@@ -86,9 +89,9 @@ Generado: 2026-10-16 16:43 · rama `f7-ux` @ `6122e45`
 | `src/components/common/LoadingSpinner.tsx` | LoadingSpinner | 35 |
 | `src/components/common/Modal.tsx` | Modal | 78 |
 | `src/components/common/ProtectedRoute.tsx` | ProtectedRoute | 32 |
-| `src/components/common/Sidebar.tsx` | Sidebar | 123 |
+| `src/components/common/Sidebar.tsx` | Sidebar | 126 |
 | `src/components/common/StatusBadge.tsx` | StatusBadge | 54 |
-| `src/components/common/Topbar.tsx` | Topbar | 67 |
+| `src/components/common/Topbar.tsx` | Topbar | 71 |
 | `src/components/common/WelcomeOverlay.tsx` | WelcomeOverlay | 149 |
 
 ### src/layouts (1)
@@ -108,9 +111,12 @@ Generado: 2026-10-16 16:43 · rama `f7-ux` @ `6122e45`
 | `src/i18n/LanguageContext.tsx` | LanguageProvider | 73 |
 
 ## Hooks
+- `useTrail` — `src/components/common/trail.ts`
+- `usePageTrail` — `src/components/common/trail.ts`
 - `useAuth` — `src/context/AuthContext.tsx`
 - `useDecimals` — `src/context/DecimalsContext.tsx`
 - `useTools` — `src/f6/chartPanel.tsx`
+- `useSmooth` — `src/f6/chartPanel.tsx`
 - `useChartPrint` — `src/f6/EChart.tsx`
 - `useLabels` — `src/f6/labels.tsx`
 - `useAuth (re-export)` — `src/hooks/useAuth.ts`
@@ -120,17 +126,18 @@ Generado: 2026-10-16 16:43 · rama `f7-ux` @ `6122e45`
 - `useDayDateAxis` — `src/legacy/utils/chartDateAxis.tsx`
 
 ## Contrato y tipos
-- `openapi.json`: 61 operaciones. `capabilities` presente: NO (F7 backend Fase 2 pendiente)
+- `openapi.json`: 62 operaciones. `capabilities` presente: sí
 - `src/types/api.d.ts` generado por openapi-typescript: sí (DENY: no editar)
 - Tipos a mano: `src/types/index.ts`, `src/types/report.ts`
 
 ## Endpoints usados por servicio
-### `src/services/api.ts` (11)
+### `src/services/api.ts` (12)
 - GET `/auth/me`
 - GET `/executions/${id}/files`
 - GET `/executions/${id}/files/${encodeURIComponent(name)}`
 - GET `/projects`
 - GET `/users`
+- GET `/users/${userId}/accesses`
 - GET `/users/${userId}/projects`
 - POST `/auth/login`
 - POST `/auth/refresh`
@@ -175,8 +182,8 @@ Generado: 2026-10-16 16:43 · rama `f7-ux` @ `6122e45`
 - GET `/projects/${encodeURIComponent(projectId)}/legacy-executions`
 
 ## Tests (__tests__/)
-- `components/`: 2
-- `f6/`: 13
+- `components/`: 4
+- `f6/`: 18
 - `hooks/`: 1
 - `legacy/`: 7
 - `utils/`: 1
@@ -184,20 +191,20 @@ Generado: 2026-10-16 16:43 · rama `f7-ux` @ `6122e45`
 ## Deuda medible (total · archivos)
 | Patrón | Ocurrencias | Archivos |
 |---|---|---|
-| `isAdmin` | 22 | 7 |
-| `style={{` | 351 | 53 |
-| `hex sueltos (fuera de tokens.css)` | 169 | 32 |
-| `error tragado .catch(() => setX([]|null))` | 7 | 4 |
+| `isAdmin` | 24 | 7 |
+| `style={{` | 364 | 54 |
+| `hex sueltos (fuera de tokens.css)` | 170 | 33 |
+| `error tragado .catch(() => setX([]|null))` | 5 | 3 |
 | `window.confirm` | 1 | 1 |
 | `gauge` | 0 | 0 |
 | `: any / as any` | 0 | 0 |
 
 ## Archivos más grandes
-- `src/types/api.d.ts` — 4442 líneas
+- `src/types/api.d.ts` — 4527 líneas
 - `src/legacy/pages/ExecutionResultsPage.tsx` — 1306 líneas
 - `src/i18n/translations.ts` — 1046 líneas
 - `src/legacy/components/DynamicResultsView.tsx` — 980 líneas
 - `src/legacy/utils/exportExecutionExcel.ts` — 926 líneas
-- `src/f6/SectionEditorPage.tsx` — 880 líneas
+- `src/f6/SectionEditorPage.tsx` — 892 líneas
+- `src/types/index.ts` — 822 líneas
 - `src/legacy/types.ts` — 814 líneas
-- `src/types/index.ts` — 814 líneas

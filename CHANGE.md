@@ -57,3 +57,4 @@ antigua. Re-evaluar cuando llegue el `openapi.json` nuevo.
 | Agente | Estado | Nota |
 |---|---|---|
 | vd-init | OK | 2026-10-16: CLAUDE.md, CHANGE.md, PRODUCT.md, STATE.md, gates y agentes de proyecto creados |
+| orquestador (UX F7) | OK | 2026-10-17: ejecución en pestañas y sub-pestañas (Resultados por etapa, Gráficos por grupo), tablas impresas en bloques de columnas, curva/recta, vista previa del PDF, listas paginadas, series diarias de la cadena y H2O impreso, roles por proyecto en Usuarios, errores visibles, tildes, unidades sin repetir, miga con nombres, foco visible, cliente sin logs/config. Commits e6b0022..HEAD. vitest 194/194, gate OK (WARN: sin eslint). Sin push. |

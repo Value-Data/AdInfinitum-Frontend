@@ -18,3 +18,9 @@ export function executionTabs({ dynamic, chain, files }: {
 export function parseTab(value: string | null, tabs: ExecutionTab[]): ExecutionTab {
   return tabs.includes(value as ExecutionTab) ? (value as ExecutionTab) : 'results';
 }
+
+/** Si el rol del usuario en el proyecto permite `cap` (las capacidades vienen del
+ * proyecto; mientras no llegan, no se ofrece lo que podría dar 403). */
+export function canDo(caps: string[] | null | undefined, cap: string): boolean {
+  return Boolean(caps && caps.includes(cap));
+}
