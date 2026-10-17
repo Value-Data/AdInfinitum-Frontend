@@ -22,6 +22,7 @@ import ReportView from './ReportView';
 import { PartialRunBanner, executionTypeLabel, formatDateTime, partialInfo } from './common';
 import InputParameters from './InputParameters';
 import { generatePdfFromContainer } from '../utils/pdfReport';
+import { PdfPreview } from './PdfPreview';
 
 /** Nombre fijo del PDF, como en la versión anterior: reporte_<estatico|dinamico>_<proyecto>.pdf. */
 export function pdfFileName(projectName: string, dynamic: boolean, chain = false): string {
@@ -121,6 +122,7 @@ export default function PrintReportPage() {
         </button>
         <button className="btn btn-outline" onClick={() => window.print()} disabled={esperando}>{t('f6_print_now')}</button>
       </div>
+      <PdfPreview load={() => (cadena ? downloadChainReportPdf(id, lang, q) : downloadReportPdf(id, lang, q))} />
       <section className="print-cover mb-8 pdf-block">
         <img src={logo} alt="" style={{ height: 56 }} />
         <h1 className="text-2xl font-semibold mt-6">{t('f6_print_title')}</h1>

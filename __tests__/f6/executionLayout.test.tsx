@@ -7,7 +7,7 @@ vi.mock('../../src/services/apiV2', async (orig) => ({
   getDictionaryLabels: vi.fn(async () => ({})),
 }));
 
-import ReportView, { splitColumns } from '../../src/f6/ReportView';
+import ReportView, { resultSections, splitColumns } from '../../src/f6/ReportView';
 import { chartGroups } from '../../src/f6/Charts';
 import { executionTabs, parseTab } from '../../src/f6/executionTabs';
 import { Pager, pageSlice } from '../../src/f6/paging';
@@ -107,5 +107,28 @@ describe('paginación', () => {
     fireEvent.click(screen.getByRole('button', { name: '›' }));
     expect(onPage).toHaveBeenCalledWith(1);
     expect((screen.getByRole('button', { name: '‹' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('sub-pestañas de Resultados', () => {
+  const st = (stage: string) => ({ stage, kpis: { li_recovery_pct: 90 }, tables: [{ ...ancha, key: `t_${stage}` }] });
+  it('resumen, una por etapa y el balance global si viene', () => {
+    const rep = estatico([st('precon'), st('liming'), st('postliming')]);
+    expect(resultSections(rep, 0)).toEqual(['summary', 'stage:precon', 'stage:liming', 'stage:postliming']);
+    rep.scenarios[0].global_balance = { ...ancha, key: 'global_balance' };
+    expect(resultSections(rep, 0)).toEqual(['summary', 'stage:precon', 'stage:liming', 'stage:postliming', 'global']);
+  });
+  it('paginada muestra solo la etapa elegida; impresa, todas', () => {
+    const rep = estatico([st('precon'), st('postliming')]);
+    const { unmount } = render(<ReportView report={rep} paged />);
+    expect(screen.getByTestId('report-table-comparison')).toBeTruthy();
+    expect(screen.queryByTestId('report-table-t_precon')).toBeNull();
+    fireEvent.click(within(screen.getByTestId('result-sections')).getByRole('tab', { name: 'Preconcentración' }));
+    expect(screen.getByTestId('report-table-t_precon')).toBeTruthy();
+    expect(screen.queryByTestId('report-table-t_postliming')).toBeNull();
+    unmount();
+    render(<ReportView report={rep} printAll />);
+    expect(screen.getByTestId('report-table-t_precon')).toBeTruthy();
+    expect(screen.getByTestId('report-table-t_postliming')).toBeTruthy();
   });
 });

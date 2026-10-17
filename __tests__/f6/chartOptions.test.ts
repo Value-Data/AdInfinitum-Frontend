@@ -299,3 +299,24 @@ describe('fórmula de cada serie en el tooltip', () => {
     expect(html).toContain('lime + water (encalado_reactivos)');
   });
 });
+
+describe('línea curva o recta', () => {
+  const cat = (smooth?: boolean) => categoryOption({
+    categories: ['P1', 'P2'], kind: 'lines', yName: '', unit: 't/d', smooth,
+    series: [{ name: 'Li+', values: [1, 2] }],
+  });
+  const dual = (smooth?: boolean) => dualAxisOption({
+    categories: ['P1', 'P2'], smooth,
+    left: { name: 'Li+', unit: 't/d', values: [1, 2], color: '#000' },
+    right: { name: 'Na+', unit: 't/d', values: [3, 4], color: '#111' },
+  });
+  const suaves = (o: ReturnType<typeof cat>) => (o.series as { smooth?: boolean }[]).map((s) => s.smooth);
+  it('por defecto curva, como antes', () => {
+    expect(suaves(cat())).toEqual([true]);
+    expect(suaves(dual())).toEqual([true, true]);
+  });
+  it('recta si se elige', () => {
+    expect(suaves(cat(false))).toEqual([false]);
+    expect(suaves(dual(false))).toEqual([false, false]);
+  });
+});

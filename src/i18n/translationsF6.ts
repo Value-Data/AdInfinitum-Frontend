@@ -11,6 +11,13 @@ export const F6_TRANSLATIONS = {
   },
 
   f6_columns_range: { es: 'columnas {a}–{b} de {n}', en: 'columns {a}–{b} of {n}' },
+  f6_line_curve: { es: 'Curva', en: 'Curved' },
+  f6_line_straight: { es: 'Recta', en: 'Straight' },
+  f6_results_summary: { es: 'Resumen', en: 'Summary' },
+  f6_results_global: { es: 'Balance global', en: 'Global balance' },
+  f6_pdf_preview: { es: 'Vista previa por páginas', en: 'Page-by-page preview' },
+  f6_pdf_preview_hint: { es: 'El PDF oficial del servidor, página por página.', en: 'The official server PDF, page by page.' },
+  f6_pdf_preview_close: { es: 'Cerrar vista previa', en: 'Close preview' },
   f6_tab_results: { es: 'Resultados', en: 'Results' },
   f6_tab_charts: { es: 'Gráficos', en: 'Charts' },
   f6_tab_daily: { es: 'Series diarias', en: 'Daily series' },

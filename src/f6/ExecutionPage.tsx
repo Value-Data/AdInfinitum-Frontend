@@ -201,7 +201,7 @@ function ReportSection({ detail, chain, filesTab }: {
       {error && <div className="card p-3 mb-4 text-sm" style={{ borderColor: '#fca5a5' }}>{error}</div>}
       {report && !cargando && (
         <>
-          {tab === 'results' && <ReportView report={report} scenario={escenario} onScenario={setEscenario} />}
+          {tab === 'results' && <ReportView report={report} scenario={escenario} onScenario={setEscenario} paged />}
           {tab === 'charts' && (
             <>
               {isStaticReport(report) && report.scenarios.length > 1 && (

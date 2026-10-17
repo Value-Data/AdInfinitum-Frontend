@@ -253,6 +253,26 @@ export function RecoveryBars({ stages, processKpis }: {
   );
 }
 
+/**
+ * Sub-pestañas de "Resultados" en pantalla: el resumen (KPIs del proceso, recuperación y
+ * la comparativa de escenarios), una por etapa y el balance global. Impreso, todo.
+ */
+export type ResultSection = 'summary' | `stage:${string}` | 'global';
+const SectionContext = createContext<ResultSection | null>(null);
+const useVer = () => {
+  const actual = useContext(SectionContext);
+  return (k: ResultSection) => actual === null || actual === k;
+};
+
+export function resultSections(report: Report, scenario = 0): ResultSection[] {
+  const fuente = isStaticReport(report)
+    ? report.scenarios[Math.min(scenario, report.scenarios.length - 1)] : report;
+  const out: ResultSection[] = ['summary'];
+  (fuente?.stages ?? []).forEach((st) => out.push(`stage:${st.stage}`));
+  if (fuente?.global_balance) out.push('global');
+  return out;
+}
+
 /** Tablas del detalle de la planta (el "Detalle planta de reactivos" de antes). */
 const LIMING_DETAIL = ['liming_steps', 'liming_step_composition', 'liming_reagent_detail'];
 
@@ -279,44 +299,52 @@ function StageBlock({ stage }: { stage: StageReport }) {
 
 function DynamicReportView({ report }: { report: DynamicReport }) {
   const t = useT();
-  const { label } = useLabels();
+  const ver = useVer();
   return (
     <div>
-      <p className="text-sm mb-3 pdf-block" style={{ color: 'var(--color-text-secondary)' }}>
+      {ver('summary') && <p className="text-sm mb-3 pdf-block" style={{ color: 'var(--color-text-secondary)' }}>
         {t('f6_period')}: {dmy(report.period.start)} – {dmy(report.period.end)} ({report.period.n_days} {t('f6_days')})
         {report.params.scale_factor !== 1 && ` · ${t('f6_scale_factor')}: ${report.params.scale_factor}`}
-      </p>
-      {Object.keys(report.process_kpis).length > 0 && (
+      </p>}
+      {ver('summary') && Object.keys(report.process_kpis).length > 0 && (
         <section className="mb-6">
           <h3 className="text-base font-semibold mb-2 pdf-block">{t('f6_process_full')}</h3>
           <KpiCards kpis={report.process_kpis} />
         </section>
       )}
-      <RecoveryBars stages={report.stages} processKpis={report.process_kpis} />
-      {report.stages.map((s) => <StageBlock key={s.stage} stage={s} />)}
-      {report.global_balance && <ReportTableView table={report.global_balance} />}
+      {ver('summary') && <RecoveryBars stages={report.stages} processKpis={report.process_kpis} />}
+      {report.stages.filter((s) => ver(`stage:${s.stage}`)).map((s) => <StageBlock key={s.stage} stage={s} />)}
+      {ver('global') && report.global_balance && <ReportTableView table={report.global_balance} />}
     </div>
   );
 }
 
 function ScenarioBlock({ sc }: { sc: StaticReport['scenarios'][number] }) {
   const t = useT();
+  const ver = useVer();
   return (
     <>
-      {sc.status === 'failed' && (
+      {ver('summary') && sc.status === 'failed' && (
         <div className="card p-3 mb-3 text-sm pdf-block" style={{ borderColor: '#fca5a5' }}>
           {t('f6_scenario_failed')} ({sc.failed_stage ?? '–'}): {sc.error_message}
         </div>
       )}
-      <p className="text-sm mb-3 pdf-block" style={{ color: 'var(--color-text-secondary)' }}>
-        {sc.temperature_C ?? '–'} °C · {sc.evaporation_mm_d ?? '–'} mm/d
-      </p>
-      {Object.keys(sc.process_kpis).length > 0 && <KpiCards kpis={sc.process_kpis} />}
-      <RecoveryBars stages={sc.stages} processKpis={sc.process_kpis} />
-      {sc.stages.map((s) => <StageBlock key={s.stage} stage={s} />)}
-      {sc.global_balance && <ReportTableView table={sc.global_balance} />}
+      {ver('summary') && (
+        <p className="text-sm mb-3 pdf-block" style={{ color: 'var(--color-text-secondary)' }}>
+          {sc.temperature_C ?? '–'} °C · {sc.evaporation_mm_d ?? '–'} mm/d
+        </p>
+      )}
+      {ver('summary') && Object.keys(sc.process_kpis).length > 0 && <KpiCards kpis={sc.process_kpis} />}
+      {ver('summary') && <RecoveryBars stages={sc.stages} processKpis={sc.process_kpis} />}
+      {sc.stages.filter((s) => ver(`stage:${s.stage}`)).map((s) => <StageBlock key={s.stage} stage={s} />)}
+      {ver('global') && sc.global_balance && <ReportTableView table={sc.global_balance} />}
     </>
   );
+}
+
+function ComparisonInSummary({ table }: { table: ReportTable }) {
+  const ver = useVer();
+  return ver('summary') ? <ReportTableView table={table} /> : null;
 }
 
 function StaticReportView({ report, printAll, scenario, onScenario }: {
@@ -344,7 +372,7 @@ function StaticReportView({ report, printAll, scenario, onScenario }: {
   }
   return (
     <div>
-      <ReportTableView table={report.comparison} />
+      <ComparisonInSummary table={report.comparison} />
       {report.scenarios.length > 0 && (
         <>
           <div className="flex flex-wrap gap-2 mb-3" role="tablist">
@@ -363,11 +391,34 @@ function StaticReportView({ report, printAll, scenario, onScenario }: {
   );
 }
 
-export default function ReportView({ report, printAll, scenario, onScenario }: {
-  report: Report; printAll?: boolean; scenario?: number; onScenario?: (i: number) => void;
+export default function ReportView({ report, printAll, paged, scenario, onScenario }: {
+  report: Report; printAll?: boolean; paged?: boolean; scenario?: number; onScenario?: (i: number) => void;
 }) {
+  const t = useT();
+  const [elegida, setElegida] = useState<ResultSection>('summary');
+  const secciones = resultSections(report, scenario ?? 0);
+  const seccion: ResultSection | null = paged && !printAll
+    ? (secciones.includes(elegida) ? elegida : 'summary') : null;
+  const nombre = (k: ResultSection) => (k === 'summary' ? t('f6_results_summary')
+    : k === 'global' ? t('f6_results_global') : t(`f6_stage_${k.slice('stage:'.length)}` as never));
   const vista = isStaticReport(report)
     ? <StaticReportView report={report} printAll={printAll} scenario={scenario} onScenario={onScenario} />
     : <DynamicReportView report={report} />;
-  return printAll ? <PrintTablesContext.Provider value>{vista}</PrintTablesContext.Provider> : vista;
+  const conSecciones = (
+    <>
+      {seccion !== null && secciones.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-3 no-print" role="tablist" data-testid="result-sections">
+          {secciones.map((k) => (
+            <button key={k} role="tab" aria-selected={k === seccion}
+                    className={`btn btn-sm ${k === seccion ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setElegida(k)}>
+              {nombre(k)}
+            </button>
+          ))}
+        </div>
+      )}
+      <SectionContext.Provider value={seccion}>{vista}</SectionContext.Provider>
+    </>
+  );
+  return printAll ? <PrintTablesContext.Provider value>{conSecciones}</PrintTablesContext.Provider> : conSecciones;
 }

@@ -27,6 +27,8 @@ export interface ToolLabels {
 
 interface Base {
   print?: boolean;
+  /** Líneas curvas (como antes, por defecto) o rectas entre categorías. */
+  smooth?: boolean;
   tools?: ToolLabels;
   /** Nombre del PNG que baja la caja de herramientas. */
   fileName?: string;
@@ -222,7 +224,7 @@ export function categoryOption(o: Base & {
     return o.kind === 'bars'
       ? { type: 'bar', name: s.name, data: s.values, color, barMaxWidth: 48, itemStyle: { borderRadius: [4, 4, 0, 0] } }
       : { type: 'line', name: s.name, data: s.values, color, symbol: 'circle', symbolSize: 7, connectNulls: true,
-          smooth: true, smoothMonotone: 'x', lineStyle: { width: 2, type: s.lineType ?? (st.dashed && !s.color ? 'dashed' : 'solid') } };
+          smooth: o.smooth ?? true, smoothMonotone: 'x', lineStyle: { width: 2, type: s.lineType ?? (st.dashed && !s.color ? 'dashed' : 'solid') } };
   });
   return {
     animation: false,
@@ -452,7 +454,7 @@ export function dualAxisOption(o: Base & {
 }): EChartsOption {
   const linea = (s: AxisSeriesInput, eje: number, simbolo: number): LineSeriesOption => ({
     type: 'line', name: s.name, data: s.values, yAxisIndex: eje, color: s.color, symbol: 'circle',
-    symbolSize: simbolo, connectNulls: true, smooth: true, smoothMonotone: 'x', lineStyle: { width: s.width ?? 2 },
+    symbolSize: simbolo, connectNulls: true, smooth: o.smooth ?? true, smoothMonotone: 'x', lineStyle: { width: s.width ?? 2 },
   });
   const eje = (s: AxisSeriesInput, lado: 'left' | 'right') => ({
     ...valueAxis(s.name, s.unit, true), position: lado,

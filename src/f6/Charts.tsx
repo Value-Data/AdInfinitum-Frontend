@@ -23,7 +23,7 @@ import {
   categoryOption, dailyLineOption, dualAxisOption, pondScatterOption,
 } from './chartOptions';
 import { EChart, useChartPrint } from './EChart';
-import { Panel, Toggle, nombreArchivo, useTools } from './chartPanel';
+import { Panel, SmoothContext, Toggle, nombreArchivo, useSmooth, useTools } from './chartPanel';
 import { LiSankeyPanel, PondHeatmap } from './ProCharts';
 import { canvasToBlob, panelCanvas } from './chartImage';
 
@@ -236,17 +236,18 @@ function TableBars({ table, unidades, title, lines = false, keys, skip = [] }: {
   const { label } = useLabels();
   const { decimals } = useDecimals();
   const tools = useTools();
+  const smooth = useSmooth();
   const print = useChartPrint();
   const todas = columnas(table, unidades).filter((c) => !skip.includes(c.key));
   const cols = (keys ? keys.map((k) => todas.find((c) => c.key === k)).filter((c): c is ReportColumn => Boolean(c))
     : todas).slice(0, 6);
   const nombre = title ?? `${label(`result.${table.key}`, table.key)} (${cols[0]?.unit ?? ''})`;
-  const option = useMemo(() => categoryOption({
+  const option = useMemo(() => categoryOption({ smooth,
     categories: table.rows.map((r) => String(r.id)), kind: lines ? 'lines' : 'bars',
     yName: '', unit: cols[0]?.unit ?? '', print, tools, fileName: nombreArchivo(nombre),
     series: cols.map((c) => ({ name: label(`result.${c.key}`, c.key), values: valores(table.rows, c.key) })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [table, lines, print, decimals, label, nombre, cols.map((c) => c.key).join('|')]);
+  }), [smooth, table, lines, print, decimals, label, nombre, cols.map((c) => c.key).join('|')]);
   if (cols.length === 0 || table.rows.length === 0) return null;
   const notas = cols.filter((c) => c.formula).map((c) => `${label(`result.${c.key}`, c.key)}: ${c.formula}`);
   return (
@@ -277,13 +278,14 @@ function PondLinePanel({ title, data, valueKey, name, unit, color, factor = 1, d
 }) {
   const { decimals } = useDecimals();
   const tools = useTools();
+  const smooth = useSmooth();
   const print = useChartPrint();
-  const option = useMemo(() => categoryOption({
+  const option = useMemo(() => categoryOption({ smooth,
     categories: data.map((r) => r.id), kind: 'lines', yName: name, unit, scale: true, print, tools, digits,
     fileName: nombreArchivo(title),
     series: [{ name, values: valores(data, valueKey).map((v) => (v === null ? null : v * factor)), color }],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [data, valueKey, name, unit, factor, digits, print, decimals, title]);
+  }), [smooth, data, valueKey, name, unit, factor, digits, print, decimals, title]);
   return <Panel title={title}><EChart option={option} height={280} /></Panel>;
 }
 
@@ -295,12 +297,13 @@ function DualAxisPanel({ title, data, left, right, height = 300 }: {
 }) {
   const { decimals } = useDecimals();
   const tools = useTools();
+  const smooth = useSmooth();
   const print = useChartPrint();
-  const option = useMemo(() => dualAxisOption({
+  const option = useMemo(() => dualAxisOption({ smooth,
     categories: data.map((r) => r.id), print, tools, fileName: nombreArchivo(title),
     left: { ...left, values: valores(data, left.key) }, right: { ...right, values: valores(data, right.key) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [data, left.key, right.key, left.name, right.name, left.unit, print, decimals, title]);
+  }), [smooth, data, left.key, right.key, left.name, right.name, left.unit, print, decimals, title]);
   return <Panel title={title} height={height}><EChart option={option} height={height} /></Panel>;
 }
 
@@ -308,6 +311,7 @@ function StagePondCharts({ stage, mode, prefix }: { stage: StageReport; mode: 'a
   const t = useT();
   const { decimals } = useDecimals();
   const tools = useTools();
+  const smooth = useSmooth();
   const print = useChartPrint();
   const nombre = `${prefix}${t(`f6_stage_${stage.stage}` as never)}`;
   const unidad = mode === 'abs' ? 't/d' : '%p/p';
@@ -325,12 +329,12 @@ function StagePondCharts({ stage, mode, prefix }: { stage: StageReport; mode: 'a
     seriesName: t('charts_ponds'), color: LI_COLOR, print, tools, fileName: nombreArchivo(tituloDispersion),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [stage, mode, print, decimals, t]);
-  const opSales = useMemo(() => categoryOption({
+  const opSales = useMemo(() => categoryOption({ smooth,
     categories: sales.rows.map((r) => r.id), kind: 'lines', yName: '', unit: 't/d', print, tools,
     fileName: nombreArchivo(tituloSales),
     series: sales.salts.map((s) => ({ name: s, values: valores(sales.rows, s) })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [stage, print, decimals, t]);
+  }), [smooth, stage, print, decimals, t]);
   return (
     <>
       <h4 className="text-sm font-semibold pdf-block" style={{ gridColumn: '1 / -1' }}>
@@ -374,16 +378,17 @@ function EvapSaltsChart({ comparison, lines }: { comparison: ReportTable; lines:
   const { label } = useLabels();
   const { decimals } = useDecimals();
   const tools = useTools();
+  const smooth = useSmooth();
   const print = useChartPrint();
   const { rows, formulas } = lastStageTotals(comparison);
   const titulo = `${t('execres_evap_total')} / ${t('execres_salts_total')} (t/d)`;
-  const option = useMemo(() => categoryOption({
+  const option = useMemo(() => categoryOption({ smooth,
     categories: rows.map((r) => r.id), kind: lines ? 'lines' : 'bars', yName: '', unit: 't/d', print, tools,
     fileName: nombreArchivo(titulo),
     series: [{ name: t('execres_evap_total'), values: valores(rows, 'evaporation_t_d') },
       { name: t('execres_salts_total'), values: valores(rows, 'salt_precipitated_t_d') }],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [comparison, lines, print, decimals, t]);
+  }), [smooth, comparison, lines, print, decimals, t]);
   if (!rows.some((r) => r.evaporation_t_d !== null || r.salt_precipitated_t_d !== null)) return null;
   const notas = Object.entries(formulas).map(([k, f]) => `${label(`result.${k}`, k)}: ${f}`);
   return <Panel title={titulo} notes={notas}><EChart option={option} height={280} /></Panel>;
@@ -394,19 +399,20 @@ function ClimateChart({ comparison, lines }: { comparison: ReportTable; lines: b
   const t = useT();
   const { decimals } = useDecimals();
   const tools = useTools();
+  const smooth = useSmooth();
   const print = useChartPrint();
   const filas = climateRows(comparison);
   const titulo = t('f6_chart_climate');
   const opciones = useMemo(() => [
     { key: 'temperature_C', name: t('f6_chart_temperature'), unit: '°C', color: SERIES_COLORS[1] },
     { key: 'evaporation_mm_d', name: t('f6_chart_evaporation'), unit: 'mm/d', color: SERIES_COLORS[0] },
-  ].map((l) => categoryOption({
+  ].map((l) => categoryOption({ smooth,
     categories: filas.map((f) => f.id), kind: lines ? 'lines' : 'bars', yName: l.name, unit: l.unit,
     legend: false, print, tools, fileName: nombreArchivo(titulo),
     series: [{ name: l.name, values: valores(filas, l.key), color: l.color }],
   })),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [comparison, lines, print, decimals, t]);
+  [smooth, comparison, lines, print, decimals, t]);
   if (!filas.some((f) => f.temperature_C !== null || f.evaporation_mm_d !== null)) return null;
   return (
     <Panel title={titulo} height={340}>
@@ -449,6 +455,7 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false, paged
   const ver = (g: ChartGroup) => grupo === null || grupo === g;
   const [vista, setVista] = useState<'bars' | 'lines'>('bars');
   const [modo, setModo] = useState<'abs' | 'pct'>('abs');
+  const [trazo, setTrazo] = useState<'curve' | 'straight'>('curve');
   const estatico = isStaticReport(report);
   const escenarios = estatico
     ? (allScenarios ? report.scenarios : report.scenarios.slice(scenario, scenario + 1)) : [];
@@ -489,12 +496,18 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false, paged
                     options={[['abs', 't/d'], ['pct', '%p/p']]} />
           </>
         )}
+        {/* Curva (como antes) o recta entre pozas/escenarios: lo elige el usuario. */}
+        {(lineas || grupo === null || grupo.startsWith('stage:')) && (
+          <Toggle value={trazo} onChange={setTrazo} testId="line-shape"
+                  options={[['curve', t('f6_line_curve')], ['straight', t('f6_line_straight')]]} />
+        )}
         <div className="flex-1" />
         <button className="btn btn-outline btn-sm"
                 onClick={() => caja.current && downloadChartsZip(caja.current, 'graficos_reporte')}>
           {t('f6_download_charts')}
         </button>
       </div>
+      <SmoothContext.Provider value={trazo === 'curve'}>
       <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
         {/* 1) Los de siempre (reporte de antes): por poza de cada etapa. */}
         {escenarios.map((sc) => sc.stages.filter(hasPondCharts).filter((st) => ver(`stage:${st.stage}`)).map((st) => (
@@ -519,6 +532,7 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false, paged
                          prefix={`${t('f6_scenario')} ${sc.label} · `} />
         ))}
       </div>
+      </SmoothContext.Provider>
     </section>
   );
 }

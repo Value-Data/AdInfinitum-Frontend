@@ -67,3 +67,8 @@ export function Toggle<K extends string>({ value, options, onChange, testId }: {
     </div>
   );
 }
+
+/** Curva o recta en los gráficos de líneas del reporte (lo elige el usuario; por defecto
+ * curva, como antes). */
+export const SmoothContext = React.createContext(true);
+export const useSmooth = () => React.useContext(SmoothContext);
