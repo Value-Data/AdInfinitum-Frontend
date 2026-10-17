@@ -5,12 +5,13 @@
  */
 export type ExecutionTab = 'results' | 'charts' | 'daily' | 'compare' | 'files';
 
-export function executionTabs({ dynamic, chain, files }: {
-  dynamic: boolean; chain: boolean; files: boolean;
+export function executionTabs({ dynamic, chain, files, compare = true }: {
+  dynamic: boolean; chain: boolean; files: boolean; compare?: boolean;
 }): ExecutionTab[] {
   const tabs: ExecutionTab[] = ['results', 'charts'];
   if (dynamic) tabs.push('daily');
-  if (!chain) tabs.push('compare');
+  // El cliente no compara con otras ejecuciones (plan F7, Fase 3).
+  if (!chain && compare) tabs.push('compare');
   if (files) tabs.push('files');
   return tabs;
 }

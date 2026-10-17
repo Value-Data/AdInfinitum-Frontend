@@ -84,8 +84,8 @@ const TAB_LABEL: Record<ExecutionTab, string> = {
   files: 'f6_tab_files',
 };
 
-function ReportSection({ detail, chain, filesTab }: {
-  detail: ExecutionDetail; chain: ChainSummary | null; filesTab: React.ReactNode;
+function ReportSection({ detail, chain, filesTab, compare }: {
+  detail: ExecutionDetail; chain: ChainSummary | null; filesTab: React.ReactNode; compare: boolean;
 }) {
   const t = useT();
   const [search, setSearch] = useSearchParams();
@@ -100,7 +100,7 @@ function ReportSection({ detail, chain, filesTab }: {
   const [cargando, setCargando] = useState(false);
   const [escenario, setEscenario] = useState(0);
   const [comparar, setComparar] = useState<string[]>([]);
-  const tabs = executionTabs({ dynamic: dinamico, chain: verCadena, files: Boolean(filesTab) });
+  const tabs = executionTabs({ dynamic: dinamico, chain: verCadena, files: Boolean(filesTab), compare });
   const tab = parseTab(search.get('tab'), tabs);
   const irA = (k: ExecutionTab) => setSearch(k === 'results' ? {} : { tab: k }, { replace: true });
 
@@ -445,7 +445,8 @@ export default function ExecutionPage() {
 
       {conResultados && <PartialRunBanner info={partialInfo(detail)} />}
       {conResultados ? <ReportSection detail={detail} chain={chain}
-                                      filesTab={canDo(caps, 'view_logs') ? archivos : null} /> : (!activa && (
+                                      filesTab={canDo(caps, 'view_logs') ? archivos : null}
+                                      compare={canDo(caps, 'view_logs')} /> : (!activa && (
         <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_no_results')}</p>
       ))}
 
