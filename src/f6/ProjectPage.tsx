@@ -16,6 +16,7 @@ import { useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ConfigPanel, { type LaunchDefaults } from './ConfigPanel';
 import LaunchPanel from './LaunchPanel';
+import { canDo } from './executionTabs';
 import { RunStatusBadge, executionTypeLabel, formatDateTime } from './common';
 
 // Las pantallas de la versión anterior (y sus dependencias: xlsx, recharts) van en un
@@ -83,7 +84,7 @@ export default function ProjectPage() {
   const t = useT();
   const { isAdmin } = useAuth();
   const [search, setSearch] = useSearchParams();
-  const tab = search.get('tab') === 'executions' ? 'executions' : 'config';
+  const tabPedida = search.get('tab') === 'executions' ? 'executions' : 'config';
   const [project, setProject] = useState<ProjectV2 | null>(null);
   const [sections, setSections] = useState<SectionState[]>([]);
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
@@ -123,6 +124,12 @@ export default function ProjectPage() {
   if (error) return <div className="card p-4">{error}</div>;
   if (!project) return <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>;
 
+  // Lo que el rol permite: el cliente no ve la configuración y abre directo en las ejecuciones.
+  const caps = project.capabilities ?? [];
+  const conConfig = canDo(caps, 'view_config');
+  const tab = conConfig ? tabPedida : 'executions';
+  const tabs = conConfig ? (['config', 'executions'] as const) : (['executions'] as const);
+
   return (
     <div>
       <div className="mb-4">
@@ -133,12 +140,19 @@ export default function ProjectPage() {
         <span className="text-sm font-mono" style={{ color: 'var(--color-text-secondary)' }}>
           AQSOL {project.aqsol_version}
         </span>
+        {project.my_role && (
+          <span className="text-xs px-2 py-0.5 rounded-full" data-testid="my-role"
+                style={{ background: 'var(--color-bg)', color: 'var(--color-text-secondary)' }}
+                title={t('f7_my_role')}>
+            {t(`f7_role_${project.my_role}` as never)}
+          </span>
+        )}
       </div>
       {project.description && (
         <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{project.description}</p>
       )}
       <div className="flex gap-2 mb-4 border-b" style={{ borderColor: 'var(--color-border)' }} role="tablist">
-        {(['config', 'executions'] as const).map((k) => (
+        {tabs.map((k) => (
           <button key={k} role="tab" aria-selected={tab === k}
                   className={`px-3 py-2 text-sm ${tab === k ? 'font-semibold' : ''}`}
                   style={tab === k ? { borderBottom: '2px solid var(--color-primary)' } : undefined}
@@ -159,14 +173,16 @@ export default function ProjectPage() {
                      aqsolVersion={project.aqsol_version} onInventoryLoaded={setPrecarga} />
       ) : (
         <>
-          {isAdmin && (
+          {canDo(caps, 'launch') && (
             <LaunchPanel projectId={id} executions={executions} sections={sections}
                          defaults={precarga} onLaunched={() => cargarEjecuciones()} />
           )}
           <ExecutionsTable executions={executions} />
-          <Suspense fallback={null}>
-            <LegacyExecutionsSection projectId={id} projectName={project.name} isAdmin={isAdmin} />
-          </Suspense>
+          {canDo(caps, 'view_legacy') && (
+            <Suspense fallback={null}>
+              <LegacyExecutionsSection projectId={id} projectName={project.name} isAdmin={isAdmin} />
+            </Suspense>
+          )}
         </>
       )}
     </div>

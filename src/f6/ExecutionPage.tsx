@@ -419,7 +419,7 @@ export default function ExecutionPage() {
                 {detail.n_days ? ` (${estado?.progress_day ?? 0}/${detail.n_days})` : ''}
               </span>
               <div className="flex-1" />
-              {isAdmin && <button className="btn btn-outline" onClick={cancelar}>{t('cancel')}</button>}
+              {canDo(caps, 'cancel') && <button className="btn btn-outline" onClick={cancelar}>{t('cancel')}</button>}
             </div>
           )}
           {activa && <ProgressBar day={estado?.progress_day} total={detail.n_days} />}
