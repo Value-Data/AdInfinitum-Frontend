@@ -8,7 +8,9 @@
  * informe del backend marca campo y fila.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { labelWithUnit } from './labels';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { usePageTrail } from '../components/common/trail';
 import api from '../services/api';
 import {
   apiError, getAqsolCatalogV2, getDictionary, getProjectV2, getSection, getSectionVersion, getSectionVersions,
@@ -109,8 +111,12 @@ export function orderColumns(cols: DictionaryEntry[]): DictionaryEntry[] {
   return [...cols].sort((a, b) => rango(a) - rango(b) || (a.ui_order ?? 0) - (b.ui_order ?? 0));
 }
 
+/** Las cabeceras con unidad no van en mayúsculas: "(T/D)" junto a "(t/d)" confunde. */
+const SIN_MAYUSCULAS: React.CSSProperties = { textTransform: 'none', letterSpacing: 0 };
+const caps = (e: DictionaryEntry) => (e.unit ? SIN_MAYUSCULAS : undefined);
+
 function headerOf(e: DictionaryEntry): string {
-  return e.unit ? `${e.label} (${e.unit})` : e.label;
+  return labelWithUnit(e.label, e.unit);
 }
 
 /** La ayuda del campo: qué es, la nota adicional, unidad y rango, y su nombre interno. */
@@ -136,7 +142,7 @@ function FieldsForm({ schema, prefix, entries, value, onChange, issues }: {
         const problemas = issuesAt(issues, e.key);
         return (
           <label key={e.key} className="text-sm" title={tooltipOf(e)}>
-            <span className="label">{headerOf(e)}<Tip text={tooltipOf(e)} /></span>
+            <span className="label" style={caps(e)}>{headerOf(e)}<Tip text={tooltipOf(e)} /></span>
             <CellInput entry={e} value={value[e.field]} choices={schema.enumValues(e.key)}
                        invalid={problemas.map((p) => p.message).join(' · ') || undefined}
                        testId={`field-${prefix}${e.field}`}
@@ -230,7 +236,7 @@ function TableEditor({ schema, prefix, rows, onChange, issues, species, title }:
           <thead>
             <tr>
               <th>#</th>
-              {columnas.map((c) => <th key={c.key} className="whitespace-nowrap">{headerOf(c)}<Tip text={tooltipOf(c)} /></th>)}
+              {columnas.map((c) => <th key={c.key} className="whitespace-nowrap" style={caps(c)}>{headerOf(c)}<Tip text={tooltipOf(c)} /></th>)}
               {porEspecie && species.map((sp) => <th key={sp} className="whitespace-nowrap" style={{ textTransform: 'none' }}>{sp}{porEspecie.unit ? ` (${porEspecie.unit})` : ''}</th>)}
               <th />
             </tr>
@@ -493,7 +499,7 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
           <thead>
             <tr>
               <th>{t('f6_date')}</th>
-              {entradas.map((e) => <th key={e.key} title={tooltipOf(e)}>{headerOf(e)}</th>)}
+              {entradas.map((e) => <th key={e.key} title={tooltipOf(e)} style={caps(e)}>{headerOf(e)}</th>)}
               {porDia && species.map((sp) => <th key={sp} style={{ textTransform: 'none' }}>{sp} (%p/p)</th>)}
               <th />
             </tr>
@@ -602,7 +608,7 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
             <thead>
               <tr>
                 <th>{schema.byKey.get('initial_states.pond')?.label ?? 'pond'}</th>
-                {columnas.map((c) => <th key={c.key} className="whitespace-nowrap">{headerOf(c)}<Tip text={tooltipOf(c)} /></th>)}
+                {columnas.map((c) => <th key={c.key} className="whitespace-nowrap" style={caps(c)}>{headerOf(c)}<Tip text={tooltipOf(c)} /></th>)}
                 {species.map((sp) => (
                   <th key={sp} className="whitespace-nowrap" style={{ textTransform: 'none' }}
                       title={masas ? tooltipOf(masas) : undefined}>
@@ -685,7 +691,7 @@ function ReagentsEditor({ schema, value, onChange, issues }: {
               <span className="font-medium text-sm" style={{ minWidth: 80 }}>{r}</span>
               {pureza && (
                 <label className="text-xs">
-                  <span className="label">{headerOf(pureza)}</span>
+                  <span className="label" style={caps(pureza)}>{headerOf(pureza)}</span>
                   <CellInput entry={pureza} value={ficha?.purity_frac ?? null} onChange={(v) => {
                     onChange({ ...value, [r]: { impurities: impurezas, ...(ficha ?? {}), purity_frac: v ?? 1 } });
                   }} />
@@ -718,6 +724,12 @@ export default function SectionEditorPage() {
   const [species, setSpecies] = useState<string[]>([]);
   const [phases, setPhases] = useState<string[]>([]);
   const [payload, setPayload] = useState<Obj | null>(null);
+  const [nombreProyecto, setNombreProyecto] = useState<string | null>(null);
+  const loc = useLocation();
+  usePageTrail(loc.pathname, [
+    { label: t('topbar_projects'), path: '/projects' },
+    nombreProyecto ? { label: nombreProyecto, path: `/projects/${id}` } : null,
+    { label: t(`f6_kind_${kind}` as never) }]);
   const [version, setVersion] = useState<number | null>(null);
   const [report, setReport] = useState<ValidationReport | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -734,7 +746,7 @@ export default function SectionEditorPage() {
         const seccion = pedida && ultima && pedida !== ultima.version_no
           ? await getSectionVersion(id, kind, pedida)
           : ultima;
-        if (vivo) setHistorial(versiones as never);
+        if (vivo) { setHistorial(versiones as never); setNombreProyecto(proyecto.name); }
         const catalogo = await getAqsolCatalogV2(proyecto.aqsol_version);
         let datos: Obj;
         if (seccion) {

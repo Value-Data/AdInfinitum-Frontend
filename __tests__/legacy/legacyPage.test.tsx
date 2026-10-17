@@ -41,7 +41,7 @@ describe('ejecución de la versión anterior', () => {
     expect(excelError).toBeNull();
     expect(excel).toBeGreaterThan(0);
     expect(text).toContain('Ejecución de la versión anterior — solo lectura');
-    expect(text).toContain('Solo Preconcentracion');
+    expect(text).toContain('Solo Preconcentración');
   }, 30000);
 
   it('dinámico: vista de resultados de antes, con todas sus pestañas', async () => {

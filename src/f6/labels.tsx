@@ -48,3 +48,15 @@ export function useLabels(): { label: LabelFn; loaded: boolean } {
 export function __setLabelsCache(lang: Language, labels: Record<string, string>): void {
   cache[lang] = labels;
 }
+
+/** Unidad comparable: sin espacios, minúsculas y con ² ³ como 2 3. */
+function normUnit(u: string): string {
+  return u.toLowerCase().replace(/\s+/g, '').replace(/²/g, '2').replace(/³/g, '3');
+}
+
+/** "Etiqueta (unidad)", sin repetirla si la etiqueta del diccionario ya la trae
+ * (antes salía "Área de proceso (m²) (m2)"). */
+export function labelWithUnit(label: string, unit: string | null | undefined): string {
+  if (!unit) return label;
+  return normUnit(label).includes(`(${normUnit(unit)})`) ? label : `${label} (${unit})`;
+}

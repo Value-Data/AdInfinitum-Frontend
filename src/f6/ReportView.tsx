@@ -9,7 +9,7 @@ import type {
 import { isStaticReport } from '../types/report';
 import { fmtNum } from '../utils/numberFormat';
 import { useDecimals } from '../context/DecimalsContext';
-import { useLabels, type LabelFn } from './labels';
+import { useLabels, type LabelFn, labelWithUnit } from './labels';
 import { useT } from '../i18n/LanguageContext';
 import { dmy } from './common';
 import { recoveries } from './chartData';
@@ -27,7 +27,7 @@ export function formatCell(v: unknown): string {
 
 export function columnHeader(c: ReportColumn, label: LabelFn): string {
   const nombre = c.kind === 'label' ? label(`result.${c.key}`, c.key) : c.key;
-  return c.unit ? `${nombre} (${c.unit})` : nombre;
+  return labelWithUnit(nombre, c.unit);
 }
 
 /**
@@ -92,7 +92,7 @@ function TableBody({ table, columnas, label, print = false }: {
           <th className="sticky-col" />
           {columnas.map((c) => (
             <th key={c.key} className={`text-right ${print ? '' : 'whitespace-nowrap'}`}
-                style={c.kind === 'label' ? undefined : { textTransform: 'none' }}
+                style={c.unit || c.kind !== 'label' ? { textTransform: 'none', letterSpacing: 0 } : undefined}
                 title={c.formula ? formulaText(c.formula, label) : undefined}>
               {columnHeader(c, label)}
               {c.formula && <span style={MARCA} aria-label={formulaText(c.formula, label)}>ⓘ</span>}

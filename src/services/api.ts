@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import type { ProjectAccess } from '../types';
 import type {
   LoginRequest,
   Project,
@@ -136,6 +137,18 @@ export async function updateUser(
 
 export async function getUserProjects(userId: string): Promise<string[]> {
   const { data } = await api.get<string[]>(`/users/${userId}/projects`);
+  return data;
+}
+
+/** F7: los proyectos del usuario con su rol en cada uno. */
+export async function getUserAccesses(userId: string): Promise<ProjectAccess[]> {
+  const { data } = await api.get<ProjectAccess[]>(`/users/${userId}/accesses`);
+  return data;
+}
+
+/** F7: reemplaza los accesos del usuario (los que no van, se quitan). */
+export async function setUserAccesses(userId: string, accesses: ProjectAccess[]): Promise<string[]> {
+  const { data } = await api.put<string[]>(`/users/${userId}/projects`, { accesses });
   return data;
 }
 

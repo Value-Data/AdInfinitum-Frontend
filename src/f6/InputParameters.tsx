@@ -6,6 +6,7 @@
  * la serie completa está en la configuración de la ejecución.
  */
 import React, { useEffect, useState } from 'react';
+import { labelWithUnit } from './labels';
 import {
   apiError, getDictionary, getSectionVersion, type DictionaryEntry, type SectionKind,
 } from '../services/apiV2';
@@ -32,7 +33,7 @@ export function describeSection(
   const etiqueta = (key: string) => {
     const e = schema.byKey.get(key);
     if (!e) return key.split('.').pop() ?? key;
-    return e.unit ? `${e.label} (${e.unit})` : e.label;
+    return labelWithUnit(e.label, e.unit);
   };
   const valor = (key: string, v: unknown): string => {
     if (v === null || v === undefined || v === '') return '–';

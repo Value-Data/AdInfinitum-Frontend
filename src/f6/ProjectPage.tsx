@@ -5,7 +5,8 @@
  */
 import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Pager, pageSlice } from './paging';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { usePageTrail } from '../components/common/trail';
 import {
   apiError, getProjectV2, getSectionStates, isV2Type, listExecutions,
   type ExecutionSummary, type ProjectV2, type SectionState,
@@ -90,12 +91,16 @@ export default function ProjectPage() {
   // Fecha y días del último escenario de inventario cargado: precargan Lanzar.
   const [precarga, setPrecarga] = useState<LaunchDefaults | null>(null);
 
+  // Antes un error dejaba la lista vacía en silencio; ahora se dice.
+  const [errorSecciones, setErrorSecciones] = useState<string | null>(null);
+  const [errorEjecuciones, setErrorEjecuciones] = useState<string | null>(null);
   const cargarSecciones = useCallback(() => {
-    getSectionStates(id).then(setSections).catch(() => setSections([]));
+    getSectionStates(id).then((l) => { setSections(l); setErrorSecciones(null); })
+      .catch((err) => { setSections([]); setErrorSecciones(apiError(err).message); });
   }, [id]);
   const cargarEjecuciones = useCallback(() => {
-    listExecutions(id).then((l) => setExecutions(l.filter((e) => isV2Type(e.execution_type))))
-      .catch(() => setExecutions([]));
+    listExecutions(id).then((l) => { setExecutions(l.filter((e) => isV2Type(e.execution_type))); setErrorEjecuciones(null); })
+      .catch((err) => { setExecutions([]); setErrorEjecuciones(apiError(err).message); });
   }, [id]);
 
   useEffect(() => {
@@ -103,6 +108,10 @@ export default function ProjectPage() {
     cargarSecciones();
     cargarEjecuciones();
   }, [id, cargarSecciones, cargarEjecuciones]);
+
+  const loc = useLocation();
+  usePageTrail(loc.pathname, [{ label: t('topbar_projects'), path: '/projects' },
+    project ? { label: project.name } : null]);
 
   const activas = executions.some((e) => e.status === 'pending' || e.status === 'running');
   useEffect(() => {
@@ -138,6 +147,13 @@ export default function ProjectPage() {
           </button>
         ))}
       </div>
+      {(tab === 'config' ? errorSecciones : errorEjecuciones) && (
+        <div className="card p-3 mb-4 text-sm flex items-center gap-3" role="alert" style={{ borderColor: '#fca5a5' }}>
+          <span style={{ color: 'var(--color-danger)' }}>{tab === 'config' ? errorSecciones : errorEjecuciones}</span>
+          <button className="btn btn-outline btn-sm"
+                  onClick={tab === 'config' ? cargarSecciones : cargarEjecuciones}>{t('f7_retry')}</button>
+        </div>
+      )}
       {tab === 'config' ? (
         <ConfigPanel projectId={id} sections={sections} onChanged={cargarSecciones}
                      aqsolVersion={project.aqsol_version} onInventoryLoaded={setPrecarga} />

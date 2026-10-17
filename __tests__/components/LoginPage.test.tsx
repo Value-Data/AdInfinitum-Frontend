@@ -61,7 +61,7 @@ describe('LoginPage', () => {
     );
 
     expect(screen.getByLabelText(/usuario/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/contrasena/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/contraseña/i)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /ingresar/i }),
     ).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe('LoginPage', () => {
     );
 
     await user.type(screen.getByLabelText(/usuario/i), 'baduser');
-    await user.type(screen.getByLabelText(/contrasena/i), 'badpass');
+    await user.type(screen.getByLabelText(/contraseña/i), 'badpass');
     await user.click(screen.getByRole('button', { name: /ingresar/i }));
 
     await waitFor(() => {
@@ -99,7 +99,7 @@ describe('LoginPage', () => {
     );
 
     await user.type(screen.getByLabelText(/usuario/i), 'admin');
-    await user.type(screen.getByLabelText(/contrasena/i), 'admin123');
+    await user.type(screen.getByLabelText(/contraseña/i), 'admin123');
     await user.click(screen.getByRole('button', { name: /ingresar/i }));
 
     await waitFor(() => {

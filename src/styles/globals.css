@@ -216,3 +216,16 @@
 /* Bloques de columnas impresos: cabeceras que parten línea y celdas compactas. */
 .print-table th { white-space: normal; padding: 4px 6px; vertical-align: bottom; }
 .print-table td { padding: 3px 6px; font-size: 0.75rem; }
+
+/* ===== Foco con teclado visible (A2): anillo azul con borde blanco, en todo lo que se
+   alcanza con Tab. Solo con teclado (:focus-visible), no al hacer clic. ===== */
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible,
+textarea:focus-visible, [role="tab"]:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #fff;
+}
+aside a:focus-visible, aside button:focus-visible { outline-color: #fff; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

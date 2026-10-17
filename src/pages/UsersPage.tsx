@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import type { UserResponse, Project } from '../types';
+import type { UserResponse, Project, ProjectAccess, ProjectRole } from '../types';
+import { PROJECT_ROLES } from '../types';
 import {
   getUsers,
   createUser,
   updateUser,
   getProjects,
-  getUserProjects,
-  setUserProjects,
+  getUserAccesses,
+  setUserAccesses,
 } from '../services/api';
+import { apiError } from '../services/apiV2';
 import Modal from '../components/common/Modal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useT } from '../i18n/LanguageContext';
@@ -29,8 +31,11 @@ export default function UsersPage() {
   // Assign projects modal
   const [assignUserId, setAssignUserId] = useState<string | null>(null);
   const [assignUserName, setAssignUserName] = useState('');
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  // Rol de cada proyecto ('' = sin acceso).
+  const [accesos, setAccesos] = useState<Record<string, ProjectRole | ''>>({});
   const [loadingAssign, setLoadingAssign] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignLoadFailed, setAssignLoadFailed] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -90,34 +95,35 @@ export default function UsersPage() {
   const openAssignModal = async (user: UserResponse) => {
     setAssignUserId(user.id);
     setAssignUserName(user.username);
+    setAssignError(null);
+    setAssignLoadFailed(false);
+    setAccesos({});
     setLoadingAssign(true);
     try {
-      const userProjectIds = await getUserProjects(user.id);
-      setSelectedProjects(userProjectIds);
-    } catch {
-      setSelectedProjects([]);
+      const lista = await getUserAccesses(user.id);
+      setAccesos(Object.fromEntries(lista.map((a) => [a.project_id, a.role])));
+    } catch (err) {
+      // Antes quedaba vacío y al guardar se borraban todos los accesos del usuario.
+      setAssignLoadFailed(true);
+      setAssignError(`${t('f7_accesses_load_error')} (${apiError(err).message})`);
     } finally {
       setLoadingAssign(false);
     }
   };
 
-  const toggleProject = (projectId: string) => {
-    setSelectedProjects((prev) =>
-      prev.includes(projectId)
-        ? prev.filter((id) => id !== projectId)
-        : [...prev, projectId],
-    );
-  };
-
   const handleSaveProjects = async () => {
-    if (!assignUserId) return;
+    if (!assignUserId || assignLoadFailed) return;
     setLoadingAssign(true);
+    setAssignError(null);
     try {
-      await setUserProjects(assignUserId, selectedProjects);
+      const lista: ProjectAccess[] = projects
+        .filter((p) => accesos[p.id])
+        .map((p) => ({ project_id: p.id, role: accesos[p.id] as ProjectRole }));
+      await setUserAccesses(assignUserId, lista);
       setAssignUserId(null);
       fetchData();
-    } catch {
-      // handled
+    } catch (err) {
+      setAssignError(`${t('f7_accesses_save_error')}: ${apiError(err).message}`);
     } finally {
       setLoadingAssign(false);
     }
@@ -291,36 +297,29 @@ export default function UsersPage() {
             <LoadingSpinner />
           </div>
         ) : (
-          <div>
+          <div data-testid="assign-accesses">
+            {assignError && (
+              <p role="alert" className="text-sm mb-3" style={{ color: 'var(--color-danger)' }}>{assignError}</p>
+            )}
+            <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>{t('f7_roles_help')}</p>
             {projects.length === 0 ? (
               <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                 {t('users_no_projects')}
               </p>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-1 max-h-80 overflow-y-auto">
                 {projects.map((project) => (
-                  <label
-                    key={project.id}
-                    className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer"
-                    style={{ borderRadius: 'var(--radius)' }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedProjects.includes(project.id)}
-                      onChange={() => toggleProject(project.id)}
-                      className="h-4 w-4"
-                      style={{ accentColor: 'var(--color-primary)' }}
-                    />
-                    <span className="text-sm">{project.name}</span>
-                    {project.description && (
-                      <span
-                        className="text-xs ml-auto"
-                        style={{ color: 'var(--color-text-secondary)' }}
-                      >
-                        {project.description}
-                      </span>
-                    )}
-                  </label>
+                  <div key={project.id} className="flex items-center gap-3 p-2"
+                       style={{ borderRadius: 'var(--radius)' }}>
+                    <label htmlFor={`rol-${project.id}`} className="text-sm flex-1">{project.name}</label>
+                    <select id={`rol-${project.id}`} className="input" style={{ width: 160 }}
+                            disabled={assignLoadFailed}
+                            value={accesos[project.id] ?? ''}
+                            onChange={(e) => setAccesos({ ...accesos, [project.id]: e.target.value as ProjectRole | '' })}>
+                      <option value="">{t('f7_no_access')}</option>
+                      {PROJECT_ROLES.map((r) => <option key={r} value={r}>{t(`f7_role_${r}` as never)}</option>)}
+                    </select>
+                  </div>
                 ))}
               </div>
             )}
@@ -329,7 +328,7 @@ export default function UsersPage() {
               <button className="btn btn-outline" onClick={() => setAssignUserId(null)}>
                 {t('cancel')}
               </button>
-              <button className="btn btn-primary" onClick={handleSaveProjects}>
+              <button className="btn btn-primary" onClick={handleSaveProjects} disabled={assignLoadFailed}>
                 {t('save')}
               </button>
             </div>

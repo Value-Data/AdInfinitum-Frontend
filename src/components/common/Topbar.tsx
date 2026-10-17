@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useT } from '../../i18n/LanguageContext';
+import { useTrail } from './trail';
 
 export default function Topbar() {
   const t = useT();
@@ -29,7 +30,10 @@ export default function Topbar() {
     return crumbs;
   };
 
-  const crumbs = buildBreadcrumbs();
+  const declarada = useTrail(location.pathname);
+  const crumbs = declarada
+    ? declarada.map((c, i) => ({ label: c.label, path: c.path ?? `${location.pathname}#${i}` }))
+    : buildBreadcrumbs();
 
   return (
     <header

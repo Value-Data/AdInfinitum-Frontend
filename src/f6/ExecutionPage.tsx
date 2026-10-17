@@ -5,9 +5,10 @@
  * no recalcula nada.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { usePageTrail } from '../components/common/trail';
 import {
-  apiError, blobApiError, cancelExecution, deleteExecutionV2, downloadChainReport, downloadChainReportPdf,
+  apiError, blobApiError, cancelExecution, getProjectV2, deleteExecutionV2, downloadChainReport, downloadChainReportPdf,
   downloadReport, downloadReportPdf, getChain, getChainReport,
   getExecutionDetail, getExecutionLog, getExecutionStatusV2, getReport, isDynamicType,
   reuploadExecution, saveBlob,
@@ -158,7 +159,7 @@ function ReportSection({ detail, chain, filesTab }: {
         )}
         <label className="text-sm">
           <span className="label">{t('f6_scale_factor')}</span>
-          <input type="number" step="any" min="0" className="input" style={{ width: 120 }}
+          <input type="number" step="any" min="0" className="input" style={{ width: 190 }}
                  value={borrador.scale_factor ?? ''}
                  placeholder={t('f6_project_value')}
                  onChange={(e) => setBorrador({ ...borrador,
@@ -266,6 +267,15 @@ export default function ExecutionPage() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const navigate = useNavigate();
+  const [nombreProyecto, setNombreProyecto] = useState<string | null>(null);
+  useEffect(() => {
+    if (detail?.project_id) getProjectV2(detail.project_id).then((p) => setNombreProyecto(p.name)).catch(() => undefined);
+  }, [detail?.project_id]);
+  const loc = useLocation();
+  usePageTrail(loc.pathname, [
+    { label: t('topbar_projects'), path: '/projects' },
+    detail && nombreProyecto ? { label: nombreProyecto, path: `/projects/${detail.project_id}?tab=executions` } : null,
+    detail ? { label: `${executionTypeLabel(detail.execution_type, t)} · ${detail.run_tag}` } : null]);
 
   const cargar = useCallback(async () => {
     try {

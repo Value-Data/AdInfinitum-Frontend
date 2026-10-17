@@ -397,7 +397,15 @@ export interface Project {
   last_execution_status: string | null;
   /** Versión de AQSOL del proyecto (D4): se elige al crearlo y no cambia. */
   aqsol_version?: AqsolVersion;
+  /** F7: el rol del usuario en el proyecto (`admin` si es administrador) y lo que puede hacer. */
+  my_role?: string;
+  capabilities?: string[];
 }
+
+/** F7: rol de un usuario en un proyecto (de menos a más). */
+export type ProjectRole = 'cliente' | 'lector' | 'editor' | 'operador';
+export const PROJECT_ROLES: ProjectRole[] = ['cliente', 'lector', 'editor', 'operador'];
+export interface ProjectAccess { project_id: string; role: ProjectRole }
 
 export interface ProjectCreate {
   name: string;
