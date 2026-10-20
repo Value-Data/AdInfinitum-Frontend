@@ -191,6 +191,26 @@
 .adinf-pop-in { animation: adinf-pop-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .adinf-float { animation: adinf-float 3s ease-in-out infinite; }
 
+/* ===== Login: foto del salar de fondo (LoginPage, --login-photo) =====
+   En móvil la franja es baja y el texto la cubre entera: velo parejo. En escritorio
+   el texto va arriba, sobre el cielo, y las pozas quedan a la vista abajo. */
+.login-brand {
+  background-color: var(--color-primary);
+  background-size: cover;
+  background-position: center 40%;
+  background-image:
+    linear-gradient(180deg, rgba(26, 83, 154, 0.9) 0%, rgba(26, 83, 154, 0.82) 100%),
+    var(--login-photo);
+}
+@media (min-width: 1024px) {
+  .login-brand {
+    background-image:
+      linear-gradient(180deg, rgba(26, 83, 154, 0.95) 0%, rgba(26, 83, 154, 0.82) 30%,
+                      rgba(26, 83, 154, 0.12) 56%, rgba(10, 30, 60, 0.5) 100%),
+      var(--login-photo);
+  }
+}
+
 /* ===== Reporte para imprimir / PDF (f6/PrintReportPage) ===== */
 @media print {
   @page { size: A4 landscape; margin: 12mm; }

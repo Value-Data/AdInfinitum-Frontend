@@ -13,7 +13,7 @@ import { RunStatusBadge } from '../f6/common';
 import { canDo } from '../f6/executionTabs';
 import { useT } from '../i18n/LanguageContext';
 import type { TranslationKey } from '../i18n/translations';
-import PondsIllustration from '../media/PondsIllustration';
+import salarHome from '../media/home-salar.webp';
 
 const RECIENTES = 6;
 
@@ -179,10 +179,10 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-        <div className="hidden p-6 lg:flex lg:items-center" style={{ backgroundColor: 'var(--color-primary)' }}>
-          <div className="w-full overflow-hidden" style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)' }}>
-            <PondsIllustration className="block h-auto w-full" />
-          </div>
+        {/* Foto decorativa: el texto de la tarjeta ya dice qué es. */}
+        <div className="relative hidden min-h-[18rem] lg:block" style={{ backgroundColor: 'var(--color-primary)' }}>
+          <img src={salarHome} alt="" aria-hidden="true" loading="lazy" data-testid="home-sim-photo"
+               className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: '35% 60%' }} />
         </div>
       </section>
 

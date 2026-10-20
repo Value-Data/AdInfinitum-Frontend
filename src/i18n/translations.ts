@@ -256,10 +256,6 @@ export const TRANSLATIONS = {
     en: 'Preconcentration · Reagent plant · Concentration',
   },
   f8_login_engine: { es: 'Motor termodinámico AQSOL', en: 'AQSOL thermodynamic engine' },
-  f8_login_ponds_alt: {
-    es: 'Pozas de evaporación vistas desde arriba: la salmuera pasa de azul a amarillo a medida que se concentra',
-    en: 'Evaporation ponds seen from above: the brine turns from blue to yellow as it concentrates',
-  },
   f8_login_title: { es: 'Iniciar sesión', en: 'Sign in' },
   f8_login_hint: {
     es: 'Use la cuenta que le entregó el administrador.',

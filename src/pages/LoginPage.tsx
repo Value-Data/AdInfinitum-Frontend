@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useLanguage } from '../i18n/LanguageContext';
 import logoHeader from '../media/logo-header.png';
-import PondsIllustration from '../media/PondsIllustration';
+import salarLogin from '../media/login-salar.webp';
 
 // Solo en desarrollo local: VITE_DEV_LOGINS="usuario:clave,usuario:clave" en .env.local
 // (ignorado por git). En el build de producción import.meta.env.DEV es false y esto no
@@ -53,9 +53,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row" style={{ backgroundColor: 'var(--color-surface)' }}>
       {/* Marca: arriba en pantallas angostas, a la izquierda en escritorio. */}
+      {/* La foto (pozas de evaporación en un salar) va de fondo; el degradado azul de
+          marca arriba deja el texto legible y abajo oscurece para el pie. */}
       <section
-        className="flex flex-col gap-8 px-6 py-6 sm:px-10 lg:w-1/2 lg:justify-between lg:px-14 lg:py-12"
-        style={{ backgroundColor: 'var(--color-primary)' }}
+        className="login-brand flex flex-col gap-8 px-6 py-6 sm:px-10 lg:w-1/2 lg:gap-10 lg:px-14 lg:py-12 lg:min-h-screen"
+        style={{ '--login-photo': `url(${salarLogin})` } as React.CSSProperties}
+        data-testid="login-brand"
       >
         <div className="flex items-center">
           <div className="bg-white px-4 py-2.5" style={{ borderRadius: 'var(--radius)' }}>
@@ -75,14 +78,9 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <figure className="hidden lg:block">
-          <div className="overflow-hidden" style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)' }}>
-            <PondsIllustration className="block w-full h-auto" title={t('f8_login_ponds_alt')} animated />
-          </div>
-          <figcaption className="mt-3 text-xs" style={{ color: 'var(--color-primary-lighter)' }}>
-            {t('f8_login_engine')}
-          </figcaption>
-        </figure>
+        <p className="hidden lg:block lg:mt-auto text-xs font-medium" style={{ color: 'var(--color-surface)', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+          {t('f8_login_engine')}
+        </p>
       </section>
 
       {/* Formulario */}
