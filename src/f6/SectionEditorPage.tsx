@@ -19,6 +19,7 @@ import {
 } from '../services/apiV2';
 import { useLanguage, useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import Collapsible from '../components/common/Collapsible';
 import { IssueList } from './ConfigPanel';
 import { formatDateTime } from './common';
 import {
@@ -51,9 +52,11 @@ function Tip({ text }: { text: string }) {
   );
 }
 
-function CellInput({ entry, value, onChange, choices, invalid, disabled, testId, placeholder }: {
+function CellInput({ entry, value, onChange, choices, invalid, disabled, testId, placeholder, className, ariaLabel }: {
   entry: DictionaryEntry; value: unknown; onChange: (v: unknown) => void; choices?: EnumChoice[];
   invalid?: string; disabled?: boolean; testId?: string; placeholder?: string;
+  /** Clases extra del campo de texto (p. ej. `input-number` en las tablas especie | valor). */
+  className?: string; ariaLabel?: string;
 }) {
   const [foco, setFoco] = useState(false);
   const [texto, setTexto] = useState(value == null ? '' : String(value));
@@ -74,9 +77,9 @@ function CellInput({ entry, value, onChange, choices, invalid, disabled, testId,
     );
   }
   return (
-    <input className="input" type={entry.data_type === 'date' ? 'date' : 'text'}
+    <input className={className ? `input ${className}` : 'input'} type={entry.data_type === 'date' ? 'date' : 'text'}
            value={!foco && typeof value === 'number' && texto === String(value) ? displayNumber(value) : texto}
-           placeholder={placeholder}
+           placeholder={placeholder} aria-label={ariaLabel}
            disabled={disabled} style={{ minWidth: 80, ...estilo }}
            title={invalid ?? (typeof value === 'number' ? String(value) : undefined)} data-testid={testId}
            onFocus={() => setFoco(true)}
@@ -132,12 +135,12 @@ export function tooltipOf(e: DictionaryEntry): string {
 // ---------------------------------------------------------------------------
 // Formulario de campos sueltos
 // ---------------------------------------------------------------------------
-function FieldsForm({ schema, prefix, entries, value, onChange, issues }: {
+function FieldsForm({ schema, prefix, entries, value, onChange, issues, className = 'mb-4' }: {
   schema: SectionSchema; prefix: string; entries: DictionaryEntry[]; value: Obj;
-  onChange: (v: Obj) => void; issues: ValidationIssue[];
+  onChange: (v: Obj) => void; issues: ValidationIssue[]; className?: string;
 }) {
   return (
-    <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+    <div className={`grid gap-3 ${className}`} style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
       {entries.filter((e) => isVisible(e.visible_if, value)).map((e) => {
         const problemas = issuesAt(issues, e.key);
         return (
@@ -290,11 +293,26 @@ function TableEditor({ schema, prefix, rows, onChange, issues, species, title }:
 // ---------------------------------------------------------------------------
 // Composición por especie y factores por fase
 // ---------------------------------------------------------------------------
-function KeyValueEditor({ title, keys, value, onChange, unit, testId, issues, field, neutral }: {
+/**
+ * Las claves en bloques de tabla lado a lado: hasta 12, una tabla; hasta 40, dos; más
+ * (las fases de AQSOL son cientos), tres. Se leen hacia abajo y luego al bloque siguiente.
+ */
+export function splitBlocks<T>(items: T[]): T[][] {
+  const n = items.length <= 12 ? 1 : items.length <= 40 ? 2 : 3;
+  const largo = Math.ceil(items.length / n);
+  return Array.from({ length: n }, (_, i) => items.slice(i * largo, (i + 1) * largo)).filter((b) => b.length > 0);
+}
+
+/** Una tabla especie | valor (o fase | valor) por bloque, en una tarjeta plegable. */
+export function KeyValueEditor({ title, keys, value, onChange, unit, testId, issues, field, neutral,
+  keyKind = 'species', storageKey, defaultOpen = true }: {
   title: string; keys: string[]; value: Obj | null | undefined; onChange: (v: Obj | null) => void;
   unit?: string | null; testId: string; issues: ValidationIssue[]; field: string;
   /** Valor que vale una clave sin cargar (los factores de precipitación: 1). */
   neutral?: number;
+  /** Qué son las claves: especies (composiciones) o fases (factores de precipitación). */
+  keyKind?: 'species' | 'phase';
+  storageKey?: string; defaultOpen?: boolean;
 }) {
   const t = useT();
   const actual = value ?? {};
@@ -305,40 +323,89 @@ function KeyValueEditor({ title, keys, value, onChange, unit, testId, issues, fi
   const suma = Object.values(actual).reduce<number>((a, b) => a + (typeof b === 'number' ? b : 0), 0);
   const entrada: DictionaryEntry = { key: field, entity: '', field, category: 'model', data_type: 'number',
     label: '', required: false, time_variable: false };
+  const propios = issuesAt(issues, field);
+  const pct = unit === '%p/p';
+  const fueraDe100 = Math.abs(suma - 100) > 0.01;
+  const distintos = neutral === undefined ? 0 : keys.filter((k) => vale(k) !== neutral).length;
+  const bloques = splitBlocks(visibles);
+  // Cerrado se sigue viendo lo esencial: cuántas, cuántas cambiadas o el total.
+  const resumen = (
+    <>
+      {neutral !== undefined
+        ? `${keys.length} ${t(keyKind === 'phase' ? 'f6_kv_n_phases' : 'f6_kv_n_species')} · ${distintos} ${t('f6_kv_not_neutral')} ${neutral}`
+        : pct
+          ? <span style={fueraDe100 ? { color: 'var(--color-danger)' } : undefined}>{t('total')} {suma.toFixed(2)} %</span>
+          : `${keys.length} ${t(keyKind === 'phase' ? 'f6_kv_n_phases' : 'f6_kv_n_species')}`}
+      {propios.length > 0 && (
+        <span style={{ color: 'var(--color-danger)' }}> · {propios.length} {t(propios.length === 1 ? 'f8_issue_one' : 'f8_issue_many')}</span>
+      )}
+    </>
+  );
   return (
-    <section className="card p-3 mb-4" data-testid={testId}>
-      <div className="flex flex-wrap items-center gap-3 mb-2">
-        <h4 className="font-semibold text-sm">{title}</h4>
-        {neutral !== undefined && (
-          <>
-            <select className="input" style={{ width: 'auto' }} value={filtro} data-testid={`${testId}-filter`}
-                    onChange={(e) => setFiltro(e.target.value as 'all' | 'eq' | 'gt' | 'lt')}>
-              <option value="all">{t('f6_factors_all')} ({keys.length})</option>
-              <option value="eq">= {neutral} ({keys.filter((k) => vale(k) === neutral).length})</option>
-              <option value="gt">&gt; {neutral} ({keys.filter((k) => vale(k) > neutral).length})</option>
-              <option value="lt">&lt; {neutral} ({keys.filter((k) => vale(k) < neutral).length})</option>
-            </select>
-            <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_factors_hint')}</span>
-          </>
-        )}
-      </div>
-      <IssueList issues={issuesAt(issues, field)} kind="error" />
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
-        {visibles.map((k) => (
-          <label key={k} className="text-xs">
-            <span className="label" style={{ textTransform: 'none' }}>{k}{unit ? ` (${unit})` : ''}</span>
-            <CellInput entry={entrada} value={actual[k] ?? neutral} testId={`${testId}-${k}`} onChange={(v) => {
-              const n = { ...actual };
-              // Volver al valor neutro es no cargarlo (el backend no guarda los factores 1).
-              if (v == null || v === neutral) delete n[k]; else n[k] = v;
-              onChange(Object.keys(n).length ? n : null);
-            }} />
-          </label>
-        ))}
-      </div>
-      {unit === '%p/p' && (
+    <Collapsible title={title} summary={resumen} testId={testId} storageKey={storageKey}
+                 defaultOpen={defaultOpen} forceOpen={propios.length > 0}>
+      {neutral !== undefined && (
+        <div className="flex flex-wrap items-center gap-3 mb-2">
+          <select className="input" style={{ width: 'auto' }} value={filtro} data-testid={`${testId}-filter`}
+                  onChange={(e) => setFiltro(e.target.value as 'all' | 'eq' | 'gt' | 'lt')}>
+            <option value="all">{t('f6_factors_all')} ({keys.length})</option>
+            <option value="eq">= {neutral} ({keys.filter((k) => vale(k) === neutral).length})</option>
+            <option value="gt">&gt; {neutral} ({keys.filter((k) => vale(k) > neutral).length})</option>
+            <option value="lt">&lt; {neutral} ({keys.filter((k) => vale(k) < neutral).length})</option>
+          </select>
+          <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_factors_hint')}</span>
+        </div>
+      )}
+      <IssueList issues={propios} kind="error" />
+      {bloques.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }} data-testid={`${testId}-empty`}>
+          {t('f6_kv_none_filtered')}
+        </p>
+      ) : (
+        <div className="grid gap-x-6 gap-y-3 items-start"
+             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', maxWidth: `${bloques.length * 26}rem` }}>
+          {bloques.map((bloque, b) => (
+            <table key={b} className="[&_td]:py-0.5 [&_td]:px-2 [&_th]:py-1 [&_th]:px-2" data-testid={`${testId}-block`}>
+              <thead>
+                <tr>
+                  <th scope="col">{t(keyKind === 'phase' ? 'f6_kv_phase' : 'f6_kv_species')}</th>
+                  <th scope="col" className="text-right">
+                    {t('f6_kv_value')}{unit && <span style={SIN_MAYUSCULAS}> ({unit})</span>}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {bloque.map((k) => {
+                  // Los factores distintos de 1 resaltan (peso, no solo color): son los que se guardan.
+                  const cambiado = neutral !== undefined && vale(k) !== neutral;
+                  return (
+                    <tr key={k}>
+                      <th scope="row" style={{ color: 'var(--color-text)' }}
+                          className={`text-sm normal-case tracking-normal border-b ${cambiado ? 'font-semibold' : 'font-normal'}`}>
+                        {k}
+                      </th>
+                      <td className="w-32">
+                        <CellInput entry={entrada} value={actual[k] ?? neutral} testId={`${testId}-${k}`}
+                                   ariaLabel={`${k}${unit ? ` (${unit})` : ''}`}
+                                   className={`input-number tabular-nums py-1 px-2${neutral !== undefined && !cambiado ? ' text-text-secondary' : ''}`}
+                                   onChange={(v) => {
+                                     const n = { ...actual };
+                                     // Volver al valor neutro es no cargarlo (el backend no guarda los factores 1).
+                                     if (v == null || v === neutral) delete n[k]; else n[k] = v;
+                                     onChange(Object.keys(n).length ? n : null);
+                                   }} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ))}
+        </div>
+      )}
+      {pct && (
         <div className="flex items-center gap-3 mt-2">
-          <p className="text-xs" style={{ color: Math.abs(suma - 100) > 0.01 ? '#b91c1c' : 'var(--color-text-secondary)' }}>
+          <p className="text-xs" style={{ color: fueraDe100 ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
             {t('total')}: {suma.toFixed(4)} %
           </p>
           {suma > 0 && Math.abs(suma - 100) > 1e-9 && (
@@ -349,16 +416,16 @@ function KeyValueEditor({ title, keys, value, onChange, unit, testId, issues, fi
           )}
         </div>
       )}
-    </section>
+    </Collapsible>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Serie diaria del dinámico
 // ---------------------------------------------------------------------------
-function SeriesEditor({ schema, payload, onChange, issues, species }: {
+function SeriesEditor({ schema, payload, onChange, issues, species, storageKey }: {
   schema: SectionSchema; payload: Obj; onChange: (s: Obj) => void; issues: ValidationIssue[];
-  species: string[];
+  species: string[]; storageKey?: string;
 }) {
   const t = useT();
   const serie = (payload.series as Obj | undefined) ?? {};
@@ -460,16 +527,24 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
     onChange(nuevo);
   };
   const desde = pagina * PAGE;
+  const propios = issues.filter((i) => i.field.startsWith('series'));
   return (
-    <section className="card p-3 mb-4" data-testid="series-editor">
+    <Collapsible title={t('f6_daily_series')} testId="series-editor" storageKey={storageKey}
+                 forceOpen={propios.length > 0}
+                 summary={(
+                   <>
+                     {n} {t('f6_days')}{inicio ? ` · ${inicio}` : ''}
+                     {propios.length > 0 && (
+                       <span style={{ color: 'var(--color-danger)' }}> · {propios.length} {t(propios.length === 1 ? 'f8_issue_one' : 'f8_issue_many')}</span>
+                     )}
+                   </>
+                 )}>
       <div className="flex flex-wrap items-end gap-2 mb-2">
-        <h4 className="font-semibold text-sm">{t('f6_daily_series')}</h4>
         <label className="text-xs">
           <span className="label">{schema.byKey.get('series.series_start_date')?.label ?? 'series_start_date'}</span>
           <input type="date" className="input" value={inicio}
                  onChange={(e) => onChange({ ...serie, series_start_date: e.target.value || null })} />
         </label>
-        <span className="text-xs">{n} {t('f6_days')}</span>
         <div className="flex-1" />
         <button className="btn btn-outline btn-sm" onClick={() => agregar(1)}>{t('add')}</button>
         <button className="btn btn-outline btn-sm" onClick={() => agregar(365)}>+365</button>
@@ -493,7 +568,7 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
         </div>
       )}
       {csvAviso && <p className="text-xs mb-2" role="status">{csvAviso}</p>}
-      <IssueList issues={issues.filter((i) => i.field.startsWith('series'))} kind="error" />
+      <IssueList issues={propios} kind="error" />
       <div className="overflow-x-auto">
         <table className="text-xs">
           <thead>
@@ -544,7 +619,7 @@ function SeriesEditor({ schema, payload, onChange, issues, species }: {
           <button className="btn btn-outline btn-sm" disabled={desde + PAGE >= n} onClick={() => setPagina(pagina + 1)}>›</button>
         </div>
       )}
-    </section>
+    </Collapsible>
   );
 }
 
@@ -776,6 +851,8 @@ export default function SectionEditorPage() {
   const errores = report?.errors ?? [];
   const ocultos = hiddenTopLevel(payload);
   const raiz = schema.children('').filter((e) => !ocultos.has(e.key));
+  const escalares = raiz.filter(isScalar);
+  const problemasEscalares = issues.filter((i) => escalares.some((e) => e.key === i.field)).length;
   const set = (campo: string, v: unknown) => setPayload({ ...payload, [campo]: v });
 
   const validar = async () => {
@@ -800,7 +877,7 @@ export default function SectionEditorPage() {
   const bloque = (e: DictionaryEntry) => {
     if (e.key === 'series') {
       return <SeriesEditor key={e.key} schema={schema} payload={payload} species={species} issues={issues}
-                           onChange={(s) => set('series', s)} />;
+                           storageKey={`section.${kind}.series`} onChange={(s) => set('series', s)} />;
     }
     if (e.key === 'plant') {
       const plant = (payload.plant as Obj | undefined) ?? {};
@@ -817,6 +894,7 @@ export default function SectionEditorPage() {
                           onChange={(v) => setPlant('reagents', v)} />
           <KeyValueEditor title={schema.byKey.get('plant.cake_wash_medium_pct')?.label ?? ''} keys={species}
                           unit="%p/p" testId="wash-medium" field="plant.cake_wash_medium_pct" issues={issues}
+                          storageKey={`section.${kind}.plant.cake_wash_medium_pct`}
                           value={plant.cake_wash_medium_pct as Obj | undefined}
                           onChange={(v) => setPlant('cake_wash_medium_pct', v ?? { H2O: 100 })} />
         </section>
@@ -829,11 +907,14 @@ export default function SectionEditorPage() {
     if (e.data_type === 'composition') {
       return <KeyValueEditor key={e.key} title={e.label} keys={species} unit={e.unit} testId={`comp-${e.key}`}
                              field={e.key} issues={issues} value={payload[e.key] as Obj | undefined}
+                             storageKey={`section.${kind}.${e.key}`}
                              onChange={(v) => set(e.key, v)} />;
     }
     if (e.data_type === 'map') {
+      // Los factores son por fase (cientos en 066): cerrados de entrada si la lista es larga.
       return <KeyValueEditor key={e.key} title={e.label} keys={phases} testId={`map-${e.key}`} field={e.key}
-                             neutral={1}
+                             neutral={1} keyKind="phase" defaultOpen={phases.length <= 40}
+                             storageKey={`section.${kind}.${e.key}`}
                              issues={issues} value={payload[e.key] as Obj | undefined}
                              onChange={(v) => set(e.key, v ?? {})} />;
     }
@@ -883,8 +964,16 @@ export default function SectionEditorPage() {
           <IssueList issues={report.warnings} kind="warning" />
         </div>
       )}
-      <FieldsForm schema={schema} prefix="" entries={raiz.filter(isScalar)} value={payload}
-                  issues={issues} onChange={setPayload} />
+      {escalares.length > 0 && (
+        <Collapsible title={t('f6_section_params')} testId="section-params" storageKey={`section.${kind}.params`}
+                     forceOpen={problemasEscalares > 0}
+                     summary={problemasEscalares > 0 ? (
+                       <span style={{ color: 'var(--color-danger)' }}>{problemasEscalares} {t('f6_errors')}</span>
+                     ) : undefined}>
+          <FieldsForm schema={schema} prefix="" entries={escalares} value={payload}
+                      issues={issues} onChange={setPayload} className="" />
+        </Collapsible>
+      )}
       {raiz.filter((e) => !isScalar(e)).map(bloque)}
     </div>
   );
