@@ -2,7 +2,7 @@
  * Tests for LoginPage component.
  *
  * Verifies the login form renders correctly, shows errors on failure,
- * and redirects on successful login.
+ * and redirects to the home page (/inicio) on successful login.
  */
 
 import React from 'react';
@@ -82,13 +82,13 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: /ingresar/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/invalidas/i)).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(/incorrectos/i);
     });
 
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('redirects on successful login', async () => {
+  it('redirects to the home page on successful login', async () => {
     mockLogin.mockResolvedValueOnce(undefined);
     const user = userEvent.setup();
 
@@ -103,7 +103,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: /ingresar/i }));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/projects', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/inicio', { replace: true });
     });
   });
 });

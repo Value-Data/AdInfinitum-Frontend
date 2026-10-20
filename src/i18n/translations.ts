@@ -245,6 +245,80 @@ export const TRANSLATIONS = {
   login_password_placeholder: { es: 'Ingrese su contraseña', en: 'Enter your password' },
   login_logging_in: { es: 'Ingresando...', en: 'Signing in...' },
   login_submit: { es: 'Ingresar', en: 'Sign in' },
+
+  // ===== F8: login con marca y portada (/inicio) =====
+  f8_login_tagline: {
+    es: 'Simulación termodinámica de pozas de evaporación de salmuera de litio',
+    en: 'Thermodynamic simulation of lithium brine evaporation ponds',
+  },
+  f8_login_stages: {
+    es: 'Preconcentración · Planta de reactivos · Concentración',
+    en: 'Preconcentration · Reagent plant · Concentration',
+  },
+  f8_login_engine: { es: 'Motor termodinámico AQSOL', en: 'AQSOL thermodynamic engine' },
+  f8_login_ponds_alt: {
+    es: 'Pozas de evaporación vistas desde arriba: la salmuera pasa de azul a amarillo a medida que se concentra',
+    en: 'Evaporation ponds seen from above: the brine turns from blue to yellow as it concentrates',
+  },
+  f8_login_title: { es: 'Iniciar sesión', en: 'Sign in' },
+  f8_login_hint: {
+    es: 'Use la cuenta que le entregó el administrador.',
+    en: 'Use the account your administrator gave you.',
+  },
+  f8_login_error_invalid: {
+    es: 'Usuario o contraseña incorrectos. Revíselos e intente de nuevo.',
+    en: 'Incorrect username or password. Check them and try again.',
+  },
+  f8_nav_home: { es: 'Inicio', en: 'Home' },
+  f8_home_greeting: { es: 'Hola, {name}', en: 'Hello, {name}' },
+  f8_home_sim_title: { es: 'Simulación de pozas', en: 'Pond simulation' },
+  f8_home_sim_desc: {
+    es: 'Preconcentración, planta de reactivos y concentración con el motor AQSOL: corridas, resultados por etapa, gráficos y el reporte en PDF.',
+    en: 'Preconcentration, reagent plant and concentration with the AQSOL engine: runs, results by stage, charts and the PDF report.',
+  },
+  f8_home_sim_cta: { es: 'Entrar', en: 'Enter' },
+  f8_home_mode_static: { es: 'Estático', en: 'Static' },
+  f8_home_mode_static_desc: {
+    es: 'Balance en estado estacionario de un escenario de diseño.',
+    en: 'Steady-state balance of a design scenario.',
+  },
+  f8_home_mode_dynamic: { es: 'Dinámico', en: 'Dynamic' },
+  f8_home_mode_dynamic_desc: {
+    es: 'Día a día, con clima y variación estacional de los flujos.',
+    en: 'Day by day, with weather and seasonal flow variation.',
+  },
+  f8_home_mode_chain: { es: 'En cadena', en: 'Chained' },
+  f8_home_mode_chain_desc: {
+    es: 'Cada etapa parte de los resultados de la anterior.',
+    en: 'Each stage starts from the results of the previous one.',
+  },
+  f8_home_modules: { es: 'Otros módulos', en: 'Other modules' },
+  f8_home_where: { es: 'Está en', en: 'Find it in' },
+  f8_home_compare_title: { es: 'Comparar corridas', en: 'Compare runs' },
+  f8_home_compare_desc: {
+    es: 'Indicadores y series de una ejecución junto a otras del mismo tipo.',
+    en: 'Indicators and series of one execution next to others of the same type.',
+  },
+  f8_home_compare_where: { es: 'Proyecto › Ejecución › Comparar', en: 'Project › Execution › Compare' },
+  f8_home_inventory_title: { es: 'Inventario', en: 'Inventory' },
+  f8_home_inventory_desc: {
+    es: 'Cargar el estado inicial de las pozas desde un escenario y lanzar el dinámico desde esa fecha.',
+    en: 'Load the initial pond state from a scenario and launch the dynamic run from that date.',
+  },
+  f8_home_inventory_where: {
+    es: 'Proyecto › Configuración › Modo dinámico',
+    en: 'Project › Configuration › Dynamic mode',
+  },
+  f8_home_users_title: { es: 'Usuarios', en: 'Users' },
+  f8_home_users_desc: {
+    es: 'Crear cuentas y asignar el rol de cada persona en cada proyecto.',
+    en: 'Create accounts and assign each person a role in each project.',
+  },
+  f8_home_users_cta: { es: 'Administrar usuarios', en: 'Manage users' },
+  f8_home_recent: { es: 'Proyectos recientes', en: 'Recent projects' },
+  f8_home_all_projects: { es: 'Ver todos los proyectos', en: 'See all projects' },
+  f8_home_updated: { es: 'Actualizado', en: 'Updated' },
+  f8_home_go_projects: { es: 'Ir a Proyectos', en: 'Go to Projects' },
   projects_title: { es: 'Proyectos', en: 'Projects' },
   projects_new: { es: 'Nuevo Proyecto', en: 'New Project' },
   projects_empty_admin: { es: 'No hay proyectos creados. Cree uno nuevo para comenzar.', en: 'No projects created. Create a new one to get started.' },
