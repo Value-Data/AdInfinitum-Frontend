@@ -22,8 +22,8 @@ describe('series diarias como el PDF de antes', () => {
     expect(series.mock.calls.at(-1)?.[2]).toEqual(PRINT_SERIES_SPECIES);
     expect(PRINT_SERIES_SPECIES).toContain('H2O');
   });
-  it('el reporte de cadena tiene su pestaña de series diarias', () => {
-    expect(executionTabs({ dynamic: true, chain: true, files: false })).toContain('daily');
+  it('el reporte de cadena tiene su pestaña de series diarias, justo después de resultados', () => {
+    expect(executionTabs({ dynamic: true, chain: true, files: false }).slice(0, 2)).toEqual(['results', 'daily']);
   });
 });
 

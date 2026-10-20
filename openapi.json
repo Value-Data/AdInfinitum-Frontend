@@ -543,7 +543,7 @@
           "projects"
         ],
         "summary": "Update Project",
-        "description": "Update project name/description (admin only).",
+        "description": "Update project name/description/client (admin only).",
         "operationId": "update_project_api_v1_projects__project_id__put",
         "security": [
           {
@@ -6916,6 +6916,18 @@
             ],
             "title": "Description"
           },
+          "client": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client"
+          },
           "aqsol_version": {
             "type": "string",
             "enum": [
@@ -6953,6 +6965,17 @@
               }
             ],
             "title": "Description"
+          },
+          "client": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client"
           },
           "aqsol_version": {
             "type": "string",
@@ -7040,11 +7063,23 @@
               }
             ],
             "title": "Description"
+          },
+          "client": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client"
           }
         },
         "type": "object",
         "title": "ProjectUpdate",
-        "description": "Schema for updating a project."
+        "description": "Actualización parcial: solo cambia lo que viene. `description` y `client`\naceptan `null` para vaciarlos; `name` no."
       },
       "ReagentSpec": {
         "properties": {

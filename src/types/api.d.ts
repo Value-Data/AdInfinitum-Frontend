@@ -193,7 +193,7 @@ export interface paths {
         get: operations["get_project_api_v1_projects__project_id__get"];
         /**
          * Update Project
-         * @description Update project name/description (admin only).
+         * @description Update project name/description/client (admin only).
          */
         put: operations["update_project_api_v1_projects__project_id__put"];
         post?: never;
@@ -2146,6 +2146,8 @@ export interface components {
             name: string;
             /** Description */
             description?: string | null;
+            /** Client */
+            client?: string | null;
             /**
              * Aqsol Version
              * @enum {string}
@@ -2163,6 +2165,8 @@ export interface components {
             name: string;
             /** Description */
             description?: string | null;
+            /** Client */
+            client?: string | null;
             /** Aqsol Version */
             aqsol_version: string;
             /** Created By */
@@ -2189,13 +2193,16 @@ export interface components {
         };
         /**
          * ProjectUpdate
-         * @description Schema for updating a project.
+         * @description Actualización parcial: solo cambia lo que viene. `description` y `client`
+         *     aceptan `null` para vaciarlos; `name` no.
          */
         ProjectUpdate: {
             /** Name */
             name?: string | null;
             /** Description */
             description?: string | null;
+            /** Client */
+            client?: string | null;
         };
         /**
          * ReagentSpec

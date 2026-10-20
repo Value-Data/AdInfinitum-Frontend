@@ -1,11 +1,13 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { EChartsOption } from 'echarts';
 
+const serieDiaria = vi.fn();
 vi.mock('../../src/services/apiV2', async (orig) => ({
   ...(await orig<typeof import('../../src/services/apiV2')>()),
   getDictionaryLabels: vi.fn(async () => ({})),
+  getExecutionSeries: (...a: unknown[]) => serieDiaria(...a),
 }));
 // jsdom no tiene lienzo: el gráfico se reemplaza por una caja que guarda sus opciones.
 const dibujados: { option: EChartsOption; group?: string; print: boolean }[] = [];
@@ -23,10 +25,10 @@ vi.mock('../../src/f6/EChart', async (orig) => {
 import {
   climateRows, hasPondCharts, liVsSpecies, pondRows, saltEvolution,
 } from '../../src/f6/chartData';
-import { ReportCharts } from '../../src/f6/Charts';
+import { DailyCharts, ReportCharts } from '../../src/f6/Charts';
 import { ChartPrintContext } from '../../src/f6/EChart';
 import { __setLabelsCache } from '../../src/f6/labels';
-import type { ReportTable, StageReport, StaticReport } from '../../src/types/report';
+import type { DailySeries, DynamicReport, ReportTable, StageReport, StaticReport } from '../../src/types/report';
 
 __setLabelsCache('es', {});
 
@@ -185,5 +187,74 @@ describe('ReportCharts del estático', () => {
     expect(panel.textContent).toContain('Σ evaporation_t_d (pond_balance, postliming)');
     const op = dibujados.find((d) => (d.option.series as { name: string }[])[0]?.name === 'Evap total')!;
     expect((op.option.series as { data: (number | null)[] }[]).map((x) => x.data)).toEqual([[3, 11], [2, 4]]);
+  });
+});
+
+describe('series diarias sin desplazamiento horizontal', () => {
+  const serie: DailySeries = {
+    stage: 'precon', dates: ['2024-01-01', '2024-01-02', '2024-01-03'], days: [1, 2, 3], product_pond: 'P1',
+    groups: [{ key: 'outflow_t_d', unit: 't/d', series: [{ key: 'P1', pond: true, values: [1, 2, 3] },
+      { key: 'P2', pond: true, values: [2, 3, 4] }] }],
+    composition: null, salts: null,
+  };
+  // Los paneles de líneas (el mapa de calor va siempre a todo el ancho).
+  const paneles = () => Array.from(screen.getByTestId('daily-charts').querySelectorAll<HTMLElement>('[data-chart-title]'))
+    .filter((p) => !p.closest('[data-testid="pond-heatmap"]'));
+  const lineas = () => dibujados.filter((d) => (d.option.series as { type: string }[])[0]?.type === 'line');
+
+  it('en pantalla: cada gráfico a todo el ancho, sin barra de desplazamiento, con zoom', async () => {
+    serieDiaria.mockResolvedValue(serie);
+    dibujados.length = 0;
+    const { container } = render(<DailyCharts executionId="e1" query={{}} />);
+    await waitFor(() => expect(paneles().length).toBeGreaterThan(0));
+    for (const p of paneles()) expect(p.style.gridColumn).toBe('1 / -1');
+    expect(container.querySelectorAll('[style*="overflow-x"]')).toHaveLength(0);
+    expect(lineas().length).toBeGreaterThan(0);
+    expect(lineas().every((d) => Array.isArray(d.option.dataZoom))).toBe(true);
+    expect(screen.getByText(/Ctrl \+ rueda/)).toBeTruthy();
+  });
+
+  it('para imprimir: igual que antes (en la grilla, sin zoom ni ayuda)', async () => {
+    serieDiaria.mockResolvedValue(serie);
+    dibujados.length = 0;
+    render(<ChartPrintContext.Provider value><DailyCharts executionId="e1" query={{}} /></ChartPrintContext.Provider>);
+    await waitFor(() => expect(paneles().length).toBeGreaterThan(0));
+    for (const p of paneles()) expect(p.style.gridColumn).toBe('');
+    expect(lineas().length).toBeGreaterThan(0);
+    expect(lineas().every((d) => d.print && d.option.dataZoom === undefined)).toBe(true);
+    expect(screen.queryByText(/Ctrl \+ rueda/)).toBeNull();
+  });
+});
+
+describe('"Balance de masas" del dinámico', () => {
+  const dinamico: DynamicReport = {
+    kind: 'dynamic', period: { start: '2024-01-01', end: '2024-01-31', n_days: 31 },
+    params: { period_start: null, period_end: null, scale_factor: 1, days_year: {} },
+    stages: [{ stage: 'precon', kpis: { li_in_t: 10, li_out_t: 8 }, tables: [
+      tabla('pond_balance', [L('outflow_t_d', 't/d'), L('salt_precipitated_t_d', 't/d')],
+        [{ id: 'P1', outflow_t_d: 80, salt_precipitated_t_d: 1 }, { id: 'P2', outflow_t_d: 50, salt_precipitated_t_d: 3 }]),
+    ] }],
+    process_kpis: {}, global_balance: null,
+  };
+  const titulos = () => Array.from(document.querySelectorAll<HTMLElement>('[data-chart-title]'))
+    .map((p) => p.dataset.chartTitle ?? '');
+
+  it('en pantalla abre en el balance de litio; el balance por poza en la sub-pestaña siguiente', () => {
+    render(<ReportCharts report={dinamico} paged />);
+    const pestanas = within(screen.getByTestId('chart-groups')).getAllByRole('tab');
+    expect(pestanas.map((b) => b.textContent)).toEqual(['Balance de litio', 'Balance por poza']);
+    expect(pestanas[0].getAttribute('aria-selected')).toBe('true');
+    expect(titulos()).toHaveLength(1);
+    expect(titulos()[0]).toMatch(/Balance de litio/);
+    fireEvent.click(pestanas[1]);
+    expect(titulos().some((x) => /Balance de litio/.test(x))).toBe(false);
+    expect(titulos()).toContain('pond_balance (t/d)');
+  });
+
+  it('para imprimir, todos: primero el balance de litio y después el balance por poza', () => {
+    render(<ChartPrintContext.Provider value><ReportCharts report={dinamico} /></ChartPrintContext.Provider>);
+    const ts = titulos();
+    expect(ts[0]).toMatch(/Balance de litio/);
+    expect(ts.indexOf('pond_balance (t/d)')).toBeGreaterThan(0);
   });
 });

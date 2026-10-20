@@ -23,21 +23,22 @@ describe('lo que se ve en el editor', () => {
 });
 
 describe('gráficos', () => {
-  it('una serie larga no se raleia: el gráfico se ensancha para alcanzar cada día', () => {
+  it('una serie larga no ensancha el gráfico (sin desplazamiento horizontal: se acerca con el zoom)', () => {
     const g = chartLayout(1460, 'auto', 'day');
-    expect(g.minWidth).toBeGreaterThanOrEqual(1460 * 3);
+    expect(g).not.toHaveProperty('minWidth');
     expect(g.interval).toBe('auto');
-    expect(chartLayout(30, 'auto', 'day').minWidth).toBe(0);
+    expect(chartLayout(1460, 10, 'day')).not.toHaveProperty('minWidth');
   });
-  it('el paso de días pone una marca cada N días y ensancha si son muchas', () => {
+  it('el paso de días pone una marca cada N días (en ángulo si son muchas)', () => {
     const g = chartLayout(1460, 10, 'day');
     expect(g.interval).toBe(9);
     expect(g.angled).toBe(true);
-    expect(g.minWidth).toBe(146 * 46);
     expect(chartLayout(100, 30, 'day')).toMatchObject({ interval: 29, angled: false });
+    expect(chartLayout(100, 30, 'date').angled).toBe(true);
   });
-  it('para imprimir, al ancho de la página', () => {
-    expect(chartLayout(1460, 10, 'date', true)).toMatchObject({ minWidth: 0, interval: 'auto' });
+  it('para imprimir, marcas automáticas al ancho de la página', () => {
+    expect(chartLayout(1460, 10, 'date', true)).toEqual({ interval: 'auto', angled: true, axisHeight: 62 });
+    expect(chartLayout(1460, 10, 'day', true)).toEqual({ interval: 'auto', angled: false, axisHeight: 30 });
   });
   it('desde la 9ª serie, el color se repite con trazo cortado', () => {
     expect(seriesStyle(0).dashed).toBe(false);

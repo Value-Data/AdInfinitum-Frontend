@@ -25,10 +25,6 @@ export type DayStep = number | 'auto';
 /** Las opciones de la versión anterior: una marca cada N días. */
 export const DAY_STEPS: DayStep[] = ['auto', 10, 30, 60, 100, 200, 365];
 
-const PX_PER_TICK = 46;
-/** Píxeles mínimos por día: con menos, el cursor salta días y alguno queda inalcanzable. */
-export const PX_PER_DAY = 3;
-
 export interface ChartLayout {
   /** `axisLabel.interval` del eje X de ECharts: una marca cada `interval + 1` días, o
    * 'auto' (las que quepan sin pisarse). */
@@ -36,31 +32,22 @@ export interface ChartLayout {
   angled: boolean;
   /** Alto del eje X (las etiquetas en ángulo necesitan más). */
   axisHeight: number;
-  /** Ancho mínimo del gráfico en px; 0 = el ancho del panel (sin barra de desplazamiento). */
-  minWidth: number;
 }
 
 /**
- * Geometría de un gráfico diario de `nDays` puntos (todos: no se ralea). Con un paso
- * elegido, una marca cada `step` días y el gráfico se ensancha para que quepan; además,
- * con muchos días el gráfico nunca baja de `PX_PER_DAY` por día, para que el cursor
- * alcance cada día. `fit` (impresión/PDF) lo deja al ancho de la página.
+ * Geometría de un gráfico diario de `nDays` puntos (todos: no se ralea). El gráfico va
+ * siempre al ancho del panel, sin barra de desplazamiento: para ver cada día se acerca un
+ * tramo con el zoom. Con un paso elegido, una marca cada `step` días (las que se pisen se
+ * esconden). `fit` (impresión/PDF): marcas automáticas, al ancho de la página.
  */
 export function chartLayout(nDays: number, step: DayStep, mode: 'day' | 'date', fit = false): ChartLayout {
+  if (fit) {
+    return { interval: 'auto', angled: mode === 'date', axisHeight: mode === 'date' ? 62 : 30 };
+  }
   const paso = step === 'auto' ? null : Math.max(1, Math.round(step));
   const marcas = paso ? Math.floor(Math.max(0, nDays - 1) / paso) + 1 : 0;
   const angled = mode === 'date' || marcas > 10;
-  if (fit) {
-    return { interval: 'auto', angled: mode === 'date', axisHeight: mode === 'date' ? 62 : 30, minWidth: 0 };
-  }
-  const porMarcas = marcas > 16 ? Math.round(marcas * PX_PER_TICK) : 0;
-  const porDias = nDays * PX_PER_DAY > 900 ? nDays * PX_PER_DAY : 0;
-  return {
-    interval: paso ? paso - 1 : 'auto',
-    angled,
-    axisHeight: angled ? 62 : 30,
-    minWidth: Math.max(porMarcas, porDias),
-  };
+  return { interval: paso ? paso - 1 : 'auto', angled, axisHeight: angled ? 62 : 30 };
 }
 
 // ---------------------------------------------------------------------------

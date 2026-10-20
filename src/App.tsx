@@ -7,6 +7,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
+import HomePage from './pages/HomePage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectPage from './f6/ProjectPage';
 import SectionEditorPage from './f6/SectionEditorPage';
@@ -37,6 +38,7 @@ export default function App() {
             {/* Reporte para imprimir o guardar como PDF: sin la barra lateral. */}
             <Route path="/executions/:id/print" element={<Suspense fallback={cargando}><PrintReportPage /></Suspense>} />
             <Route element={<AppLayout />}>
+              <Route path="/inicio" element={<HomePage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectPage />} />
               <Route path="/projects/:id/sections/:kind" element={<SectionEditorPage />} />
@@ -60,8 +62,8 @@ export default function App() {
             </Route>
           </Route>
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/projects" replace />} />
+          {/* Catch-all: la portada. */}
+          <Route path="*" element={<Navigate to="/inicio" replace />} />
         </Routes>
         </ErrorBoundary>
       </AuthProvider>

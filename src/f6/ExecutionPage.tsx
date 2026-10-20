@@ -29,7 +29,7 @@ import { InventoryBadge } from './ConfigPanel';
 import { DailyCharts, ReportCharts } from './Charts';
 import CompareExecutions from './CompareExecutions';
 import { ChainDailyCharts } from './ChainDailyCharts';
-import { canDo, executionTabs, parseTab, type ExecutionTab } from './executionTabs';
+import { canDo, executionTabs, parseTab, tabLabelKey, type ExecutionTab } from './executionTabs';
 
 const ACTIVE = new Set(['pending', 'running']);
 const POLL_MS = 5000;
@@ -78,11 +78,6 @@ function LogPanel({ id, live }: { id: string; live: boolean }) {
     </div>
   );
 }
-
-const TAB_LABEL: Record<ExecutionTab, string> = {
-  results: 'f6_tab_results', charts: 'f6_tab_charts', daily: 'f6_tab_daily', compare: 'f6_tab_compare',
-  files: 'f6_tab_files',
-};
 
 function ReportSection({ detail, chain, filesTab, compare }: {
   detail: ExecutionDetail; chain: ChainSummary | null; filesTab: React.ReactNode; compare: boolean;
@@ -195,7 +190,7 @@ function ReportSection({ detail, chain, filesTab, compare }: {
                   style={tab === k ? { borderBottom: '2px solid var(--color-primary)', color: 'var(--color-primary)' }
                     : { color: 'var(--color-text-secondary)' }}
                   onClick={() => irA(k)}>
-            {t(TAB_LABEL[k] as never)}
+            {t(tabLabelKey(k, dinamico))}
           </button>
         ))}
       </div>

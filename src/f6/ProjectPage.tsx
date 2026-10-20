@@ -17,6 +17,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import ConfigPanel, { type LaunchDefaults } from './ConfigPanel';
 import LaunchPanel from './LaunchPanel';
 import { canDo } from './executionTabs';
+import ProjectEditModal from './ProjectEditModal';
 import { RunStatusBadge, executionTypeLabel, formatDateTime } from './common';
 
 // Las pantallas de la versión anterior (y sus dependencias: xlsx, recharts) van en un
@@ -83,6 +84,7 @@ export default function ProjectPage() {
   const { id = '' } = useParams<{ id: string }>();
   const t = useT();
   const { isAdmin } = useAuth();
+  const [editando, setEditando] = useState(false);
   const [search, setSearch] = useSearchParams();
   const tabPedida = search.get('tab') === 'executions' ? 'executions' : 'config';
   const [project, setProject] = useState<ProjectV2 | null>(null);
@@ -137,6 +139,10 @@ export default function ProjectPage() {
       </div>
       <div className="flex flex-wrap items-baseline gap-3 mb-1">
         <h2 className="text-xl font-semibold">{project.name}</h2>
+        {project.client && (
+          <span className="text-sm font-medium" data-testid="project-client"
+                style={{ color: 'var(--color-text-secondary)' }}>{project.client}</span>
+        )}
         <span className="text-sm font-mono" style={{ color: 'var(--color-text-secondary)' }}>
           AQSOL {project.aqsol_version}
         </span>
@@ -147,10 +153,22 @@ export default function ProjectPage() {
             {t(`f7_role_${project.my_role}` as never)}
           </span>
         )}
+        {isAdmin && (
+          <button type="button" className="btn btn-outline btn-sm" data-testid="edit-project"
+                  aria-label={t('f8_project_edit')} title={t('f8_project_edit')}
+                  onClick={() => setEditando(true)}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+            </svg>
+            {t('f8_edit')}
+          </button>
+        )}
       </div>
       {project.description && (
         <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>{project.description}</p>
       )}
+      <ProjectEditModal project={editando ? project : null} onClose={() => setEditando(false)}
+                        onSaved={(p) => { setProject(p); setEditando(false); }} />
       <div className="flex gap-2 mb-4 border-b" style={{ borderColor: 'var(--color-border)' }} role="tablist">
         {tabs.map((k) => (
           <button key={k} role="tab" aria-selected={tab === k}

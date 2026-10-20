@@ -91,6 +91,12 @@ export async function createProjectV2(body: Schemas['ProjectCreate']): Promise<P
   return data;
 }
 
+/** Solo cambia lo enviado; `null` vacía descripción o cliente (F8). */
+export async function updateProjectV2(id: string, body: Schemas['ProjectUpdate']): Promise<ProjectV2> {
+  const { data } = await api.put<ProjectV2>(`/projects/${id}`, body);
+  return data;
+}
+
 export async function deleteProjectV2(id: string): Promise<void> {
   await api.delete(`/projects/${id}`);
 }

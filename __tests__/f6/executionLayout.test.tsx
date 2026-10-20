@@ -9,7 +9,7 @@ vi.mock('../../src/services/apiV2', async (orig) => ({
 
 import ReportView, { resultSections, splitColumns } from '../../src/f6/ReportView';
 import { chartGroups } from '../../src/f6/Charts';
-import { executionTabs, parseTab } from '../../src/f6/executionTabs';
+import { executionTabs, parseTab, tabLabelKey } from '../../src/f6/executionTabs';
 import { Pager, pageSlice } from '../../src/f6/paging';
 import type { ReportColumn, StaticReport } from '../../src/types/report';
 
@@ -53,14 +53,24 @@ describe('tablas anchas al imprimir', () => {
 });
 
 describe('pestañas de la ejecución', () => {
-  it('resultados primero; diarios solo en el dinámico; archivos si hay', () => {
+  it('resultados primero; diarios solo en el dinámico y antes que los gráficos del reporte; archivos si hay', () => {
     expect(executionTabs({ dynamic: false, chain: false, files: false }))
       .toEqual(['results', 'charts', 'compare']);
     expect(executionTabs({ dynamic: true, chain: false, files: true }))
-      .toEqual(['results', 'charts', 'daily', 'compare', 'files']);
+      .toEqual(['results', 'daily', 'charts', 'compare', 'files']);
     // El reporte de la cadena: las series diarias de cada etapa, sin comparación.
-    expect(executionTabs({ dynamic: true, chain: true, files: false })).toEqual(['results', 'charts', 'daily']);
+    expect(executionTabs({ dynamic: true, chain: true, files: false })).toEqual(['results', 'daily', 'charts']);
     expect(executionTabs({ dynamic: false, chain: false, files: false, compare: false })).toEqual(['results', 'charts']);
+    // El cliente (sin comparar ni archivos) en el dinámico.
+    expect(executionTabs({ dynamic: true, chain: false, files: false, compare: false }))
+      .toEqual(['results', 'daily', 'charts']);
+  });
+
+  it('los gráficos del reporte se llaman "Balance de masas" en el dinámico y "Gráficos" en el estático', () => {
+    expect(tabLabelKey('charts', true)).toBe('f6_tab_mass_balance');
+    expect(tabLabelKey('charts', false)).toBe('f6_tab_charts');
+    expect(tabLabelKey('daily', true)).toBe('f6_tab_daily');
+    expect(tabLabelKey('results', true)).toBe('f6_tab_results');
   });
 
   it('una pestaña desconocida o que no aplica cae en resultados', () => {
@@ -82,12 +92,14 @@ describe('grupos de gráficos', () => {
       { stage: 'postliming', kpis: {}, tables: [pozas] }]);
     expect(chartGroups(rep, 0)).toEqual(['stage:precon', 'stage:postliming', 'compare', 'balance']);
   });
-  it('dinámico: el balance por poza y el balance de Li', () => {
-    expect(chartGroups({
+  it('dinámico: primero el balance de Li y después el balance por poza', () => {
+    const dinamico = (tables: (typeof pozas)[]) => chartGroups({
       kind: 'dynamic', period: { start: '2024-01-01', end: '2024-01-02', n_days: 2 },
       params: { period_start: null, period_end: null, scale_factor: 1, days_year: {} },
-      stages: [{ stage: 'precon', kpis: {}, tables: [pozas] }], process_kpis: {}, global_balance: null,
-    }, 0)).toEqual(['compare', 'balance']);
+      stages: [{ stage: 'precon', kpis: {}, tables }], process_kpis: {}, global_balance: null,
+    }, 0);
+    expect(dinamico([pozas])).toEqual(['balance', 'compare']);
+    expect(dinamico([])).toEqual(['balance']);
   });
 });
 

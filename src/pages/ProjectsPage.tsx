@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import type { Project } from '../types';
@@ -9,6 +9,11 @@ import { RunStatusBadge } from '../f6/common';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import WelcomeOverlay from '../components/common/WelcomeOverlay';
 import { useT } from '../i18n/LanguageContext';
+import ProjectEditModal, { ClientInput } from '../f6/ProjectEditModal';
+
+const NO_CLIENT = '__sin_cliente__';
+// Nombre, descripción, AQSOL, creado, última corrida y (rol | acciones).
+const N_COLS = 6;
 
 export default function ProjectsPage() {
   const t = useT();
@@ -21,6 +26,11 @@ export default function ProjectsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [newClient, setNewClient] = useState('');
+  const [editando, setEditando] = useState<Project | null>(null);
+  // Filtros de la lista (F8): texto libre y cliente ('' = todos, NO_CLIENT = sin cliente).
+  const [filtro, setFiltro] = useState('');
+  const [clienteSel, setClienteSel] = useState('');
   const [creating, setCreating] = useState(false);
   const [newVersion, setNewVersion] = useState<'027' | '066'>('027');
   const [createError, setCreateError] = useState<string | null>(null);
@@ -76,11 +86,12 @@ export default function ProjectsPage() {
     setCreating(true);
     try {
       await createProjectV2({ name: newName, description: newDesc || undefined,
-                              aqsol_version: newVersion });
+                              client: newClient.trim() || null, aqsol_version: newVersion });
       setShowCreate(false);
       setCreateError(null);
       setNewName('');
       setNewDesc('');
+      setNewClient('');
       fetchProjects();
     } catch (err) {
       setCreateError(apiError(err).message);
@@ -88,6 +99,28 @@ export default function ProjectsPage() {
       setCreating(false);
     }
   };
+
+  // Clientes en uso, para el selector y las sugerencias.
+  const clientes = useMemo(
+    () => [...new Set(projects.map((p) => p.client).filter((c): c is string => !!c))]
+      .sort((a, b) => a.localeCompare(b, 'es')),
+    [projects],
+  );
+  // Grupos por cliente en el orden del backend (por cliente, los sin cliente al final).
+  const grupos = useMemo(() => {
+    const q = filtro.trim().toLowerCase();
+    const visibles = projects.filter((p) => {
+      if (clienteSel === NO_CLIENT && p.client) return false;
+      if (clienteSel && clienteSel !== NO_CLIENT && p.client !== clienteSel) return false;
+      return !q || [p.name, p.description, p.client].some((v) => v?.toLowerCase().includes(q));
+    });
+    const mapa = new Map<string, Project[]>();
+    for (const p of visibles) {
+      const k = p.client ?? '';
+      mapa.set(k, [...(mapa.get(k) ?? []), p]);
+    }
+    return [...mapa.entries()].sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, 'es')));
+  }, [projects, filtro, clienteSel]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('es-CL', {
@@ -140,6 +173,21 @@ export default function ProjectsPage() {
           </p>
         </div>
       ) : (
+        <>
+        <div className="flex flex-wrap gap-2 mb-3" role="search">
+          <input type="search" className="input" style={{ maxWidth: '22rem' }} data-testid="project-filter"
+                 aria-label={t('f8_search_projects')} placeholder={t('f8_search_projects')}
+                 value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+          {clientes.length > 0 && (
+            <select className="input" style={{ maxWidth: '16rem' }} data-testid="client-filter"
+                    aria-label={t('f8_client')} value={clienteSel}
+                    onChange={(e) => setClienteSel(e.target.value)}>
+              <option value="">{t('f8_all_clients')}</option>
+              {clientes.map((c) => <option key={c} value={c}>{c}</option>)}
+              <option value={NO_CLIENT}>{t('f8_no_client')}</option>
+            </select>
+          )}
+        </div>
         <div className="card overflow-hidden">
           <table>
             <thead>
@@ -153,8 +201,25 @@ export default function ProjectsPage() {
                 {isAdmin && <th />}
               </tr>
             </thead>
-            <tbody>
-              {projects.map((project) => (
+            {grupos.length === 0 && (
+              <tbody><tr><td colSpan={N_COLS} className="text-center text-sm py-6"
+                             style={{ color: 'var(--color-text-secondary)' }}>{t('f8_no_matches')}</td></tr></tbody>
+            )}
+            {grupos.map(([cliente, lista]) => (
+            <tbody key={cliente || NO_CLIENT} data-testid={`client-group-${cliente || NO_CLIENT}`}>
+              {/* Separador por cliente: solo si hay más de un grupo o el único tiene nombre. */}
+              {(grupos.length > 1 || cliente) && (
+                <tr>
+                  <th colSpan={N_COLS} scope="colgroup" className="text-left text-sm"
+                      style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>
+                    {cliente || t('f8_no_client')}
+                    <span className="ml-2 font-normal text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                      {t('f8_n_projects').replace('{n}', String(lista.length))}
+                    </span>
+                  </th>
+                </tr>
+              )}
+              {lista.map((project) => (
                 <tr
                   key={project.id}
                   className="cursor-pointer"
@@ -190,11 +255,17 @@ export default function ProjectsPage() {
                     <td onClick={(e) => e.stopPropagation()} className="text-right whitespace-nowrap">
                       {/* Borrar no compite con los datos: va en el menú de la fila. */}
                       {menu === project.id ? (
+                        <span className="inline-flex gap-2">
+                        <button className="btn btn-outline btn-sm" data-testid={`edit-project-${project.id}`}
+                                onClick={() => { setEditando(project); setMenu(null); }}>
+                          {t('f8_edit')}
+                        </button>
                         <button className="btn btn-outline btn-sm" data-testid={`delete-project-${project.id}`}
                                 style={{ borderColor: '#dc2626', color: '#b91c1c' }}
                                 onClick={() => borrar(project.id)}>
                           {aBorrar === project.id ? t('f6_delete_confirm') : t('delete')}
                         </button>
+                        </span>
                       ) : (
                         <button className="btn btn-outline btn-sm" aria-label={`${t('f7_row_actions')} ${project.name}`}
                                 onClick={() => { setMenu(project.id); setABorrar(null); }}>⋯</button>
@@ -204,9 +275,18 @@ export default function ProjectsPage() {
                 </tr>
               ))}
             </tbody>
+            ))}
           </table>
         </div>
+        </>
       )}
+
+      <ProjectEditModal
+        project={editando}
+        clients={clientes}
+        onClose={() => setEditando(null)}
+        onSaved={() => { setEditando(null); fetchProjects(); }}
+      />
 
       {/* Create Project Modal */}
       <Modal
@@ -225,6 +305,10 @@ export default function ProjectsPage() {
               onChange={(e) => setNewName(e.target.value)}
               autoFocus
             />
+          </div>
+          <div>
+            <label className="label" htmlFor="new-client">{t('f8_client')}</label>
+            <ClientInput id="new-client" value={newClient} onChange={setNewClient} clients={clientes} />
           </div>
           <div>
             <label className="label">{t('projects_desc_label')}</label>
