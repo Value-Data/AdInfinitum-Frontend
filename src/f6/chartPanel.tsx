@@ -20,12 +20,12 @@ export function useTools(): ToolLabels {
 
 /**
  * Un gráfico con su título (el título nombra el PNG del zip). Varios hijos = varios
- * gráficos uno debajo del otro, con el mismo eje X (en vez de dos ejes Y). `minWidth`
- * > 0 ensancha el gráfico y aparece la barra de desplazamiento horizontal.
+ * gráficos uno debajo del otro, con el mismo eje X (en vez de dos ejes Y). El gráfico va
+ * siempre al ancho del panel (sin desplazamiento horizontal).
  */
-export function Panel({ title, children, minWidth = 0, height = 280, wide = false, notes = [] }: {
-  title: string; children: React.ReactNode; minWidth?: number; height?: number;
-  /** Todo el ancho de la grilla (sin ensanchar el gráfico). */
+export function Panel({ title, children, height = 280, wide = false, notes = [] }: {
+  title: string; children: React.ReactNode; height?: number;
+  /** Todo el ancho de la grilla. */
   wide?: boolean;
   /** Notas al pie (de dónde sale cada serie); también van en el PNG y en el PDF. */
   notes?: string[];
@@ -34,15 +34,11 @@ export function Panel({ title, children, minWidth = 0, height = 280, wide = fals
   const alto = graficos.length > 1 ? Math.round(height * 0.62) : height;
   return (
     <div className="card p-3 mb-4 pdf-block" data-chart-title={title}
-         style={{ minWidth: 0, gridColumn: minWidth || wide ? '1 / -1' : undefined }}>
+         style={{ minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
       <h4 className="text-sm font-semibold mb-2">{title}</h4>
-      <div style={{ overflowX: minWidth ? 'auto' : 'visible', width: '100%' }} data-testid="chart-scroll">
-        <div style={{ width: minWidth ? `${minWidth}px` : '100%', minWidth: '100%' }}>
-          {graficos.map((g, i) => (
-            <div key={i} style={{ width: '100%', height: alto }}>{React.cloneElement(g, { height: alto })}</div>
-          ))}
-        </div>
-      </div>
+      {graficos.map((g, i) => (
+        <div key={i} style={{ width: '100%', height: alto }}>{React.cloneElement(g, { height: alto })}</div>
+      ))}
       {notes.length > 0 && (
         <ul className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
           {notes.map((n) => <li key={n} data-chart-note>ⓘ {n}</li>)}

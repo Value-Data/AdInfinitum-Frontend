@@ -143,9 +143,25 @@ function grid(top: number, bottom: number) {
 }
 
 /**
+ * Zoom en los días (solo en pantalla): Ctrl + rueda (o pellizcar en el touchpad) acerca y
+ * arrastrar recorre; la barra de abajo hace lo mismo. La rueda sola sigue desplazando la
+ * página: los gráficos ocupan todo el ancho y, si no, la página quedaría atrapada en
+ * ellos. Arranca mostrando la serie entera.
+ */
+function dayZoom(axisLabel: (v: string) => string, sliderHeight: number, sliderBottom: number): EChartsOption['dataZoom'] {
+  return [
+    { type: 'inside', xAxisIndex: 0, filterMode: 'none', start: 0, end: 100,
+      zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: false, moveOnMouseMove: true },
+    { type: 'slider', xAxisIndex: 0, filterMode: 'none', start: 0, end: 100, height: sliderHeight,
+      bottom: sliderBottom, labelFormatter: (_i: number, v: string) => axisLabel(v) },
+  ];
+}
+
+/**
  * Serie diaria: una línea por serie (poza, especie, sal), todos los días (sin ralear: el
  * `lttb` solo afina el dibujo cuando hay más días que píxeles; el tooltip ve cada día).
- * Zoom con la rueda y con la barra de abajo; `interval` es el paso de marcas del eje.
+ * Al ancho del panel, con zoom (`dayZoom`); `interval` es el paso de marcas del eje y las
+ * etiquetas que se pisarían se esconden (al acercar, aparecen).
  */
 export function dailyLineOption(o: Base & {
   categories: (string | number)[];
@@ -178,15 +194,11 @@ export function dailyLineOption(o: Base & {
       type: 'category', data: o.categories.map(String), boundaryGap: false,
       axisLabel: {
         fontSize: FUENTE, color: TEXTO, interval: o.interval, rotate: o.angled ? 35 : 0,
-        hideOverlap: o.interval === 'auto', formatter: (v: string) => o.axisLabel(v),
+        hideOverlap: true, formatter: (v: string) => o.axisLabel(v),
       },
     },
     yAxis: valueAxis(o.yName, o.unit, true),
-    dataZoom: print ? undefined : [
-      { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
-      { type: 'slider', xAxisIndex: 0, filterMode: 'none', height: 18, bottom: 6,
-        labelFormatter: (_i: number, v: string) => o.axisLabel(v) },
-    ],
+    dataZoom: print ? undefined : dayZoom(o.axisLabel, 18, 6),
     series,
   };
 }
@@ -410,7 +422,7 @@ export function pondHeatmapOption(o: Base & {
     xAxis: {
       type: 'category', data: o.categories,
       axisLabel: {
-        fontSize: FUENTE, color: TEXTO, interval: o.interval, rotate: 35, hideOverlap: o.interval === 'auto',
+        fontSize: FUENTE, color: TEXTO, interval: o.interval, rotate: 35, hideOverlap: true,
         formatter: (v: string) => o.axisLabel(v),
       },
     },
@@ -428,11 +440,7 @@ export function pondHeatmapOption(o: Base & {
       formatter: (v: unknown) => withUnit(v, o.unit), textStyle: { fontSize: FUENTE, color: TEXTO },
       inRange: { color: HEAT_COLORS },
     },
-    dataZoom: print ? undefined : [
-      { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
-      { type: 'slider', xAxisIndex: 0, filterMode: 'none', height: 16, bottom: 4,
-        labelFormatter: (_i: number, v: string) => o.axisLabel(v) },
-    ],
+    dataZoom: print ? undefined : dayZoom(o.axisLabel, 16, 4),
     series: [serie],
   };
 }

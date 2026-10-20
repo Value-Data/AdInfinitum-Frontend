@@ -35,10 +35,15 @@ describe('serie diaria (ECharts)', () => {
     expect(o.animation).toBe(false);
   });
 
-  it('zoom con la rueda y con la barra, y caja de herramientas (PNG, zoom, restablecer)', () => {
+  it('zoom con Ctrl + rueda y con la barra, y caja de herramientas (PNG, zoom, restablecer)', () => {
     const o = diaria(2);
     expect(o.dataZoom.map((d: Any) => d.type)).toEqual(['inside', 'slider']);
     expect(o.dataZoom.every((d: Any) => d.xAxisIndex === 0)).toBe(true);
+    // Arranca con la serie entera; la rueda sola desplaza la página (no queda atrapada).
+    expect(o.dataZoom.every((d: Any) => d.start === 0 && d.end === 100)).toBe(true);
+    expect(o.dataZoom[0]).toMatchObject({ zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: false, moveOnMouseMove: true });
+    // La barra queda bajo las etiquetas del eje (la grilla le deja su lugar).
+    expect(o.grid.bottom).toBeGreaterThan(o.dataZoom[1].bottom + o.dataZoom[1].height);
     expect(Object.keys(o.toolbox.feature).sort()).toEqual(['dataZoom', 'restore', 'saveAsImage']);
     expect(o.toolbox.feature.saveAsImage).toMatchObject({ type: 'png', pixelRatio: 2, name: 'flujos', title: 'PNG' });
   });
@@ -61,6 +66,9 @@ describe('serie diaria (ECharts)', () => {
     const o = diaria(1, { interval: 9 });
     expect(o.xAxis.axisLabel.interval).toBe(9);
     expect(o.series[0].data).toHaveLength(1460);
+    // Al ancho del panel, las etiquetas que se pisarían se esconden (al acercar, aparecen).
+    expect(o.xAxis.axisLabel.hideOverlap).toBe(true);
+    expect(diaria(1).xAxis.axisLabel.hideOverlap).toBe(true);
   });
 
   it('leyenda desplazable con muchas series; color y trazo cortado desde la 9ª', () => {
@@ -222,6 +230,8 @@ describe('mapa de calor poza × día', () => {
   it('zoom en los días, tooltip fecha/poza/valor y la poza de producto marcada', () => {
     const o = heat();
     expect(o.dataZoom.map((d: Any) => d.type)).toEqual(['inside', 'slider']);
+    expect(o.dataZoom[0].zoomOnMouseWheel).toBe('ctrl');
+    expect(heat({ interval: 9 }).xAxis.axisLabel.hideOverlap).toBe(true);
     expect(o.tooltip.formatter({ value: [1, 1, 5] })).toBe('<b>Fecha 2024-01-02</b><br/>P2: <b>5,00 kg/m3</b>');
     expect(o.yAxis.axisLabel.formatter('P2')).toBe('{p|P2 ★}');
     expect(o.yAxis.axisLabel.formatter('P1')).toBe('P1');

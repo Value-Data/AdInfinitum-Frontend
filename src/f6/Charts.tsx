@@ -1,7 +1,7 @@
 /**
  * Gráficos de una ejecución (ECharts). Dibujan lo que devuelve el backend, sin recalcular:
  *   - dinámico: las series diarias del período (`GET /executions/{id}/series`), todos los
- *     días (sin ralear), con zoom, paso de marcas y desplazamiento horizontal;
+ *     días (sin ralear), al ancho de la página, con zoom y paso de marcas;
  *   - todos: barras o líneas por poza o por escenario, desde las tablas del reporte.
  * Las opciones salen de `chartOptions` (probadas sin dibujar).
  */
@@ -47,9 +47,16 @@ export async function downloadChartsZip(contenedor: HTMLElement, nombre: string)
  * antes y el del servidor. */
 export const PRINT_SERIES_SPECIES = ['Li+', 'Mg++', 'SO4--', 'K+', 'Na+', 'Ca++', 'Cl-', 'H3BO3', 'H2O'];
 
+/** Grilla de paneles: columnas de 460 px como mínimo, o una sola si la pantalla es más
+ * angosta (nunca más ancha que la página). */
+const CHART_GRID: React.CSSProperties = { gridTemplateColumns: 'repeat(auto-fill, minmax(min(460px, 100%), 1fr))' };
+/** Alto de un gráfico diario en pantalla (cabe la barra de zoom) y al imprimir. */
+const DAILY_HEIGHT = { screen: 320, print: 280 };
+
 /**
- * Series diarias del período. `print` (o la vista de impresión): el gráfico al ancho de
- * la página (sin desplazamiento ni zoom, que el papel no tiene) y en SVG.
+ * Series diarias del período. En pantalla, cada gráfico a todo el ancho, con zoom.
+ * `print` (o la vista de impresión): al ancho de la página (sin zoom, que el papel no
+ * tiene) y en SVG.
  */
 export function DailyCharts({ executionId, query, print: printProp = false, onSettled }: {
   executionId: string; query: ReportQuery; print?: boolean;
@@ -200,13 +207,14 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
       </div>
       {!print && (
         <p className="text-xs mb-2 no-print" style={{ color: 'var(--color-text-secondary)' }}>
-          {t('f6_chart_zoom_hint')}{geo.minWidth > 0 && ` ${t('f6_chart_scroll_hint')}`}
+          {t('f6_chart_zoom_hint')}
         </p>
       )}
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
+      <div className="grid gap-3" style={CHART_GRID}>
         {opciones.map((o) => (
-          <Panel key={o.key} title={o.title} minWidth={geo.minWidth} notes={o.notes}>
-            <EChart option={o.option} height={280} />
+          <Panel key={o.key} title={o.title} notes={o.notes} wide={!print}
+                 height={print ? DAILY_HEIGHT.print : DAILY_HEIGHT.screen}>
+            <EChart option={o.option} height={print ? DAILY_HEIGHT.print : DAILY_HEIGHT.screen} />
           </Panel>
         ))}
         <PondHeatmap data={data} eje={eje} interval={geo.interval}
@@ -425,20 +433,21 @@ function ClimateChart({ comparison, lines }: { comparison: ReportTable; lines: b
   );
 }
 
-/** Las sub-pestañas de "Gráficos": una por etapa con pozas (los gráficos de antes), la
- * comparativa de escenarios (estático) o el balance por poza (dinámico), y el balance de
- * Li. Al imprimir no hay pestañas: salen todos. */
+/** Las sub-pestañas de "Gráficos" (estático): una por etapa con pozas (los gráficos de
+ * antes), la comparativa de escenarios y el balance de Li. Las de "Balance de masas"
+ * (dinámico): primero el balance de Li y después el balance por poza. Al imprimir no hay
+ * pestañas: salen todos. */
 export type ChartGroup = `stage:${string}` | 'compare' | 'balance';
 
 export function chartGroups(report: Report, scenario = 0): ChartGroup[] {
-  const grupos: ChartGroup[] = [];
-  if (isStaticReport(report)) {
-    const sc = report.scenarios[Math.min(scenario, report.scenarios.length - 1)];
-    (sc?.stages ?? []).filter(hasPondCharts).forEach((st) => grupos.push(`stage:${st.stage}`));
-    if (report.comparison) grupos.push('compare');
-  } else if (report.stages.some((s) => s.tables.some((tb) => tb.row_kind === 'pond'))) {
-    grupos.push('compare');
+  if (!isStaticReport(report)) {
+    const porPoza = report.stages.some((s) => s.tables.some((tb) => tb.row_kind === 'pond'));
+    return porPoza ? ['balance', 'compare'] : ['balance'];
   }
+  const grupos: ChartGroup[] = [];
+  const sc = report.scenarios[Math.min(scenario, report.scenarios.length - 1)];
+  (sc?.stages ?? []).filter(hasPondCharts).forEach((st) => grupos.push(`stage:${st.stage}`));
+  if (report.comparison) grupos.push('compare');
   grupos.push('balance');
   return grupos;
 }
@@ -446,7 +455,8 @@ export function chartGroups(report: Report, scenario = 0): ChartGroup[] {
 /**
  * Gráficos desde el reporte. Estático: comparativa y clima de los escenarios, y por poza
  * cada etapa de pozas del escenario elegido (`scenario`) o de todos (`allScenarios`, para
- * imprimir). Dinámico: el balance por poza de cada etapa. Barras o líneas a elección.
+ * imprimir). Dinámico (pestaña "Balance de masas"): el balance de Li y el balance por poza
+ * de cada etapa. Barras o líneas a elección.
  */
 export function ReportCharts({ report, scenario = 0, allScenarios = false, paged = false }: {
   report: Report; scenario?: number; allScenarios?: boolean; paged?: boolean;
@@ -512,7 +522,7 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false, paged
         </button>
       </div>
       <SmoothContext.Provider value={trazo === 'curve'}>
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))' }}>
+      <div className="grid gap-3" style={CHART_GRID}>
         {/* 1) Los de siempre (reporte de antes): por poza de cada etapa. */}
         {escenarios.map((sc) => sc.stages.filter(hasPondCharts).filter((st) => ver(`stage:${st.stage}`)).map((st) => (
           <StagePondCharts key={`${sc.index}-${st.stage}`} stage={st} mode={modo}
@@ -528,9 +538,10 @@ export function ReportCharts({ report, scenario = 0, allScenarios = false, paged
         {ver('compare') && comparativa && <ClimateChart comparison={comparativa} lines={lineas} />}
         {ver('compare') && comparativa && <TableBars table={comparativa} unidades={['t/d']} lines={lineas}
                                    skip={['li_in_t_d', 'li_out_t_d', ...EVAP_SALES_COLS]} />}
-        {ver('compare') && tablas.map((tb, i) => <TableBars key={`${tb.key}-${i}`} table={tb} unidades={['t/d']} lines={lineas} />)}
-        {/* 3) Los nuevos: balance de litio. */}
+        {/* Dinámico: el balance de litio primero y después el balance por poza. */}
         {ver('balance') && !estatico && <LiSankeyPanel stages={report.stages} dynamic />}
+        {ver('compare') && tablas.map((tb, i) => <TableBars key={`${tb.key}-${i}`} table={tb} unidades={['t/d']} lines={lineas} />)}
+        {/* 3) Estático: los nuevos, el balance de litio de cada escenario. */}
         {ver('balance') && escenarios.map((sc) => (
           <LiSankeyPanel key={sc.index} stages={sc.stages} dynamic={false}
                          prefix={`${t('f6_scenario')} ${sc.label} · `} />
