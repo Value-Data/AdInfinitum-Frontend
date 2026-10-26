@@ -3,8 +3,8 @@
  * resumen de una corrida de una sola etapa y el tipo que ofrece "Lanzar una ejecución".
  */
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../../src/services/apiV2', async (orig) => ({
@@ -78,6 +78,9 @@ describe('resumen de una corrida de una sola etapa', () => {
 });
 
 describe('tipo que ofrece "Lanzar una ejecución"', () => {
+  // Cada test parte de una precon estática sin escenarios (alguno los cambia).
+  beforeEach(() => { vi.mocked(getSection).mockResolvedValue({ data: { scenarios: [] } } as never); });
+
   it('el primero que el proyecto puede correr', () => {
     expect(defaultLaunchType([guardada('precon_dynamic')])).toBe('dynamic_precon');
     expect(defaultLaunchType([guardada('precon_static'), guardada('liming_static'), guardada('postliming_static')]))
@@ -109,10 +112,10 @@ describe('tipo que ofrece "Lanzar una ejecución"', () => {
     expect(getSection).not.toHaveBeenCalled();
   });
 
-  it('con la precon estática guardada sí pide sus escenarios', () => {
+  it('con la precon estática guardada sí pide sus escenarios', async () => {
     vi.mocked(getSection).mockClear();
     render(<LaunchPanel projectId="p1" executions={[]} sections={[guardada('precon_static')]} onLaunched={() => undefined} />);
-    expect(getSection).toHaveBeenCalledWith('p1', 'precon_static');
+    await waitFor(() => expect(getSection).toHaveBeenCalledWith('p1', 'precon_static'));
   });
 
   it('las secciones llegan después del panel: el tipo las sigue hasta que el usuario elige uno', async () => {

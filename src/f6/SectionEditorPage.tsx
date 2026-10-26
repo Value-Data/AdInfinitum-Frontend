@@ -85,7 +85,7 @@ export function optionWidth(labels: string[]): string {
 }
 
 function CellInput({ entry, value, onChange, choices, invalid, warning, disabled, notApplicable, testId, placeholder,
-  className, ariaLabel, required, minWidth = 80 }: {
+  className, ariaLabel, required, minWidth = 80, fitOptions = false }: {
   entry: DictionaryEntry; value: unknown; onChange: (v: unknown) => void; choices?: EnumChoice[];
   /** Errores del campo (rojo: con errores no se guarda). */
   invalid?: string;
@@ -102,6 +102,9 @@ function CellInput({ entry, value, onChange, choices, invalid, warning, disabled
   required?: boolean;
   /** Ancho mínimo del campo de texto (las toneladas por especie no cabían en 80 px). */
   minWidth?: number | string;
+  /** En una tabla: el selector toma el ancho de su opción más larga (en un formulario ya
+   * llena su columna y un mínimo solo podría desbordarla). */
+  fitOptions?: boolean;
 }) {
   const t = useT();
   const textoDefault = useDefaultText();
@@ -142,19 +145,21 @@ function CellInput({ entry, value, onChange, choices, invalid, warning, disabled
     );
   }
   if (entry.data_type === 'enum' && choices) {
+    const vacia = !isNothing(def) ? `– (${t('f9_default')}: ${valorDefault})` : '–';
     // En una tabla la columna se ajusta al contenido: sin un mínimo, la opción se cortaba
-    // ("Por altu…"). Ancho de la opción más larga más la flecha, hasta 18rem.
-    const largo = optionWidth(choices.map((c) => c.label));
+    // ("Por altu…"). Ancho de la opción más larga (o de la vacía si es la que se ve), hasta 18rem.
+    const ancho = fitOptions
+      ? `min(${optionWidth([...choices.map((c) => c.label), ...(!na && value == null ? [vacia] : [])])}, 18rem)` : undefined;
     return (
       <>
         <select className={esDefault ? 'input italic' : 'input'} value={na || value == null ? '' : String(value)}
-                disabled={apagado} style={{ minWidth: `min(${largo}, 18rem)`, ...estilo }}
+                disabled={apagado} style={{ minWidth: ancho, ...estilo }}
                 title={ayuda ?? ayudaDefault} aria-label={ariaLabel}
                 aria-invalid={severidad === 'error' ? true : undefined} aria-describedby={describeNa}
                 aria-required={obligatorio} data-severity={severidad}
                 data-default={marcaDefault} data-testid={testId}
                 onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}>
-          <option value="">{!isNothing(def) ? `– (${t('f9_default')}: ${valorDefault})` : '–'}</option>
+          <option value="">{vacia}</option>
           {choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
         {motivoNa}
@@ -445,7 +450,7 @@ export function TableEditor({ schema, prefix, rows, onChange, issues, species, t
                     return (
                       <td key={c.key} className={na ? 'cell-na' : undefined}
                           data-testid={`cell-${prefix}-${i + 1}-${c.field}-td`}>
-                        <CellInput entry={c} value={r[c.field]} choices={schema.enumValues(c.key)}
+                        <CellInput entry={c} value={r[c.field]} choices={schema.enumValues(c.key)} fitOptions
                                    notApplicable={na}
                                    ariaLabel={`${headerOf(c)} · ${String(r.name ?? r.label ?? r.pond ?? i + 1)}`}
                                    invalid={joinMessages(errors)} warning={joinMessages(warnings)}
@@ -1014,7 +1019,7 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
                       return (
                         <td key={c.key} className={na ? 'cell-na' : undefined}
                             data-testid={`initial-state-${i + 1}-${c.field}-td`}>
-                          <CellInput entry={c} value={r[c.field]} invalid={problema(i, c.field)} notApplicable={na}
+                          <CellInput entry={c} value={r[c.field]} invalid={problema(i, c.field)} notApplicable={na} fitOptions
                                      warning={aviso(i, c.field)}
                                      required={c.field === 'height_m' && forma === 'composition'}
                                      ariaLabel={etiqueta}
@@ -1093,7 +1098,7 @@ function ImpuritiesTable({ schema, reagent, rows, onChange, issues }: {
   const celda = (i: number, r: Obj, c: DictionaryEntry, extra: { disabled?: boolean; value?: unknown } = {}) => {
     const { errors, warnings } = de(i, c.field);
     return (
-      <CellInput entry={c} value={extra.value ?? r[c.field]} choices={c.data_type === 'enum' ? destinos : undefined}
+      <CellInput entry={c} value={extra.value ?? r[c.field]} choices={c.data_type === 'enum' ? destinos : undefined} fitOptions
                  disabled={extra.disabled} invalid={joinMessages(errors)} warning={joinMessages(warnings)}
                  ariaLabel={`${headerOf(c)} · ${reagent} · ${i + 1}`}
                  testId={`impurity-${reagent}-${i + 1}-${c.field}`}

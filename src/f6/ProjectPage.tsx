@@ -178,12 +178,14 @@ export default function ProjectPage() {
         ))}
       </div>
       {/* Las secciones también hacen falta en Ejecuciones: "Lanzar" decide con ellas. */}
+      {/* Cada tarjeta dice qué no cargó: con el backend caído las dos traen "Network Error". */}
       {([
-        [errorSecciones, cargarSecciones, tab === 'config' || canDo(caps, 'launch')],
-        [errorEjecuciones, cargarEjecuciones, tab === 'executions'],
-      ] as const).filter(([msg, , ver]) => msg && ver).map(([msg, reintentar]) => (
-        <div key={msg} className="card p-3 mb-4 text-sm flex items-center gap-3" role="alert" style={{ borderColor: 'var(--color-danger-border)' }}>
-          <span style={{ color: 'var(--color-danger-text)' }}>{msg}</span>
+        ['sections', 'f10_error_sections', errorSecciones, cargarSecciones, tab === 'config' || canDo(caps, 'launch')],
+        ['executions', 'f10_error_executions', errorEjecuciones, cargarEjecuciones, tab === 'executions'],
+      ] as const).filter(([, , msg, , ver]) => msg && ver).map(([que, clave, msg, reintentar]) => (
+        <div key={que} className="card p-3 mb-4 text-sm flex items-center gap-3" role="alert"
+             data-testid={`project-error-${que}`} style={{ borderColor: 'var(--color-danger-border)' }}>
+          <span style={{ color: 'var(--color-danger-text)' }}>{t(clave).replace('{msg}', msg ?? '')}</span>
           <button className="btn btn-outline btn-sm" onClick={reintentar}>{t('f7_retry')}</button>
         </div>
       ))}

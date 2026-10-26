@@ -45,11 +45,11 @@ export default function Sidebar() {
 
   return (
     <>
-      {abierto && <div className="fixed inset-0 z-30 lg:hidden" style={{ background: 'rgba(17, 24, 39, 0.35)' }}
+      {abierto && <div className="fixed inset-0 z-30 lg:hidden" style={{ background: 'var(--color-overlay)' }}
                        onClick={cerrar} aria-hidden="true" />}
       <aside
         id="app-sidebar"
-        className={`fixed left-0 top-0 bottom-0 flex flex-col z-40 ${abierto ? 'w-56 shadow-lg' : 'w-16'} lg:w-56 lg:shadow-none`}
+        className={`fixed left-0 top-0 bottom-0 flex flex-col z-40 overflow-y-auto ${abierto ? 'w-56 shadow-lg' : 'w-16'} lg:w-56 lg:shadow-none`}
         style={{ backgroundColor: 'var(--color-primary)' }}
       >
         <button type="button" className="lg:hidden flex items-center justify-center min-h-11 mx-2 mt-3 text-blue-100 hover:text-white"

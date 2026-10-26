@@ -51,3 +51,15 @@ describe('Sidebar en tablet (franja de íconos)', () => {
     expect(screen.getByRole('button', { name: 'Abrir el menú' })).toHaveAttribute('aria-expanded', 'false');
   });
 });
+
+describe('Sidebar desplegado sobre la página', () => {
+  it('un clic en el fondo oscurecido lo cierra', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<MemoryRouter initialEntries={['/inicio']}><Sidebar /></MemoryRouter>);
+    await user.click(screen.getByRole('button', { name: 'Abrir el menú' }));
+    const fondo = container.querySelector('div[aria-hidden="true"].fixed') as HTMLElement;
+    expect(fondo).toBeTruthy();
+    await user.click(fondo);
+    expect(screen.getByRole('button', { name: 'Abrir el menú' })).toHaveAttribute('aria-expanded', 'false');
+  });
+});

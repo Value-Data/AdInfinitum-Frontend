@@ -274,6 +274,8 @@ export const F6_TRANSLATIONS = {
   f10_menu_close: { es: 'Cerrar el menú', en: 'Close the menu' },
   f10_sign_out: { es: 'Cerrar sesión', en: 'Sign out' },
   f10_user_active: { es: 'Cuenta de {user} activa', en: '{user} account active' },
+  f10_error_sections: { es: 'No se pudieron cargar las secciones: {msg}', en: 'Could not load the sections: {msg}' },
+  f10_error_executions: { es: 'No se pudieron cargar las ejecuciones: {msg}', en: 'Could not load the executions: {msg}' },
   f6_series_feed_flow: { es: 'Caudal de alimentación a la etapa (entrada)', en: 'Stage feed flow (in)' },
   f6_series_outflow_t_d: { es: 'Caudal de salida de cada poza (sale)', en: 'Outflow of each pond (out)' },
   f6_day: { es: 'Día', en: 'Day' },
