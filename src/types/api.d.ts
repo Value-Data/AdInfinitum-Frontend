@@ -521,7 +521,8 @@ export interface paths {
          * Get Execution Detail
          * @description Get execution detail with results.
          *
-         *     El que no ve la configuración (el `cliente`) recibe `parameters_snapshot` en None.
+         *     Sin `parameters_snapshot` (cambios finales, punto 18): el de las ejecuciones de antes
+         *     se lee en `/legacy-executions/{id}`.
          */
         get: operations["get_execution_detail_api_v1_executions__execution_id__get"];
         put?: never;
@@ -1395,6 +1396,17 @@ export interface components {
             n_days?: number | null;
             /** Last Completed Day */
             last_completed_day?: number | null;
+            /** Progress Day */
+            progress_day?: number | null;
+            /** Scenarios Total */
+            scenarios_total?: number | null;
+            /** Scenarios Done */
+            scenarios_done?: number | null;
+            /**
+             * Heartbeat Stale
+             * @default false
+             */
+            heartbeat_stale: boolean;
             /** Upload Status */
             upload_status?: string | null;
             /** Initial State Execution Id */
@@ -1416,6 +1428,10 @@ export interface components {
         /**
          * ExecutionResultResponse
          * @description Schema for execution detail with results.
+         *
+         *     Sin `parameters_snapshot` (cambios finales, punto 18): era del flujo antiguo y el
+         *     actual no lo llena. Las ejecuciones de antes lo siguen trayendo por
+         *     `/legacy-executions/{id}` (`schemas/legacy_execution.py`).
          */
         ExecutionResultResponse: {
             /** Id */
@@ -1426,8 +1442,6 @@ export interface components {
             execution_type: string;
             /** Status */
             status: string;
-            /** Parameters Snapshot */
-            parameters_snapshot?: Record<string, never> | null;
             /** Results */
             results?: Record<string, never> | null;
             /** Error Message */
@@ -1457,6 +1471,17 @@ export interface components {
             n_days?: number | null;
             /** Last Completed Day */
             last_completed_day?: number | null;
+            /** Progress Day */
+            progress_day?: number | null;
+            /** Scenarios Total */
+            scenarios_total?: number | null;
+            /** Scenarios Done */
+            scenarios_done?: number | null;
+            /**
+             * Heartbeat Stale
+             * @default false
+             */
+            heartbeat_stale: boolean;
             /** Initial State Execution Id */
             initial_state_execution_id?: string | null;
             /** Initial State Day */
@@ -1502,6 +1527,15 @@ export interface components {
             progress_day?: number | null;
             /** Last Completed Day */
             last_completed_day?: number | null;
+            /** Scenarios Total */
+            scenarios_total?: number | null;
+            /** Scenarios Done */
+            scenarios_done?: number | null;
+            /**
+             * Heartbeat Stale
+             * @default false
+             */
+            heartbeat_stale: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

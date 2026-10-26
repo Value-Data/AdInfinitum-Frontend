@@ -1849,7 +1849,7 @@
           "executions"
         ],
         "summary": "Get Execution Detail",
-        "description": "Get execution detail with results.\n\nEl que no ve la configuración (el `cliente`) recibe `parameters_snapshot` en None.",
+        "description": "Get execution detail with results.\n\nSin `parameters_snapshot` (cambios finales, punto 18): el de las ejecuciones de antes\nse lee en `/legacy-executions/{id}`.",
         "operationId": "get_execution_detail_api_v1_executions__execution_id__get",
         "security": [
           {
@@ -4745,6 +4745,44 @@
             ],
             "title": "Last Completed Day"
           },
+          "progress_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress Day"
+          },
+          "scenarios_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Total"
+          },
+          "scenarios_done": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Done"
+          },
+          "heartbeat_stale": {
+            "type": "boolean",
+            "title": "Heartbeat Stale",
+            "default": false
+          },
           "upload_status": {
             "anyOf": [
               {
@@ -4841,17 +4879,6 @@
           "status": {
             "type": "string",
             "title": "Status"
-          },
-          "parameters_snapshot": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parameters Snapshot"
           },
           "results": {
             "anyOf": [
@@ -4986,6 +5013,44 @@
             ],
             "title": "Last Completed Day"
           },
+          "progress_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress Day"
+          },
+          "scenarios_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Total"
+          },
+          "scenarios_done": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Done"
+          },
+          "heartbeat_stale": {
+            "type": "boolean",
+            "title": "Heartbeat Stale",
+            "default": false
+          },
           "initial_state_execution_id": {
             "anyOf": [
               {
@@ -5056,7 +5121,7 @@
           "created_at"
         ],
         "title": "ExecutionResultResponse",
-        "description": "Schema for execution detail with results."
+        "description": "Schema for execution detail with results.\n\nSin `parameters_snapshot` (cambios finales, punto 18): era del flujo antiguo y el\nactual no lo llena. Las ejecuciones de antes lo siguen trayendo por\n`/legacy-executions/{id}` (`schemas/legacy_execution.py`)."
       },
       "ExecutionStatusResponse": {
         "properties": {
@@ -5171,6 +5236,33 @@
               }
             ],
             "title": "Last Completed Day"
+          },
+          "scenarios_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Total"
+          },
+          "scenarios_done": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Done"
+          },
+          "heartbeat_stale": {
+            "type": "boolean",
+            "title": "Heartbeat Stale",
+            "default": false
           }
         },
         "type": "object",

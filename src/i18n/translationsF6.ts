@@ -412,4 +412,21 @@ export const F6_TRANSLATIONS = {
   // Los bloques juntan errores y avisos: "observación" no afirma que sea un error.
   f8_issue_one: { es: 'observación', en: 'issue' },
   f8_issue_many: { es: 'observaciones', en: 'issues' },
+
+  // Avance y latido de las ejecuciones (cambios finales, puntos 2 y 13)
+  f9_progress_col: { es: 'Avance', en: 'Progress' },
+  f9_progress_day: { es: 'día {x} de {n}', en: 'day {x} of {n}' },
+  f9_progress_scenario: { es: 'escenario {x} de {n}', en: 'scenario {x} of {n}' },
+  f9_progress_waiting: { es: 'esperando al trabajador', en: 'waiting for the worker' },
+  f9_heartbeat_badge: { es: 'Sin latido', en: 'No heartbeat' },
+  f9_heartbeat_stale_title: { es: 'Sin latido del trabajador:', en: 'No heartbeat from the worker:' },
+  f9_heartbeat_stale_body: {
+    es: 'la corrida puede haberse detenido. Si sigue así, revise el trabajador o cancele la ejecución.',
+    en: 'the run may have stopped. If this persists, check the worker or cancel the run.',
+  },
+  f9_heartbeat_ago: { es: 'Último latido hace {t}.', en: 'Last heartbeat {t} ago.' },
+  f9_heartbeat_never: {
+    es: 'El trabajador no ha registrado ningún latido.',
+    en: 'The worker has not recorded any heartbeat.',
+  },
 } as const;
