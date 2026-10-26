@@ -15,6 +15,8 @@ export default {
         'text-main': 'var(--color-text)',
         'text-secondary': 'var(--color-text-secondary)',
         border: 'var(--color-border)',
+        'na-bg': 'var(--color-na-bg)',
+        'na-text': 'var(--color-na-text)',
       },
       fontFamily: {
         display: 'var(--font-display)',

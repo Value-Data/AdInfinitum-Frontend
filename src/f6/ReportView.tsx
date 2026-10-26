@@ -4,7 +4,7 @@
  */
 import React, { createContext, useContext, useState } from 'react';
 import type {
-  DynamicReport, Report, ReportColumn, ReportTable, StageReport, StaticReport,
+  DynamicReport, Report, ReportColumn, ReportTable, ReportWarning, StageReport, StaticReport,
 } from '../types/report';
 import { isStaticReport } from '../types/report';
 import { fmtNum } from '../utils/numberFormat';
@@ -13,6 +13,7 @@ import { useLabels, type LabelFn, labelWithUnit } from './labels';
 import { useT } from '../i18n/LanguageContext';
 import { dmy } from './common';
 import { recoveries } from './chartData';
+import { ReportWarnings } from './ReportWarnings';
 
 /** Decimales por defecto: más para valores chicos (fracciones, concentraciones). */
 export function formatCell(v: unknown): string {
@@ -41,8 +42,13 @@ export function formulaText(formula: string, label: LabelFn): string {
 
 const MARCA: React.CSSProperties = { color: 'var(--color-primary)', cursor: 'help', marginLeft: 4 };
 
+/** Filas de total en una tabla por poza (el balance de Li trae la de la cascada al final):
+ * llevan etiqueta del diccionario y se marcan como total. */
+export const TOTAL_ROW_IDS = new Set(['cascade_total']);
+
 /** Lo que identifica la fila: las pozas y escenarios se llaman como los nombró el usuario. */
 export function rowHeader(table: ReportTable, id: string, label: LabelFn): string {
+  if (TOTAL_ROW_IDS.has(id)) return label(`result.${id}`, id);
   if (table.row_kind === 'pond' || table.row_kind === 'scenario' || table.row_kind === 'salt') {
     return id;
   }
@@ -103,8 +109,10 @@ function TableBody({ table, columnas, label, print = false }: {
       <tbody>
         {table.rows.map((r, i) => {
           const deFila = typeof r.formula === 'string' && r.formula ? formulaText(r.formula, label) : undefined;
+          const total = TOTAL_ROW_IDS.has(String(r.id));
           return (
-            <tr key={`${r.id}-${i}`}>
+            <tr key={`${r.id}-${i}`} className={total ? 'font-semibold' : undefined} data-total={total || undefined}
+                style={total ? { borderTop: '2px solid var(--color-border)' } : undefined}>
               <td className="font-medium whitespace-nowrap sticky-col" title={deFila}>
                 {rowHeader(table, String(r.id), label)}
                 {deFila && <span style={MARCA} aria-label={deFila}>ⓘ</span>}
@@ -276,13 +284,15 @@ export function resultSections(report: Report, scenario = 0): ResultSection[] {
 /** Tablas del detalle de la planta (el "Detalle planta de reactivos" de antes). */
 const LIMING_DETAIL = ['liming_steps', 'liming_step_composition', 'liming_reagent_detail'];
 
-function StageBlock({ stage }: { stage: StageReport }) {
+function StageBlock({ stage, warnings = [] }: { stage: StageReport; warnings?: ReportWarning[] }) {
   const t = useT();
   const detalle = stage.tables.filter((tb) => LIMING_DETAIL.includes(tb.key));
   const dias = detalle.flatMap((tb) => tb.rows).map((r) => r.n_days_averaged).find((v) => typeof v === 'number');
   return (
     <section className="mb-6">
       <h3 className="text-base font-semibold mb-2 pdf-block">{t(`f6_stage_${stage.stage}` as never)}</h3>
+      {/* Los avisos de las pozas de la etapa, antes que todo (como en el PDF). */}
+      <ReportWarnings warnings={warnings} testId={`report-warnings-${stage.stage}`} />
       <KpiCards kpis={stage.kpis} />
       {stage.tables.filter((tb) => !LIMING_DETAIL.includes(tb.key)).map((tb) => <ReportTableView key={tb.key} table={tb} />)}
       {detalle.length > 0 && (
@@ -297,9 +307,18 @@ function StageBlock({ stage }: { stage: StageReport }) {
   );
 }
 
+/** Los avisos del reporte (un backend anterior a los puntos 6 y 14 no los manda). */
+export function reportWarnings(report: Report): ReportWarning[] {
+  return isStaticReport(report) ? [] : (report.warnings ?? []);
+}
+
 function DynamicReportView({ report }: { report: DynamicReport }) {
   const t = useT();
   const ver = useVer();
+  const avisos = reportWarnings(report);
+  const etapas = new Set(report.stages.map((s) => s.stage));
+  // Un aviso de una etapa que el reporte no trae no se pierde: va en el resumen.
+  const sueltos = avisos.filter((w) => !etapas.has(w.stage));
   return (
     <div>
       {ver('summary') && <p className="text-sm mb-3 pdf-block" style={{ color: 'var(--color-text-secondary)' }}>
@@ -312,8 +331,11 @@ function DynamicReportView({ report }: { report: DynamicReport }) {
           <KpiCards kpis={report.process_kpis} />
         </section>
       )}
+      {ver('summary') && <ReportWarnings warnings={sueltos} />}
       {ver('summary') && <RecoveryBars stages={report.stages} processKpis={report.process_kpis} />}
-      {report.stages.filter((s) => ver(`stage:${s.stage}`)).map((s) => <StageBlock key={s.stage} stage={s} />)}
+      {report.stages.filter((s) => ver(`stage:${s.stage}`)).map((s) => (
+        <StageBlock key={s.stage} stage={s} warnings={avisos.filter((w) => w.stage === s.stage)} />
+      ))}
       {ver('global') && report.global_balance && <ReportTableView table={report.global_balance} />}
     </div>
   );
@@ -401,6 +423,10 @@ export default function ReportView({ report, printAll, paged, scenario, onScenar
     ? (secciones.includes(elegida) ? elegida : 'summary') : null;
   const nombre = (k: ResultSection) => (k === 'summary' ? t('f6_results_summary')
     : k === 'global' ? t('f6_results_global') : t(`f6_stage_${k.slice('stage:'.length)}` as never));
+  // Cuántos avisos tiene cada etapa: la pestaña lo dice, para que no queden escondidos.
+  const avisos = reportWarnings(report);
+  const avisosDe = (k: ResultSection) => (k.startsWith('stage:')
+    ? avisos.filter((w) => `stage:${w.stage}` === k).length : 0);
   const vista = isStaticReport(report)
     ? <StaticReportView report={report} printAll={printAll} scenario={scenario} onScenario={onScenario} />
     : <DynamicReportView report={report} />;
@@ -413,6 +439,12 @@ export default function ReportView({ report, printAll, paged, scenario, onScenar
                     className={`btn btn-sm ${k === seccion ? 'btn-primary' : 'btn-outline'}`}
                     onClick={() => setElegida(k)}>
               {nombre(k)}
+              {avisosDe(k) > 0 && (
+                <span data-testid={`result-section-warnings-${k}`}>
+                  {' ⚠ '}{avisosDe(k)}
+                  <span className="sr-only"> {t(avisosDe(k) === 1 ? 'f9_warning_one' : 'f9_warning_many')}</span>
+                </span>
+              )}
             </button>
           ))}
         </div>

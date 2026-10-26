@@ -1217,7 +1217,8 @@ export interface components {
          * DynamicPond
          * @description Poza del dinámico: además, su tipo y lo que ese tipo necesita.
          *
-         *     Cualquier tipo puede ir en cualquier posición de la cascada (§14).
+         *     Cualquier tipo puede ir en cualquier posición de la cascada (§14). Lo que no aplica
+         *     al tipo se neutraliza antes de validar (`neutralize_pond_fields`).
          */
         DynamicPond: {
             /** Name */
@@ -1226,48 +1227,25 @@ export interface components {
             designation?: string | null;
             /** Area M2 */
             area_m2: number;
-            /**
-             * Pond Factor
-             * @default 0.7
-             */
+            /** Pond Factor */
             pond_factor: number;
-            /**
-             * Entrainment Pct
-             * @default 10
-             */
+            /** Entrainment Pct */
             entrainment_pct: number;
-            /**
-             * Leakage Mm D
-             * @default 0.03
-             */
+            /** Leakage Mm D */
             leakage_mm_d: number;
-            /**
-             * Dilution Frac
-             * @default 0.005
-             */
+            /** Dilution Frac */
             dilution_frac: number;
             /**
              * Pond Type
              * @enum {string}
              */
             pond_type: "target_height" | "fixed_flow" | "seasonal_flow";
-            /**
-             * External Water Inflow T D
-             * @default 0
-             */
-            external_water_inflow_t_d: number;
-            /**
-             * Target Height M
-             * @default 0.2
-             */
-            target_height_m: number | null;
+            /** Target Height M */
+            target_height_m?: number | null;
             /** Height Floor M */
             height_floor_m?: number | null;
-            /**
-             * Startup Height M
-             * @default 0
-             */
-            startup_height_m: number;
+            /** Startup Height M */
+            startup_height_m?: number | null;
             /** Target Outflow T D */
             target_outflow_t_d?: number | null;
             /**
@@ -1547,23 +1525,30 @@ export interface components {
         };
         /**
          * InitialPondState
-         * @description Estado con que arranca una poza cargada (el inventario a una fecha).
+         * @description Inventario con que arranca una poza cargada (cambios finales, punto 4).
+         *
+         *     Una de dos formas, nunca las dos (lo exige la validación):
+         *       - `species_mass_t`: toneladas de cada especie en la salmuera de la poza;
+         *       - `composition_pct` (%p/p con el agua, suma 100) + `height_m`.
+         *     `density_kg_m3` solo si se midió. Lo demás —masa, altura (con toneladas), la
+         *     densidad que falte y la actividad de agua— lo calcula la app con AQSOL al lanzar
+         *     (`services/initial_states`).
          */
         InitialPondState: {
             /** Pond */
             pond: string;
-            /** Brine Mass T */
-            brine_mass_t: number;
-            /** Height M */
-            height_m: number;
-            /** Density Kg M3 */
-            density_kg_m3: number;
-            /** Water Activity */
-            water_activity: number;
             /** Species Mass T */
-            species_mass_t: {
+            species_mass_t?: {
                 [key: string]: number;
-            };
+            } | null;
+            /** Composition Pct */
+            composition_pct?: {
+                [key: string]: number;
+            } | null;
+            /** Height M */
+            height_m?: number | null;
+            /** Density Kg M3 */
+            density_kg_m3?: number | null;
             /**
              * Salt Accumulated T
              * @default 0
@@ -1579,11 +1564,6 @@ export interface components {
              * @default false
              */
             outflow_started: boolean;
-            /**
-             * At Operating Level
-             * @default false
-             */
-            at_operating_level: boolean;
         };
         /**
          * LabelUpdate
@@ -2274,6 +2254,9 @@ export interface components {
         /**
          * StaticPond
          * @description Poza del estático: área y los cuatro parámetros del balance.
+         *
+         *     Los cuatro son obligatorios y sin valor por defecto (cambios finales, punto 5): un
+         *     dato que cambia el balance no se inventa. Una dilución nula se escribe 0.
          */
         StaticPond: {
             /** Name */
@@ -2282,25 +2265,13 @@ export interface components {
             designation?: string | null;
             /** Area M2 */
             area_m2: number;
-            /**
-             * Pond Factor
-             * @default 0.7
-             */
+            /** Pond Factor */
             pond_factor: number;
-            /**
-             * Entrainment Pct
-             * @default 10
-             */
+            /** Entrainment Pct */
             entrainment_pct: number;
-            /**
-             * Leakage Mm D
-             * @default 0.03
-             */
+            /** Leakage Mm D */
             leakage_mm_d: number;
-            /**
-             * Dilution Frac
-             * @default 0.005
-             */
+            /** Dilution Frac */
             dilution_frac: number;
         };
         /**

@@ -162,6 +162,27 @@
     text-align: right;
   }
 
+  /* Un campo deshabilitado se ve deshabilitado (antes era igual a uno editable). */
+  .input:disabled {
+    background-color: var(--color-na-bg);
+    color: var(--color-na-text);
+    cursor: not-allowed;
+  }
+
+  /* Celda que no aplica a la fila (tipo de poza, marco de alturas) o que calcula la app:
+     gris como en la plantilla de Excel, con borde punteado para no confundirla con la
+     franja de las filas pares. */
+  .cell-na {
+    background-color: var(--color-na-bg);
+    color: var(--color-na-text);
+  }
+  .cell-na .input {
+    border-style: dashed;
+  }
+  .cell-na .input::placeholder {
+    color: var(--color-na-text);
+  }
+
   .label {
     display: block;
     font-size: 0.75rem;

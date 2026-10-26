@@ -4201,7 +4201,6 @@
             "maximum": 1.0,
             "exclusiveMinimum": 0.0,
             "title": "Pond Factor",
-            "default": 0.7,
             "x-adinf": {
               "time_variable": true,
               "ui_section": "balance"
@@ -4212,7 +4211,6 @@
             "exclusiveMaximum": 100.0,
             "minimum": 0.0,
             "title": "Entrainment Pct",
-            "default": 10.0,
             "x-adinf": {
               "formula": "entrainment_t_d = salt_precipitated_t_d * p / (100 - p)",
               "time_variable": true,
@@ -4224,7 +4222,6 @@
             "type": "number",
             "minimum": 0.0,
             "title": "Leakage Mm D",
-            "default": 0.03,
             "x-adinf": {
               "time_variable": true,
               "ui_section": "balance",
@@ -4236,7 +4233,6 @@
             "exclusiveMaximum": 1.0,
             "minimum": 0.0,
             "title": "Dilution Frac",
-            "default": 0.005,
             "x-adinf": {
               "formula": "dilution_water_t_d = inflow_t_d / (density_kg_m3 / 1000) * dilution_frac",
               "time_variable": true,
@@ -4253,16 +4249,6 @@
             ],
             "title": "Pond Type"
           },
-          "external_water_inflow_t_d": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "External Water Inflow T D",
-            "default": 0.0,
-            "x-adinf": {
-              "ui_section": "balance",
-              "unit": "t/d"
-            }
-          },
           "target_height_m": {
             "anyOf": [
               {
@@ -4274,10 +4260,10 @@
               }
             ],
             "title": "Target Height M",
-            "default": 0.2,
             "x-adinf": {
               "ui_section": "pond_type",
-              "unit": "m"
+              "unit": "m",
+              "visible_if": "pond_type == 'target_height'"
             }
           },
           "height_floor_m": {
@@ -4297,13 +4283,20 @@
             }
           },
           "startup_height_m": {
-            "type": "number",
-            "minimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Startup Height M",
-            "default": 0.0,
             "x-adinf": {
               "ui_section": "pond_type",
-              "unit": "m"
+              "unit": "m",
+              "visible_if": "pond_type != 'target_height'"
             }
           },
           "target_outflow_t_d": {
@@ -4439,10 +4432,14 @@
         "required": [
           "name",
           "area_m2",
+          "pond_factor",
+          "entrainment_pct",
+          "leakage_mm_d",
+          "dilution_frac",
           "pond_type"
         ],
         "title": "DynamicPond",
-        "description": "Poza del dinámico: además, su tipo y lo que ese tipo necesita.\n\nCualquier tipo puede ir en cualquier posición de la cascada (§14)."
+        "description": "Poza del dinámico: además, su tipo y lo que ese tipo necesita.\n\nCualquier tipo puede ir en cualquier posición de la cascada (§14). Lo que no aplica\nal tipo se neutraliza antes de validar (`neutralize_pond_fields`)."
       },
       "ExecutionCreate": {
         "properties": {
@@ -5241,44 +5238,68 @@
             "minLength": 1,
             "title": "Pond"
           },
-          "brine_mass_t": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "Brine Mass T",
+          "species_mass_t": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Species Mass T",
             "x-adinf": {
               "unit": "t"
             }
           },
+          "composition_pct": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Pct",
+            "x-adinf": {
+              "unit": "%p/p"
+            }
+          },
           "height_m": {
-            "type": "number",
-            "minimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Height M",
             "x-adinf": {
               "unit": "m"
             }
           },
           "density_kg_m3": {
-            "type": "number",
-            "exclusiveMinimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Density Kg M3",
             "x-adinf": {
               "unit": "kg/m3"
-            }
-          },
-          "water_activity": {
-            "type": "number",
-            "maximum": 1.0,
-            "exclusiveMinimum": 0.0,
-            "title": "Water Activity"
-          },
-          "species_mass_t": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "type": "object",
-            "title": "Species Mass T",
-            "x-adinf": {
-              "unit": "t"
             }
           },
           "salt_accumulated_t": {
@@ -5303,25 +5324,15 @@
             "type": "boolean",
             "title": "Outflow Started",
             "default": false
-          },
-          "at_operating_level": {
-            "type": "boolean",
-            "title": "At Operating Level",
-            "default": false
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "pond",
-          "brine_mass_t",
-          "height_m",
-          "density_kg_m3",
-          "water_activity",
-          "species_mass_t"
+          "pond"
         ],
         "title": "InitialPondState",
-        "description": "Estado con que arranca una poza cargada (el inventario a una fecha)."
+        "description": "Inventario con que arranca una poza cargada (cambios finales, punto 4).\n\nUna de dos formas, nunca las dos (lo exige la validación):\n  - `species_mass_t`: toneladas de cada especie en la salmuera de la poza;\n  - `composition_pct` (%p/p con el agua, suma 100) + `height_m`.\n`density_kg_m3` solo si se midió. Lo demás —masa, altura (con toneladas), la\ndensidad que falte y la actividad de agua— lo calcula la app con AQSOL al lanzar\n(`services/initial_states`)."
       },
       "LabelUpdate": {
         "properties": {
@@ -7330,7 +7341,6 @@
             "maximum": 1.0,
             "exclusiveMinimum": 0.0,
             "title": "Pond Factor",
-            "default": 0.7,
             "x-adinf": {
               "time_variable": true,
               "ui_section": "balance"
@@ -7341,7 +7351,6 @@
             "exclusiveMaximum": 100.0,
             "minimum": 0.0,
             "title": "Entrainment Pct",
-            "default": 10.0,
             "x-adinf": {
               "formula": "entrainment_t_d = salt_precipitated_t_d * p / (100 - p)",
               "time_variable": true,
@@ -7353,7 +7362,6 @@
             "type": "number",
             "minimum": 0.0,
             "title": "Leakage Mm D",
-            "default": 0.03,
             "x-adinf": {
               "time_variable": true,
               "ui_section": "balance",
@@ -7365,7 +7373,6 @@
             "exclusiveMaximum": 1.0,
             "minimum": 0.0,
             "title": "Dilution Frac",
-            "default": 0.005,
             "x-adinf": {
               "formula": "dilution_water_t_d = inflow_t_d / (density_kg_m3 / 1000) * dilution_frac",
               "time_variable": true,
@@ -7378,10 +7385,14 @@
         "type": "object",
         "required": [
           "name",
-          "area_m2"
+          "area_m2",
+          "pond_factor",
+          "entrainment_pct",
+          "leakage_mm_d",
+          "dilution_frac"
         ],
         "title": "StaticPond",
-        "description": "Poza del estático: área y los cuatro parámetros del balance."
+        "description": "Poza del estático: área y los cuatro parámetros del balance.\n\nLos cuatro son obligatorios y sin valor por defecto (cambios finales, punto 5): un\ndato que cambia el balance no se inventa. Una dilución nula se escribe 0."
       },
       "TokenResponse": {
         "properties": {

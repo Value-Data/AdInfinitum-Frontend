@@ -49,6 +49,21 @@ export interface ReportParamsEcho {
   days_year: Partial<Record<Stage, number>>;
 }
 
+/**
+ * Un aviso del dinámico sobre una poza (cambios finales, puntos 6 y 14; espejo de
+ * `ReportWarning` en `app/reporting/model.py`). Su título es la etiqueta
+ * `result.warning_<code>`; `message` ya viene redactado con los números de `params`.
+ */
+export interface ReportWarning {
+  code: 'rising_pond' | 'above_berm' | 'li_balance_residual' | (string & {});
+  /** La etapa de la poza: los avisos van al inicio de esa etapa. */
+  stage: Stage;
+  pond: string | null;
+  /** Nombres internos: "_t" masas en t (ya escaladas), "_m" alturas en m, "_day" día de la corrida. */
+  params: Record<string, number | null>;
+  message: Partial<Record<'es' | 'en', string>>;
+}
+
 export interface DynamicReport {
   kind: 'dynamic' | 'chain';
   period: ReportPeriod;
@@ -56,6 +71,9 @@ export interface DynamicReport {
   stages: StageReport[];
   process_kpis: Record<string, number | null>;
   global_balance: ReportTable | null;
+  /** Vacío si no hay avisos. Un backend anterior a los puntos 6 y 14 no lo manda: leerlo
+   * con `?? []`. */
+  warnings: ReportWarning[];
 }
 
 export interface ScenarioReport {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addDays, buildSchema, cleanPayload, coerce, hiddenTopLevel, isVisible, issuesAt, parseNumber,
-  parsePaste, seriesColumns,
+  addDays, buildSchema, cleanPayload, coerce, dropNotApplicable, hiddenTopLevel, isVisible, issuesAt, notApplicable,
+  parseNumber, parsePaste, seriesColumns,
 } from '../../src/f6/sectionModel';
 import type { DictionaryEntry } from '../../src/services/apiV2';
 
@@ -43,6 +43,47 @@ describe('visible_if', () => {
     expect(isVisible('use_salt_volume', {})).toBe(false);
     expect(isVisible(null, {})).toBe(true);
     expect(isVisible('algo raro(x)', {})).toBe(true);
+  });
+});
+
+describe('lo que no aplica a una fila (cambios finales, punto 5)', () => {
+  it('da el motivo: tipo de poza, valor, casilla, o falta elegir el campo', () => {
+    expect(notApplicable(null, {})).toBeNull();
+    expect(notApplicable("pond_type == 'target_height'", { pond_type: 'target_height' })).toBeNull();
+    expect(notApplicable("pond_type == 'target_height'", { pond_type: 'fixed_flow' }))
+      .toEqual({ kind: 'pond_type', field: 'pond_type' });
+    expect(notApplicable("pond_type != 'target_height'", { pond_type: 'target_height' }))
+      .toEqual({ kind: 'pond_type', field: 'pond_type' });
+    // Sin tipo elegido, ningún campo del tipo aplica todavía (tampoco los de "!=").
+    expect(notApplicable("pond_type != 'target_height'", {})).toEqual({ kind: 'pending', field: 'pond_type' });
+    expect(notApplicable("mode == 'x'", { mode: 'y' })).toEqual({ kind: 'value', field: 'mode' });
+    expect(notApplicable('use_salt_volume', { use_salt_volume: false })).toEqual({ kind: 'flag_on', field: 'use_salt_volume' });
+    expect(notApplicable('use_salt_volume', { use_salt_volume: true })).toBeNull();
+    expect(notApplicable('not use_salt_volume', { use_salt_volume: true })).toEqual({ kind: 'flag_off', field: 'use_salt_volume' });
+    expect(notApplicable('algo raro(x)', {})).toBeNull();
+  });
+
+  it('cleanPayload con el esquema saca de cada fila lo que no le aplica', () => {
+    const schema = buildSchema([
+      entry('ponds', { data_type: 'list' }),
+      entry('ponds.name', { data_type: 'string' }),
+      entry('ponds.target_height_m', { visible_if: "pond_type == 'target_height'" }),
+      entry('ponds.target_outflow_t_d', { visible_if: "pond_type == 'fixed_flow'" }),
+      entry('ponds.berm_height_m', { visible_if: 'use_salt_volume' }),
+    ]);
+    const ponds = [
+      { name: 'A', pond_type: 'target_height', target_height_m: 0.4, target_outflow_t_d: 9, berm_height_m: 1 },
+      { name: 'B', pond_type: 'fixed_flow', target_height_m: 0.2, target_outflow_t_d: 9, use_salt_volume: true,
+        berm_height_m: 1 },
+    ];
+    expect(cleanPayload({ kind: 'precon_dynamic', ponds }, schema).ponds).toEqual([
+      { name: 'A', pond_type: 'target_height', target_height_m: 0.4 },
+      { name: 'B', pond_type: 'fixed_flow', target_outflow_t_d: 9, use_salt_volume: true, berm_height_m: 1 },
+    ]);
+    // Sin esquema, como antes (la vista de parámetros de una ejecución).
+    expect(cleanPayload({ kind: 'precon_dynamic', ponds }).ponds).toEqual(ponds);
+    // Una lista sin campos condicionados no cambia.
+    expect(dropNotApplicable([{ a: 1 }], [entry('x.a')])).toEqual([{ a: 1 }]);
   });
 });
 

@@ -52,6 +52,40 @@ export function isVisible(expr: string | null | undefined, row: Record<string, u
 }
 
 /**
+ * Por qué un campo con `visible_if` no aplica a una fila (null = aplica). Una condición
+ * `campo == / != 'valor'` sobre un campo todavía vacío no aplica hasta elegirlo
+ * ('pending'): con el tipo de poza sin elegir no se sabe qué pide la poza.
+ */
+export type NotApplicable =
+  | { kind: 'pending' | 'pond_type' | 'value' | 'flag_on' | 'flag_off'; field: string };
+
+export function notApplicable(expr: string | null | undefined, row: Record<string, unknown>): NotApplicable | null {
+  if (!expr) return null;
+  const m = expr.match(/^\s*([A-Za-z_]\w*)\s*(==|!=)\s*'([^']*)'\s*$/);
+  if (m) {
+    const v = row[m[1]];
+    if (v === null || v === undefined || v === '') return { kind: 'pending', field: m[1] };
+    if (isVisible(expr, row)) return null;
+    return { kind: m[1] === 'pond_type' ? 'pond_type' : 'value', field: m[1] };
+  }
+  const b = expr.match(/^\s*(not\s+)?([A-Za-z_]\w*)\s*$/);
+  if (b) return isVisible(expr, row) ? null : { kind: b[1] ? 'flag_off' : 'flag_on', field: b[2] };
+  return null;
+}
+
+/** Las filas sin los valores de los campos que no les aplican: no se piden ni se mandan. */
+export function dropNotApplicable(rows: Record<string, unknown>[], entries: DictionaryEntry[]): Record<string, unknown>[] {
+  const condicionados = entries.filter((e) => e.visible_if);
+  if (condicionados.length === 0) return rows;
+  return rows.map((r) => {
+    if (!r || typeof r !== 'object') return r;
+    const out = { ...r };
+    for (const e of condicionados) if (notApplicable(e.visible_if, r)) delete out[e.field];
+    return out;
+  });
+}
+
+/**
  * Qué partes de la sección no aplican según sus elecciones (alimentación, composición,
  * parámetros por fecha): no se muestran, y al guardar no se mandan.
  */
@@ -126,12 +160,20 @@ export function issuesAt(issues: ValidationIssue[], field: string, row?: number)
 }
 
 /**
- * La sección lista para mandar: sin lo que no aplica, y las series con una columna
- * entera vacía como serie no cargada.
+ * La sección lista para mandar: sin lo que no aplica (partes de la sección y, con el
+ * esquema, los campos de cada fila que su `visible_if` deja fuera: el tipo de poza, el
+ * marco de alturas), y las series con una columna entera vacía como serie no cargada.
  */
-export function cleanPayload(payload: Record<string, unknown>): Record<string, unknown> {
+export function cleanPayload(payload: Record<string, unknown>, schema?: SectionSchema): Record<string, unknown> {
   const out: Record<string, unknown> = { ...payload };
   for (const k of hiddenTopLevel(payload)) delete out[k];
+  if (schema) {
+    for (const [k, v] of Object.entries(out)) {
+      if (Array.isArray(v) && k !== 'initial_states') {
+        out[k] = dropNotApplicable(v as Record<string, unknown>[], schema.children(k));
+      }
+    }
+  }
   const serie = out.series as Record<string, unknown> | undefined;
   if (serie) {
     const s: Record<string, unknown> = { series_start_date: serie.series_start_date };
@@ -146,7 +188,8 @@ export function cleanPayload(payload: Record<string, unknown>): Record<string, u
     out.series = s;
   }
   if (Array.isArray(out.initial_states)) {
-    out.initial_states = initialStatesForSave(out.initial_states as Record<string, unknown>[]);
+    out.initial_states = initialStatesForSave(out.initial_states as Record<string, unknown>[],
+      (out.ponds as Record<string, unknown>[] | undefined) ?? [], bufferCondition(schema));
   }
   return out;
 }
@@ -295,19 +338,77 @@ export function initialStateRows(ponds: Row[], states: Row[]): Row[] {
   return [...filas, ...states.filter((s) => !usadas.has(clave(s.pond)))];
 }
 
-/** Lo que se guarda: solo las pozas con estado cargado. */
-export function initialStatesForSave(rows: Row[]): Row[] {
-  return rows.filter((r) => !isEmptyInitialState(r));
+/**
+ * Las dos formas del inventario de una poza (cambios finales, punto 4): toneladas por
+ * especie (`species_mass_t`; la altura la calcula la app) o composición %p/p + altura
+ * (`composition_pct` + `height_m`). La forma va en los datos mismos: una fila está en
+ * composición si trae `composition_pct` (aunque esté vacío); si no, en toneladas. Así
+ * no hace falta un campo propio que el backend no conoce.
+ */
+export type InitialForm = 'mass' | 'composition';
+
+export function initialStateForm(row: Row): InitialForm {
+  return row.composition_pct !== null && row.composition_pct !== undefined ? 'composition' : 'mass';
+}
+
+/** El campo de los valores por especie de la forma. */
+export function speciesFieldOf(form: InitialForm): 'species_mass_t' | 'composition_pct' {
+  return form === 'composition' ? 'composition_pct' : 'species_mass_t';
+}
+
+/** La fila en la otra forma: lo de la forma que se deja se borra (se manda una sola). */
+export function switchInitialStateForm(row: Row, form: InitialForm): Row {
+  const out = { ...row };
+  if (form === 'composition') {
+    delete out.species_mass_t;
+    out.composition_pct = (row.composition_pct as Row | null | undefined) ?? {};
+  } else {
+    delete out.composition_pct;
+    delete out.height_m;
+  }
+  return out;
+}
+
+/**
+ * Cuándo una poza es un buffer (caudal fijo o estacional): la misma condición que la
+ * altura de arranque en el diccionario (`ponds.startup_height_m`), que es como lo decide
+ * el backend. `outflow_started` solo vale en los buffers.
+ */
+export const BUFFER_CONDITION = "pond_type != 'target_height'";
+
+export function bufferCondition(schema?: SectionSchema): string {
+  return schema?.byKey.get('ponds.startup_height_m')?.visible_if ?? BUFFER_CONDITION;
+}
+
+/** El tipo de cada poza de la sección, por nombre (sin mayúsculas ni espacios). */
+export function pondsByName(ponds: Row[]): Map<string, Row> {
+  return new Map(ponds.map((p) => [clave(p.name), p]));
+}
+
+/**
+ * Lo que se guarda: solo las pozas con estado cargado y, de cada una, solo su forma (sin
+ * la altura con toneladas) y `outflow_started` solo si la poza es un buffer.
+ */
+export function initialStatesForSave(rows: Row[], ponds: Row[] = [], buffer = BUFFER_CONDITION): Row[] {
+  const pozas = pondsByName(ponds);
+  return rows.map((r) => {
+    const out = { ...r };
+    if (initialStateForm(r) === 'composition') delete out.species_mass_t;
+    else { delete out.composition_pct; delete out.height_m; }
+    const poza = pozas.get(clave(r.pond));
+    if (poza && notApplicable(buffer, poza)) delete out.outflow_started;
+    return out;
+  }).filter((r) => !isEmptyInitialState(r));
 }
 
 /**
  * Filas pegadas de Excel sobre la tabla del estado inicial. Columnas: los campos de la
  * tabla y después una por especie; la poza va primero si se quiere ubicar la fila por
  * nombre. Sin nombre de poza conocido, las filas se asignan en orden desde la primera.
+ * Cada fila queda en la forma que tenía: los valores por especie van a esa forma, y la
+ * altura solo se toma en composición (con toneladas la calcula la app).
  */
-export function pasteInitialStates(
-  rows: Row[], pasted: string[][], cols: DictionaryEntry[], species: string[], speciesField = 'species_mass_t',
-): Row[] {
+export function pasteInitialStates(rows: Row[], pasted: string[][], cols: DictionaryEntry[], species: string[]): Row[] {
   const out = rows.map((r) => ({ ...r }));
   const indice = new Map(out.map((r, i) => [clave(r.pond), i]));
   let siguiente = 0;
@@ -317,21 +418,33 @@ export function pasteInitialStates(
     if (i === undefined) { i = siguiente; base = 0; }
     siguiente = i + 1;
     if (i >= out.length) break;
-    const fila: Row = { pond: out[i].pond };
+    const forma = initialStateForm(out[i]);
+    const fila: Row = forma === 'composition' ? { pond: out[i].pond, composition_pct: {} } : { pond: out[i].pond };
     cols.forEach((c, j) => {
+      if (c.field === 'height_m' && forma === 'mass') return;
       const v = coerce(c, celdas[base + j] ?? '');
       if (v !== null) fila[c.field] = v;
     });
-    const masas: Row = {};
+    const valores: Row = {};
     species.forEach((sp, j) => {
       const v = parseNumber(celdas[base + cols.length + j] ?? '');
-      if (v !== null) masas[sp] = v;
+      if (v !== null) valores[sp] = v;
     });
-    if (Object.keys(masas).length) fila[speciesField] = masas;
+    if (Object.keys(valores).length) fila[speciesFieldOf(forma)] = valores;
     out[i] = fila;
   }
   return out;
 }
+
+/** Suma de los valores por especie de la fila en su forma (t o %p/p); null sin valores. */
+export function speciesSum(row: Row): number | null {
+  const v = row[speciesFieldOf(initialStateForm(row))] as Row | null | undefined;
+  const n = Object.values(v ?? {}).filter((x): x is number => typeof x === 'number');
+  return n.length ? n.reduce((a, b) => a + b, 0) : null;
+}
+
+/** Tolerancia de la suma de una composición (la del backend, `brine.PCT_TOLERANCE`). */
+export const PCT_TOLERANCE = 0.01;
 
 /** La poza de un problema del estado inicial: por su etiqueta o por su fila en lo guardado. */
 export function issuePond(issue: ValidationIssue, saved: Row[]): string {

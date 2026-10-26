@@ -23,9 +23,11 @@ import Collapsible from '../components/common/Collapsible';
 import { IssueList } from './ConfigPanel';
 import { formatDateTime } from './common';
 import {
-  addDays, buildSchema, cleanPayload, coerce, hiddenTopLevel, INITIAL_STATE_KINDS, initialStateRows,
-  initialStatesForSave, isEmptyInitialState, isScalar, isVisible, issuePond, issuesAt, parsePaste,
-  parseSeriesCsv, pasteInitialStates, serializeSeriesCsv, seriesColumns, type EnumChoice, type SectionSchema,
+  addDays, bufferCondition, buildSchema, cleanPayload, coerce, hiddenTopLevel, INITIAL_STATE_KINDS, initialStateForm,
+  initialStateRows, initialStatesForSave, isEmptyInitialState, isScalar, isVisible, issuePond, issuesAt,
+  notApplicable, parsePaste, parseSeriesCsv, pasteInitialStates, PCT_TOLERANCE, pondsByName, serializeSeriesCsv,
+  seriesColumns, speciesFieldOf, speciesSum, switchInitialStateForm, type EnumChoice, type InitialForm,
+  type NotApplicable, type SectionSchema,
 } from './sectionModel';
 
 type Obj = Record<string, unknown>;
@@ -52,24 +54,35 @@ function Tip({ text }: { text: string }) {
   );
 }
 
-function CellInput({ entry, value, onChange, choices, invalid, disabled, testId, placeholder, className, ariaLabel }: {
+function CellInput({ entry, value, onChange, choices, invalid, disabled, notApplicable, testId, placeholder, className,
+  ariaLabel }: {
   entry: DictionaryEntry; value: unknown; onChange: (v: unknown) => void; choices?: EnumChoice[];
-  invalid?: string; disabled?: boolean; testId?: string; placeholder?: string;
+  invalid?: string; disabled?: boolean;
+  /** El campo no aplica a esta fila: se ve vacío y deshabilitado, con el motivo como ayuda.
+   * Lo que tenga cargado no se borra (vuelve si cambia la fila) pero no se manda. */
+  notApplicable?: string;
+  testId?: string; placeholder?: string;
   /** Clases extra del campo de texto (p. ej. `input-number` en las tablas especie | valor). */
   className?: string; ariaLabel?: string;
 }) {
   const [foco, setFoco] = useState(false);
   const [texto, setTexto] = useState(value == null ? '' : String(value));
   useEffect(() => { setTexto(value == null ? '' : String(value)); }, [value]);
-  const estilo: React.CSSProperties = invalid ? { borderColor: '#dc2626', background: '#fef2f2' } : {};
+  const na = notApplicable !== undefined;
+  const apagado = disabled || na;
+  const estilo: React.CSSProperties = invalid && !na
+    ? { borderColor: 'var(--color-danger)', background: 'var(--color-danger-bg)' } : {};
+  const ayuda = na ? notApplicable : invalid;
   if (entry.data_type === 'boolean') {
-    return <input type="checkbox" checked={Boolean(value)} disabled={disabled} title={invalid}
+    return <input type="checkbox" checked={!na && Boolean(value)} disabled={apagado} title={ayuda}
+                  aria-label={ariaLabel} aria-invalid={invalid && !na ? true : undefined}
                   data-testid={testId} onChange={(e) => onChange(e.target.checked)} />;
   }
   if (entry.data_type === 'enum' && choices) {
     return (
-      <select className="input" value={value == null ? '' : String(value)} disabled={disabled}
-              style={estilo} title={invalid} data-testid={testId}
+      <select className="input" value={na || value == null ? '' : String(value)} disabled={apagado}
+              style={estilo} title={ayuda} aria-label={ariaLabel} aria-invalid={invalid && !na ? true : undefined}
+              data-testid={testId}
               onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}>
         <option value="">–</option>
         {choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -78,14 +91,43 @@ function CellInput({ entry, value, onChange, choices, invalid, disabled, testId,
   }
   return (
     <input className={className ? `input ${className}` : 'input'} type={entry.data_type === 'date' ? 'date' : 'text'}
-           value={!foco && typeof value === 'number' && texto === String(value) ? displayNumber(value) : texto}
-           placeholder={placeholder} aria-label={ariaLabel}
-           disabled={disabled} style={{ minWidth: 80, ...estilo }}
-           title={invalid ?? (typeof value === 'number' ? String(value) : undefined)} data-testid={testId}
+           value={na ? '' : !foco && typeof value === 'number' && texto === String(value) ? displayNumber(value) : texto}
+           placeholder={na ? '—' : placeholder} aria-label={ariaLabel}
+           aria-invalid={invalid && !na ? true : undefined}
+           disabled={apagado} style={{ minWidth: 80, ...estilo }}
+           title={ayuda ?? (typeof value === 'number' ? String(value) : undefined)} data-testid={testId}
            onFocus={() => setFoco(true)}
            onChange={(e) => setTexto(e.target.value)}
            onBlur={() => { setFoco(false); onChange(coerce(entry, texto)); }}
            onKeyDown={(e) => { if (e.key === 'Enter') onChange(coerce(entry, texto)); }} />
+  );
+}
+
+/** El motivo, para leer, de que un campo no aplique a la fila (en el idioma de la pantalla). */
+function useNotApplicableText(schema: SectionSchema, prefix: string) {
+  const t = useT();
+  return (why: NotApplicable | null): string | undefined => {
+    if (!why) return undefined;
+    const campo = schema.byKey.get(`${prefix}.${why.field}`)?.label || why.field;
+    const clave = ({ pending: 'f9_na_pending', pond_type: 'f9_na_pond_type', value: 'f9_na_value',
+      flag_on: 'f9_na_flag_on', flag_off: 'f9_na_flag_off' } as const)[why.kind];
+    return t(clave).replace('{field}', campo);
+  };
+}
+
+/** Cabecera de columna de una tabla: etiqueta con unidad, marca de obligatorio y ayuda. */
+function ColumnHeader({ entry }: { entry: DictionaryEntry }) {
+  const t = useT();
+  return (
+    <>
+      {headerOf(entry)}
+      {entry.required && (
+        <span title={t('f9_required')} style={{ color: 'var(--color-danger-text)' }}>
+          <span aria-hidden="true"> *</span><span className="sr-only"> ({t('f9_required')})</span>
+        </span>
+      )}
+      <Tip text={tooltipOf(entry)} />
+    </>
   );
 }
 
@@ -182,14 +224,20 @@ function PasteBox({ onPaste }: { onPaste: (rows: string[][]) => void }) {
   );
 }
 
-function TableEditor({ schema, prefix, rows, onChange, issues, species, title }: {
+/**
+ * Una tabla de filas (pozas, escenarios, cambios de pozas, dosificación). Todas las
+ * columnas se ven siempre, como en la plantilla: la celda de un campo que no aplica a su
+ * fila (`visible_if`: el tipo de poza, el marco de alturas) va gris y deshabilitada, con
+ * el motivo, y su valor no se manda (`cleanPayload`).
+ */
+export function TableEditor({ schema, prefix, rows, onChange, issues, species, title }: {
   schema: SectionSchema; prefix: string; rows: Obj[]; onChange: (rows: Obj[]) => void;
   issues: ValidationIssue[]; species: string[]; title: string;
 }) {
   const t = useT();
+  const motivo = useNotApplicableText(schema, prefix);
   const hijos = schema.children(prefix);
-  const columnas = orderColumns(hijos.filter(isScalar))
-    .filter((c) => !c.visible_if || rows.some((r) => isVisible(c.visible_if, r)));
+  const columnas = orderColumns(hijos.filter(isScalar));
   // Una columna por especie para el campo de composición/masas de la fila, si tiene.
   const porEspecie = hijos.find((e) => e.data_type === 'composition' || e.data_type === 'map');
   const [pagina, setPagina] = useState(0);
@@ -239,7 +287,7 @@ function TableEditor({ schema, prefix, rows, onChange, issues, species, title }:
           <thead>
             <tr>
               <th>#</th>
-              {columnas.map((c) => <th key={c.key} className="whitespace-nowrap" style={caps(c)}>{headerOf(c)}<Tip text={tooltipOf(c)} /></th>)}
+              {columnas.map((c) => <th key={c.key} className="whitespace-nowrap" style={caps(c)}><ColumnHeader entry={c} /></th>)}
               {porEspecie && species.map((sp) => <th key={sp} className="whitespace-nowrap" style={{ textTransform: 'none' }}>{sp}{porEspecie.unit ? ` (${porEspecie.unit})` : ''}</th>)}
               <th />
             </tr>
@@ -252,10 +300,13 @@ function TableEditor({ schema, prefix, rows, onChange, issues, species, title }:
                   <td>{i + 1}</td>
                   {columnas.map((c) => {
                     const problemas = issuesAt(issues, c.key, i + 1).filter((p) => p.row === i + 1);
+                    const na = motivo(notApplicable(c.visible_if, r));
                     return (
-                      <td key={c.key}>
+                      <td key={c.key} className={na ? 'cell-na' : undefined}
+                          data-testid={`cell-${prefix}-${i + 1}-${c.field}-td`}>
                         <CellInput entry={c} value={r[c.field]} choices={schema.enumValues(c.key)}
-                                   disabled={!isVisible(c.visible_if, r)}
+                                   notApplicable={na}
+                                   ariaLabel={`${headerOf(c)} · ${String(r.name ?? r.label ?? r.pond ?? i + 1)}`}
                                    invalid={problemas.map((p) => p.message).join(' · ') || undefined}
                                    testId={`cell-${prefix}-${i + 1}-${c.field}`}
                                    onChange={(v) => set(i, c.field, v)} />
@@ -627,9 +678,12 @@ function SeriesEditor({ schema, payload, onChange, issues, species, storageKey }
 // Estado inicial de las pozas (inventario)
 // ---------------------------------------------------------------------------
 /**
- * Una fila por poza de la sección: con qué arranca (masa, altura, densidad, actividad
- * de agua, acumulados, masas por especie). Una fila vacía es una poza que arranca vacía
- * y no se guarda. Se puede pegar desde Excel (la poza primero, o en el orden de la tabla).
+ * Una fila por poza de la sección: con qué inventario arranca. Cada poza en una de dos
+ * formas (punto 4): toneladas por especie (la altura la calcula la app) o composición
+ * %p/p con el agua más la altura; se manda solo la forma elegida. La densidad es opcional
+ * (si falta, la calcula AQSOL). `outflow_started` solo vale en los buffers: en una poza
+ * por altura objetivo va gris. Una fila vacía es una poza que arranca vacía y no se
+ * guarda. Se puede pegar desde Excel (la poza primero, o en el orden de la tabla).
  */
 export function InitialStatesEditor({ schema, payload, onChange, issues, species }: {
   schema: SectionSchema; payload: Obj; onChange: (rows: Obj[]) => void; issues: ValidationIssue[];
@@ -637,29 +691,55 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
 }) {
   const t = useT();
   const pozas = (payload.ponds as Obj[] | undefined) ?? [];
+  const porNombre = pondsByName(pozas);
+  const buffer = bufferCondition(schema);
   const cargados = (payload.initial_states as Obj[] | undefined) ?? [];
   const filas = initialStateRows(pozas, cargados);
   // Lo que se mandó al validar: la fila de un problema es su posición ahí.
-  const enviados = initialStatesForSave(cargados);
+  const enviados = initialStatesForSave(cargados, pozas, buffer);
   const columnas = orderColumns(schema.children('initial_states').filter(isScalar))
     .filter((c) => c.field !== 'pond');
-  const masas = schema.byKey.get('initial_states.species_mass_t');
+  const entradaEspecie = (forma: InitialForm) => schema.byKey.get(`initial_states.${speciesFieldOf(forma)}`);
+  const unidad = (forma: InitialForm) => entradaEspecie(forma)?.unit ?? (forma === 'composition' ? '%p/p' : 't');
+  const formas = Array.from(new Set(filas.map(initialStateForm)));
+  const unidadesEspecie = (formas.length ? formas : ['mass' as InitialForm]).map(unidad).join(' | ');
   const propios = issues.filter((i) => i.field.startsWith('initial_states'));
-  const n = initialStatesForSave(filas).length;
-  const set = (i: number, campo: string, v: unknown) => {
-    const nuevas = filas.slice();
-    nuevas[i] = { ...nuevas[i], [campo]: v };
-    onChange(nuevas);
-  };
-  const setMasa = (i: number, sp: string, v: unknown) => {
-    const actual = { ...((filas[i].species_mass_t as Obj | null) ?? {}) };
+  const n = initialStatesForSave(filas, pozas, buffer).length;
+  const cambiar = (i: number, fila: Obj) => onChange(filas.map((f, j) => (j === i ? fila : f)));
+  const set = (i: number, campo: string, v: unknown) => cambiar(i, { ...filas[i], [campo]: v });
+  const setEspecie = (i: number, sp: string, v: unknown) => {
+    const forma = initialStateForm(filas[i]);
+    const campo = speciesFieldOf(forma);
+    const actual = { ...((filas[i][campo] as Obj | null) ?? {}) };
     if (v == null) delete actual[sp]; else actual[sp] = v;
-    set(i, 'species_mass_t', Object.keys(actual).length ? actual : null);
+    // En composición el dict queda aunque se vacíe: es lo que dice que la fila está en esa forma.
+    set(i, campo, Object.keys(actual).length ? actual : (forma === 'composition' ? {} : null));
   };
+  const dePoza = (i: number, p: ValidationIssue) => issuePond(p, enviados) === String(filas[i].pond ?? '').trim().toLowerCase();
   const problema = (i: number, campo: string) => propios
-    .filter((p) => p.field === `initial_states.${campo}`
-      && issuePond(p, enviados) === String(filas[i].pond ?? '').trim().toLowerCase())
+    .filter((p) => p.field === `initial_states.${campo}` && dePoza(i, p))
     .map((p) => p.message).join(' · ') || undefined;
+  // Los de la fila entera (las dos formas a la vez, ninguna): van en la forma y en la poza.
+  const problemaFila = (i: number) => propios
+    .filter((p) => p.field === 'initial_states' && p.row != null && dePoza(i, p))
+    .map((p) => p.message).join(' · ') || undefined;
+  const motivoArranque = (poza: Obj | undefined): string | undefined => {
+    if (!poza) return undefined;
+    const why = notApplicable(buffer, poza);
+    if (!why) return undefined;
+    return t(why.kind === 'pending' ? 'f9_na_outflow_pending' : 'f9_na_outflow_target');
+  };
+  const cabecera = (c: DictionaryEntry) => {
+    if (c.field === 'density_kg_m3') {
+      return (
+        <span>
+          {headerOf(c)}<Tip text={`${t('f9_density_hint')}\n${tooltipOf(c)}`} />
+          <span className="block text-[11px] font-normal" style={SIN_MAYUSCULAS}>{t('f9_optional')}</span>
+        </span>
+      );
+    }
+    return <ColumnHeader entry={c} />;
+  };
   return (
     <section className="card p-3 mb-4" data-testid="initial-states-editor">
       <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -683,13 +763,19 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
             <thead>
               <tr>
                 <th>{schema.byKey.get('initial_states.pond')?.label ?? 'pond'}</th>
-                {columnas.map((c) => <th key={c.key} className="whitespace-nowrap" style={caps(c)}>{headerOf(c)}<Tip text={tooltipOf(c)} /></th>)}
-                {species.map((sp) => (
-                  <th key={sp} className="whitespace-nowrap" style={{ textTransform: 'none' }}
-                      title={masas ? tooltipOf(masas) : undefined}>
-                    {sp}{masas?.unit ? ` (${masas.unit})` : ''}
+                <th className="whitespace-nowrap" style={SIN_MAYUSCULAS}>{t('f9_initial_form')}</th>
+                {columnas.map((c) => (
+                  <th key={c.key} className={c.data_type === 'boolean' ? undefined : 'whitespace-nowrap'}
+                      style={c.data_type === 'boolean' ? { ...SIN_MAYUSCULAS, minWidth: '9rem' } : caps(c)}>
+                    {cabecera(c)}
                   </th>
                 ))}
+                {species.map((sp) => (
+                  <th key={sp} className="whitespace-nowrap" style={{ textTransform: 'none' }}>
+                    {sp} ({unidadesEspecie})
+                  </th>
+                ))}
+                <th className="whitespace-nowrap text-right" style={SIN_MAYUSCULAS}>{t('f9_sum')}</th>
                 <th />
               </tr>
             </thead>
@@ -698,12 +784,19 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
                 const vacia = isEmptyInitialState(r);
                 // Estado de una poza que ya no está en la sección: se puede borrar.
                 const huerfana = i >= pozas.length;
-                const malPoza = problema(i, 'pond');
+                const forma = initialStateForm(r);
+                const deFila = problemaFila(i);
+                const malPoza = [problema(i, 'pond'), deFila].filter(Boolean).join(' · ') || undefined;
+                const poza = porNombre.get(String(r.pond ?? '').trim().toLowerCase());
+                const especie = entradaEspecie(forma) ?? columnas[0];
+                const suma = speciesSum(r);
+                const fueraDe100 = forma === 'composition' && suma !== null && Math.abs(suma - 100) > PCT_TOLERANCE;
+                const malEspecie = problema(i, speciesFieldOf(forma));
                 return (
                   <tr key={`${String(r.pond)}-${i}`} data-testid={`initial-state-row-${i + 1}`}
-                      style={vacia ? { opacity: 0.75 } : undefined}>
+                      data-form={forma} style={vacia ? { opacity: 0.75 } : undefined}>
                     <td className="font-medium whitespace-nowrap" title={malPoza}
-                        style={huerfana || malPoza ? { color: '#b91c1c' } : undefined}>
+                        style={huerfana || malPoza ? { color: 'var(--color-danger-text)' } : undefined}>
                       {String(r.pond ?? '')}
                       {vacia && (
                         <span className="ml-1" style={{ color: 'var(--color-text-secondary)' }}>
@@ -711,27 +804,64 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
                         </span>
                       )}
                     </td>
-                    {columnas.map((c) => (
-                      <td key={c.key}>
-                        <CellInput entry={c} value={r[c.field]} invalid={problema(i, c.field)}
-                                   testId={`initial-state-${i + 1}-${c.field}`}
-                                   onChange={(v) => set(i, c.field, v)} />
-                      </td>
-                    ))}
+                    <td>
+                      <select className="input" value={forma} data-testid={`initial-state-${i + 1}-form`}
+                              aria-label={t('f9_initial_form_of').replace('{pond}', String(r.pond ?? ''))}
+                              aria-invalid={deFila ? true : undefined} title={deFila}
+                              style={deFila ? { borderColor: 'var(--color-danger)', background: 'var(--color-danger-bg)' } : undefined}
+                              onChange={(e) => cambiar(i, switchInitialStateForm(r, e.target.value as InitialForm))}>
+                        <option value="mass">{t('f9_form_mass')}</option>
+                        <option value="composition">{t('f9_form_composition')}</option>
+                      </select>
+                    </td>
+                    {columnas.map((c) => {
+                      const etiqueta = `${headerOf(c)} · ${String(r.pond ?? '')}`;
+                      if (c.field === 'height_m' && forma === 'mass') {
+                        // Con toneladas la altura sale de la masa: no se escribe. Un error que
+                        // llegue igual (p. ej. de un Excel) se ve en la celda.
+                        const mal = problema(i, c.field);
+                        return (
+                          <td key={c.key} className={`whitespace-nowrap text-xs${mal ? '' : ' cell-na'}`}
+                              data-testid={`initial-state-${i + 1}-${c.field}`}
+                              title={mal ?? t('f9_height_computed_hint')} aria-label={`${etiqueta}: ${mal ?? t('f9_height_computed')}`}
+                              style={mal ? { background: 'var(--color-danger-bg)', color: 'var(--color-danger-text)',
+                                boxShadow: 'inset 0 0 0 1px var(--color-danger)' } : undefined}>
+                            {t('f9_height_computed')}
+                          </td>
+                        );
+                      }
+                      const na = c.field === 'outflow_started' ? motivoArranque(poza) : undefined;
+                      return (
+                        <td key={c.key} className={na ? 'cell-na' : undefined}
+                            data-testid={`initial-state-${i + 1}-${c.field}-td`}>
+                          <CellInput entry={c} value={r[c.field]} invalid={problema(i, c.field)} notApplicable={na}
+                                     ariaLabel={etiqueta}
+                                     placeholder={c.field === 'density_kg_m3' ? t('f9_optional') : undefined}
+                                     testId={`initial-state-${i + 1}-${c.field}`}
+                                     onChange={(v) => set(i, c.field, v)} />
+                        </td>
+                      );
+                    })}
                     {species.map((sp) => (
                       <td key={sp}>
-                        <CellInput entry={{ ...(masas ?? columnas[0]), data_type: 'number' }}
-                                   value={((r.species_mass_t as Obj | null) ?? {})[sp]}
-                                   invalid={problema(i, 'species_mass_t')}
+                        <CellInput entry={{ ...especie, data_type: 'number' }}
+                                   value={((r[speciesFieldOf(forma)] as Obj | null) ?? {})[sp]}
+                                   invalid={malEspecie} ariaLabel={`${sp} (${unidad(forma)}) · ${String(r.pond ?? '')}`}
                                    testId={`initial-state-${i + 1}-sp-${sp}`}
-                                   onChange={(v) => setMasa(i, sp, v)} />
+                                   onChange={(v) => setEspecie(i, sp, v)} />
                       </td>
                     ))}
+                    <td className="text-right font-mono whitespace-nowrap" data-testid={`initial-state-${i + 1}-sum`}
+                        title={fueraDe100 ? `${t('f9_sum')}: ${t('f9_sum_must_100')}` : undefined}
+                        style={fueraDe100 ? { color: 'var(--color-danger-text)' } : undefined}>
+                      {suma === null ? '–' : `${displayNumber(suma)} ${unidad(forma)}`}
+                      {fueraDe100 && <span className="block text-[11px] font-body">{t('f9_sum_must_100')}</span>}
+                    </td>
                     <td>
                       <button className="btn btn-outline btn-sm" aria-label={t('f6_initial_states_clear_row')}
                               title={t('f6_initial_states_clear_row')}
                               onClick={() => onChange(huerfana ? filas.filter((_, j) => j !== i)
-                                : filas.map((f, j) => (j === i ? { pond: f.pond } : f)))}>✕</button>
+                                : filas.map((f, j) => (j === i ? switchInitialStateForm({ pond: f.pond }, forma) : f)))}>✕</button>
                     </td>
                   </tr>
                 );
@@ -857,13 +987,13 @@ export default function SectionEditorPage() {
 
   const validar = async () => {
     setOcupado(true);
-    try { setReport(await validateSection(id, kind, cleanPayload(payload), lang)); setAviso(null); }
+    try { setReport(await validateSection(id, kind, cleanPayload(payload, schema), lang)); setAviso(null); }
     catch (err) { setAviso(apiError(err).message); } finally { setOcupado(false); }
   };
   const guardar = async () => {
     setOcupado(true);
     try {
-      const r = await saveSection(id, kind, cleanPayload(payload), lang);
+      const r = await saveSection(id, kind, cleanPayload(payload, schema), lang);
       setReport(r.validation);
       if (r.ok) { setVersion(r.version_no); setAviso(`${t('f6_saved_version')} v${r.version_no}`); }
       else setAviso(r.message);
