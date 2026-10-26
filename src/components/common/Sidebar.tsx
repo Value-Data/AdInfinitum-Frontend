@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -8,6 +8,16 @@ export default function Sidebar() {
   const { user, isAdmin, logout } = useAuth();
   const { lang, setLang, t } = useLanguage();
   const navigate = useNavigate();
+  // Bajo 1024 px (tablet) el menú es una franja de íconos de 64 px; el botón de arriba lo
+  // abre entero sobre la página para leer los nombres (en una pantalla táctil no hay tooltip).
+  const [abierto, setAbierto] = useState(false);
+  const cerrar = () => setAbierto(false);
+  useEffect(() => {
+    if (!abierto) return undefined;
+    const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape') setAbierto(false); };
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+  }, [abierto]);
 
   const handleLogout = () => {
     logout();
@@ -16,8 +26,13 @@ export default function Sidebar() {
 
   const { pathname } = useLocation();
   const dentroDeProyectos = /^\/(executions|legacy-executions)\//.test(pathname);
+  // En la franja, los nombres quedan para lectores de pantalla; abierta o desde 1024 px, a la vista.
+  const nombre = abierto ? '' : 'sr-only lg:not-sr-only';
+  const soloAbierto = abierto ? '' : 'hidden lg:block';
+  // 44 px de alto para el dedo en tablet (PRODUCT.md); desde 1024 px, el tamaño de siempre.
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
+    `flex items-center gap-2 px-3 py-2 min-h-11 lg:min-h-0 text-sm font-medium transition-colors ${
+      abierto ? 'justify-start' : 'justify-center lg:justify-start'} ${
       isActive
         ? 'text-white'
         : 'text-blue-200 hover:text-white'
@@ -26,107 +41,132 @@ export default function Sidebar() {
     isActive
       ? { backgroundColor: 'var(--color-primary-light)', borderRadius: 'var(--radius)' }
       : {};
+  const salir = t('f10_sign_out');
 
   return (
-    <aside
-      className="fixed left-0 top-0 bottom-0 flex flex-col w-56 z-40"
-      style={{ backgroundColor: 'var(--color-primary)' }}
-    >
-      {/* Logo */}
-      <div className="px-3 py-4 border-b border-white/10">
-        <div className="bg-white rounded-md px-3 py-3 flex items-center justify-center">
-          <img
-            src={logoHeader}
-            alt="AD-INFINITUM"
-            className="w-full h-auto max-h-20 object-contain"
-          />
+    <>
+      {abierto && <div className="fixed inset-0 z-30 lg:hidden" style={{ background: 'var(--color-overlay)' }}
+                       onClick={cerrar} aria-hidden="true" />}
+      <aside
+        id="app-sidebar"
+        className={`fixed left-0 top-0 bottom-0 flex flex-col z-40 overflow-y-auto ${abierto ? 'w-56 shadow-lg' : 'w-16'} lg:w-56 lg:shadow-none`}
+        style={{ backgroundColor: 'var(--color-primary)' }}
+      >
+        <button type="button" className="lg:hidden flex items-center justify-center min-h-11 mx-2 mt-3 text-blue-100 hover:text-white"
+                aria-expanded={abierto} aria-controls="app-sidebar"
+                aria-label={abierto ? t('f10_menu_close') : t('f10_menu_open')} title={abierto ? t('f10_menu_close') : t('f10_menu_open')}
+                onClick={() => setAbierto((a) => !a)}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            {abierto
+              ? <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              : <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />}
+          </svg>
+        </button>
+
+        {/* Logo */}
+        <div className={`px-3 py-4 border-b border-white/10 ${soloAbierto}`}>
+          <div className="bg-white rounded-md px-3 py-3 flex items-center justify-center">
+            <img
+              src={logoHeader}
+              alt="AD-INFINITUM"
+              className="w-full h-auto max-h-20 object-contain"
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        <NavLink to="/inicio" className={linkClass} style={activeBg}>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-          </svg>
-          {t('f8_nav_home')}
-        </NavLink>
+        {/* Navigation */}
+        <nav className={`flex-1 py-4 space-y-1 ${abierto ? 'px-3' : 'px-2'} lg:px-3`}>
+          <NavLink to="/inicio" className={linkClass} style={activeBg} title={t('f8_nav_home')} onClick={cerrar}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+            </svg>
+            <span className={nombre}>{t('f8_nav_home')}</span>
+          </NavLink>
 
-        {/* Una ejecución (nueva o de antes) es parte de Proyectos: queda marcado. */}
-        <NavLink
-          to="/projects"
-          className={({ isActive }) => linkClass({ isActive: isActive || dentroDeProyectos })}
-          style={({ isActive }) => activeBg({ isActive: isActive || dentroDeProyectos })}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-          </svg>
-          {lang === 'en' ? 'Projects' : 'Proyectos'}
-        </NavLink>
-
-        {isAdmin && (
+          {/* Una ejecución (nueva o de antes) es parte de Proyectos: queda marcado. */}
           <NavLink
-            to="/users"
-            className={linkClass}
-            style={activeBg}
+            to="/projects"
+            className={({ isActive }) => linkClass({ isActive: isActive || dentroDeProyectos })}
+            style={({ isActive }) => activeBg({ isActive: isActive || dentroDeProyectos })}
+            title={t('topbar_projects')}
+            onClick={cerrar}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+              <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
             </svg>
-            {lang === 'en' ? 'Users' : 'Usuarios'}
+            <span className={nombre}>{t('topbar_projects')}</span>
           </NavLink>
-        )}
-      </nav>
 
-      {/* Language toggle */}
-      <div className="px-4 py-3 border-t border-white/10">
-        <div className="text-xs text-blue-200 mb-1.5">{t('language')}</div>
-        <div className="flex rounded overflow-hidden border border-white/20 text-xs">
-          <button
-            type="button"
-            onClick={() => setLang('es')}
-            className="flex-1 py-1.5 font-medium transition-colors"
-            style={{
-              backgroundColor:
-                lang === 'es' ? 'var(--color-primary-light)' : 'transparent',
-              color: 'white',
-            }}
-          >
-            ES
-          </button>
-          <button
-            type="button"
-            onClick={() => setLang('en')}
-            className="flex-1 py-1.5 font-medium transition-colors"
-            style={{
-              backgroundColor:
-                lang === 'en' ? 'var(--color-primary-light)' : 'transparent',
-              color: 'white',
-            }}
-          >
-            EN
-          </button>
-        </div>
-      </div>
+          {isAdmin && (
+            <NavLink
+              to="/users"
+              className={linkClass}
+              style={activeBg}
+              title={t('topbar_users')}
+              onClick={cerrar}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+              </svg>
+              <span className={nombre}>{t('topbar_users')}</span>
+            </NavLink>
+          )}
+        </nav>
 
-      {/* User Info + Logout */}
-      <div className="px-4 py-3 border-t border-white/10">
-        <div className="text-sm text-white font-medium truncate">
-          {user?.username}
+        {/* Language toggle */}
+        <div className={`py-3 border-t border-white/10 ${abierto ? 'px-4' : 'px-2'} lg:px-4`} role="group" aria-label={t('language')}>
+          <div className={`text-xs text-blue-200 mb-1.5 ${soloAbierto}`}>{t('language')}</div>
+          <div className={`flex ${abierto ? 'flex-row' : 'flex-col'} lg:flex-row rounded overflow-hidden border border-white/20 text-xs`}>
+            <button
+              type="button"
+              onClick={() => setLang('es')}
+              aria-pressed={lang === 'es'}
+              className="flex-1 py-1.5 min-h-11 lg:min-h-0 font-medium transition-colors"
+              style={{
+                backgroundColor:
+                  lang === 'es' ? 'var(--color-primary-light)' : 'transparent',
+                color: 'white',
+              }}
+            >
+              ES
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang('en')}
+              aria-pressed={lang === 'en'}
+              className="flex-1 py-1.5 min-h-11 lg:min-h-0 font-medium transition-colors"
+              style={{
+                backgroundColor:
+                  lang === 'en' ? 'var(--color-primary-light)' : 'transparent',
+                color: 'white',
+              }}
+            >
+              EN
+            </button>
+          </div>
         </div>
-        <div className="text-xs text-blue-200 capitalize mb-2">
-          {user?.role}
+
+        {/* User Info + Logout */}
+        <div className={`py-3 border-t border-white/10 ${abierto ? 'px-4' : 'px-2'} lg:px-4`}>
+          <div className={`text-sm text-white font-medium truncate ${soloAbierto}`}>
+            {user?.username}
+          </div>
+          <div className={`text-xs text-blue-200 capitalize mb-2 ${soloAbierto}`}>
+            {user?.role}
+          </div>
+          <button
+            onClick={handleLogout}
+            title={user?.username ? `${salir} (${user.username})` : salir}
+            className={`flex items-center gap-1 min-h-11 lg:min-h-0 text-xs text-blue-200 hover:text-white transition-colors ${
+              abierto ? 'justify-start' : 'justify-center w-full lg:w-auto lg:justify-start'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+            </svg>
+            <span className={nombre}>{salir}</span>
+          </button>
         </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1 text-xs text-blue-200 hover:text-white transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
-          </svg>
-          {lang === 'en' ? 'Sign out' : 'Cerrar sesión'}
-        </button>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

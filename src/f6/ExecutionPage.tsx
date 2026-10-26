@@ -140,50 +140,55 @@ function ReportSection({ detail, chain, filesTab, compare }: {
 
   return (
     <section className="mb-6">
-      <div className="card p-3 mb-4 flex flex-wrap items-end gap-3">
-        {dinamico && (
-          <>
-            <label className="text-sm">
-              <span className="label">{t('f6_period_start')}</span>
-              <input type="date" className="input" value={borrador.period_start ?? ''}
-                     onChange={(e) => setBorrador({ ...borrador, period_start: e.target.value || null })} />
-            </label>
-            <label className="text-sm">
-              <span className="label">{t('f6_period_end')}</span>
-              <input type="date" className="input" value={borrador.period_end ?? ''}
-                     onChange={(e) => setBorrador({ ...borrador, period_end: e.target.value || null })} />
-            </label>
-          </>
-        )}
-        <label className="text-sm">
-          <span className="label">{t('f6_scale_factor')}</span>
-          <input type="number" step="any" min="0" className="input" style={{ width: 190 }}
-                 value={borrador.scale_factor ?? ''}
-                 placeholder={t('f6_project_value')}
-                 onChange={(e) => setBorrador({ ...borrador,
-                   scale_factor: e.target.value === '' ? null : Number(e.target.value) })} />
-        </label>
-        <button className="btn btn-primary" onClick={() => setQ(borrador)}>{t('f6_apply')}</button>
-        {conCadena && (
-          <label className="text-sm flex items-center gap-2">
-            <input type="checkbox" checked={verCadena} onChange={(e) => setVerCadena(e.target.checked)} />
-            {t('f6_chain_report')}
+      {/* Lo que cambia la vista (período, escala, decimales) a la izquierda; la salida (Excel,
+          PDF) junta a la derecha, que si no cabe baja entera y no deja un botón suelto. */}
+      <div className="card p-3 mb-4 flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          {dinamico && (
+            <>
+              <label className="text-sm">
+                <span className="label">{t('f6_period_start')}</span>
+                <input type="date" className="input" value={borrador.period_start ?? ''}
+                       onChange={(e) => setBorrador({ ...borrador, period_start: e.target.value || null })} />
+              </label>
+              <label className="text-sm">
+                <span className="label">{t('f6_period_end')}</span>
+                <input type="date" className="input" value={borrador.period_end ?? ''}
+                       onChange={(e) => setBorrador({ ...borrador, period_end: e.target.value || null })} />
+              </label>
+            </>
+          )}
+          <label className="text-sm">
+            <span className="label">{t('f6_scale_factor')}</span>
+            <input type="number" step="any" min="0" className="input" style={{ width: 160 }}
+                   value={borrador.scale_factor ?? ''}
+                   placeholder={t('f6_project_value')}
+                   onChange={(e) => setBorrador({ ...borrador,
+                     scale_factor: e.target.value === '' ? null : Number(e.target.value) })} />
           </label>
-        )}
-        <div className="flex-1" />
-        <DecimalsSelect />
-        <button className="btn btn-outline" onClick={bajar}>{t('f6_download_xlsx')}</button>
-        <button className="btn btn-outline" onClick={bajarPdf} disabled={pdfServidor} data-testid="download-pdf-server">
-          {pdfServidor ? t('f6_pdf_server_busy') : t('f6_download_pdf_server')}
-        </button>
-        <button className="btn btn-outline" data-testid="print-report"
-                onClick={() => window.open(`/executions/${detail.id}/print?${new URLSearchParams(
-                  Object.entries({ ...q, chain: verCadena ? '1' : '',
-                    compare: verCadena ? '' : comparar.join(',') })
-                    .filter(([, v]) => v !== null && v !== undefined && v !== '')
-                    .map(([k, v]) => [k, String(v)])).toString()}`, '_blank')}>
-          {t('f6_print_pdf')}
-        </button>
+          <button className="btn btn-primary" onClick={() => setQ(borrador)}>{t('f6_apply')}</button>
+          {conCadena && (
+            <label className="text-sm flex items-center gap-2">
+              <input type="checkbox" checked={verCadena} onChange={(e) => setVerCadena(e.target.checked)} />
+              {t('f6_chain_report')}
+            </label>
+          )}
+          <DecimalsSelect />
+        </div>
+        <div className="flex flex-wrap items-end gap-3 ml-auto">
+          <button className="btn btn-outline" onClick={bajar}>{t('f6_download_xlsx')}</button>
+          <button className="btn btn-outline" onClick={bajarPdf} disabled={pdfServidor} data-testid="download-pdf-server">
+            {pdfServidor ? t('f6_pdf_server_busy') : t('f6_download_pdf_server')}
+          </button>
+          <button className="btn btn-outline" data-testid="print-report"
+                  onClick={() => window.open(`/executions/${detail.id}/print?${new URLSearchParams(
+                    Object.entries({ ...q, chain: verCadena ? '1' : '',
+                      compare: verCadena ? '' : comparar.join(',') })
+                      .filter(([, v]) => v !== null && v !== undefined && v !== '')
+                      .map(([k, v]) => [k, String(v)])).toString()}`, '_blank')}>
+            {t('f6_print_pdf')}
+          </button>
+        </div>
       </div>
       <div className="flex flex-wrap gap-1 mb-4 border-b" style={{ borderColor: 'var(--color-border)' }}
            role="tablist" data-testid="execution-tabs">
@@ -198,7 +203,7 @@ function ReportSection({ detail, chain, filesTab, compare }: {
         ))}
       </div>
       {cargando && <LoadingSpinner />}
-      {error && <div className="card p-3 mb-4 text-sm" style={{ borderColor: '#fca5a5' }}>{error}</div>}
+      {error && <div className="card p-3 mb-4 text-sm" role="alert" style={{ borderColor: 'var(--color-danger-border)' }}>{error}</div>}
       {report && !cargando && (
         <>
           {tab === 'results' && <ReportView report={report} scenario={escenario} onScenario={setEscenario} paged />}
@@ -378,7 +383,7 @@ export default function ExecutionPage() {
         <div className="flex-1" />
         {isAdmin && !activa && (
           <button className="btn btn-outline" onClick={borrar} data-testid="delete-execution"
-                  style={confirmarBorrado ? { borderColor: '#dc2626', color: '#b91c1c' } : undefined}>
+                  style={confirmarBorrado ? { borderColor: 'var(--color-danger)', color: 'var(--color-danger-text)' } : undefined}>
             {confirmarBorrado ? t('f6_delete_confirm') : t('delete')}
           </button>
         )}
@@ -436,7 +441,7 @@ export default function ExecutionPage() {
       )}
 
       {detail.upload_status === 'failed' && (
-        <div className="card p-3 mb-4 text-sm flex items-center gap-3" style={{ borderColor: '#fca5a5' }}>
+        <div className="card p-3 mb-4 text-sm flex items-center gap-3" style={{ borderColor: 'var(--color-danger-border)' }}>
           {t('f6_upload_failed')}
           {isAdmin && <button className="btn btn-outline" onClick={resubir}>{t('f6_reupload')}</button>}
         </div>

@@ -31,4 +31,16 @@ describe('errores del proyecto a la vista', () => {
     ver('?tab=executions');
     expect((await screen.findAllByRole('alert')).map((a) => a.textContent).join(' ')).toMatch(/ejecuciones caídas/);
   });
+
+  it('con el backend caído (mismo mensaje en las dos cargas) se ven dos tarjetas que dicen qué falló', async () => {
+    const api = await import('../../src/services/apiV2');
+    vi.mocked(api.getProjectV2).mockResolvedValueOnce({ id: 'p1', name: 'Proyecto A', description: null, aqsol_version: '027',
+      my_role: 'operador', capabilities: ['view_results', 'view_config', 'launch'] } as never);
+    vi.mocked(api.getSectionStates).mockRejectedValueOnce(new Error('Network Error'));
+    vi.mocked(api.listExecutions).mockRejectedValueOnce(new Error('Network Error'));
+    ver('?tab=executions');
+    await screen.findByTestId('project-error-executions');
+    expect(screen.getByTestId('project-error-sections').textContent).toMatch(/secciones: Network Error/);
+    expect(screen.getByTestId('project-error-executions').textContent).toMatch(/ejecuciones: Network Error/);
+  });
 });

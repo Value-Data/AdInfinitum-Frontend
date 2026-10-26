@@ -54,9 +54,16 @@ function normUnit(u: string): string {
   return u.toLowerCase().replace(/\s+/g, '').replace(/²/g, '2').replace(/³/g, '3');
 }
 
+/** Otras formas de escribir la misma unidad en una etiqueta del diccionario. */
+const UNIT_ALIASES: Record<string, string[]> = {
+  '%w/w': ['%p/p'], '%p/p': ['%w/w'], frac: ['fracción', 'fraction'], 'fracción': ['frac'], fraction: ['frac'],
+};
+
 /** "Etiqueta (unidad)", sin repetirla si la etiqueta del diccionario ya la trae
- * (antes salía "Área de proceso (m²) (m2)"). */
+ * (antes salía "Área de proceso (m²) (m2)", "Composición (%p/p) (%w/w)" o
+ * "Dilución (fracción) (frac)"). */
 export function labelWithUnit(label: string, unit: string | null | undefined): string {
   if (!unit) return label;
-  return normUnit(label).includes(`(${normUnit(unit)})`) ? label : `${label} (${unit})`;
+  const formas = [unit, ...(UNIT_ALIASES[normUnit(unit)] ?? [])];
+  return formas.some((f) => normUnit(label).includes(`(${normUnit(f)})`)) ? label : `${label} (${unit})`;
 }

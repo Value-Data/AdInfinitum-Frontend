@@ -3,15 +3,20 @@ import React from 'react';
 import type { TranslationKey } from '../i18n/translations';
 import { useT } from '../i18n/LanguageContext';
 
+/** Colores de una insignia de estado (tokens `--status-*` de tokens.css). */
+const tono = (k: string): React.CSSProperties => ({
+  backgroundColor: `var(--status-${k}-bg)`, color: `var(--status-${k}-text)`, borderColor: `var(--status-${k}-border)`,
+});
+
 const ESTILOS: Record<string, React.CSSProperties> = {
-  pending: { backgroundColor: '#fef3c7', color: '#92400e', borderColor: '#fde68a' },
-  running: { backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#93c5fd' },
-  completed: { backgroundColor: '#dcfce7', color: '#166534', borderColor: '#86efac' },
-  completed_with_errors: { backgroundColor: '#fef9c3', color: '#854d0e', borderColor: '#fde047' },
-  failed: { backgroundColor: '#fee2e2', color: '#991b1b', borderColor: '#fca5a5' },
-  cancelled: { backgroundColor: '#f3f4f6', color: '#374151', borderColor: '#d1d5db' },
+  pending: tono('pending'),
+  running: tono('running'),
+  completed: tono('done'),
+  completed_with_errors: tono('partial'),
+  failed: tono('failed'),
+  cancelled: tono('neutral'),
   // Ejecuciones de la versión anterior que quedaron a medias.
-  interrupted: { backgroundColor: '#f3f4f6', color: '#374151', borderColor: '#d1d5db' },
+  interrupted: tono('neutral'),
 };
 
 /** Los seis estados de una ejecución de F4. */

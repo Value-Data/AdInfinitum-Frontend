@@ -44,7 +44,7 @@ export function InventoryBadge({ n }: { n: number }) {
   const t = useT();
   return (
     <span className="text-xs px-2 py-0.5 border" data-testid="inventory-badge"
-          title={t('f6_with_inventory_hint')} style={{ color: '#1e40af', borderColor: '#93c5fd' }}>
+          title={t('f6_with_inventory_hint')} style={{ color: 'var(--status-running-text)', borderColor: 'var(--status-running-border)' }}>
       {t('f6_with_inventory')} ({n})
     </span>
   );
@@ -55,18 +55,18 @@ function SectionCards({ projectId, sections, engine }: {
 }) {
   const t = useT();
   return (
-    <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+    <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
       {ETAPAS.map((etapa) => {
         const kind = `${etapa}_${engine}` as SectionKind;
         const s = sections.find((x) => x.kind === kind);
         const vacia = !s?.latest_version_no;
         return (
           <div key={kind} className="card p-4" data-testid={`section-${kind}`}>
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-start justify-between gap-2 mb-1">
               <span className="font-semibold">{t(`f6_stage_${etapa}` as never)}</span>
-              <span className="text-xs px-2 py-0.5 border"
-                    style={vacia ? { color: '#92400e', borderColor: '#fde68a' }
-                                 : { color: '#166534', borderColor: '#86efac' }}>
+              <span className="text-xs px-2 py-0.5 border whitespace-nowrap shrink-0"
+                    style={vacia ? { color: 'var(--status-pending-text)', borderColor: 'var(--status-pending-border)' }
+                                 : { color: 'var(--status-done-text)', borderColor: 'var(--status-done-border)' }}>
                 {vacia ? t('f6_section_empty') : `v${s?.latest_version_no}`}
               </span>
             </div>

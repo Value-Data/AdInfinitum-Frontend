@@ -182,6 +182,8 @@ export default function UsersPage() {
                 <td>
                   <button
                     onClick={() => handleToggleActive(user)}
+                    role="switch" aria-checked={user.is_active}
+                    aria-label={t('f10_user_active').replace('{user}', user.username)}
                     className="relative inline-flex h-5 w-10 items-center transition-colors"
                     style={{
                       backgroundColor: user.is_active ? 'var(--color-success)' : 'var(--color-border)',
@@ -198,12 +200,12 @@ export default function UsersPage() {
                   </button>
                   <span
                     className="ml-2 text-xs"
-                    style={{ color: user.is_active ? 'var(--color-success)' : 'var(--color-text-secondary)' }}
+                    style={{ color: user.is_active ? 'var(--color-success-text)' : 'var(--color-text-secondary)' }}
                   >
                     {user.is_active ? t('users_active') : t('users_inactive')}
                   </span>
                 </td>
-                <td className="font-mono text-sm">
+                <td className="font-mono text-sm whitespace-nowrap">
                   {new Date(user.created_at).toLocaleDateString('es-CL')}
                 </td>
                 <td>

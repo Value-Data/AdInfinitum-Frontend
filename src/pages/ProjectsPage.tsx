@@ -211,10 +211,10 @@ export default function ProjectsPage() {
               {(grupos.length > 1 || cliente) && (
                 <tr>
                   <th colSpan={N_COLS} scope="colgroup" className="text-left text-sm"
-                      style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>
+                      style={{ background: 'var(--color-bg)', color: 'var(--color-text)', textTransform: 'none', letterSpacing: 0 }}>
                     {cliente || t('f8_no_client')}
                     <span className="ml-2 font-normal text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                      {t('f8_n_projects').replace('{n}', String(lista.length))}
+                      {lista.length === 1 ? t('f8_n_projects_one') : t('f8_n_projects').replace('{n}', String(lista.length))}
                     </span>
                   </th>
                 </tr>
@@ -236,7 +236,7 @@ export default function ProjectsPage() {
                     {project.description || '-'}
                   </td>
                   <td className="font-mono text-sm">{project.aqsol_version ?? '-'}</td>
-                  <td className="font-mono text-sm">{formatDate(project.created_at)}</td>
+                  <td className="font-mono text-sm whitespace-nowrap">{formatDate(project.created_at)}</td>
                   <td>
                     {project.last_execution_status ? (
                       <RunStatusBadge status={project.last_execution_status} />
@@ -261,7 +261,7 @@ export default function ProjectsPage() {
                           {t('f8_edit')}
                         </button>
                         <button className="btn btn-outline btn-sm" data-testid={`delete-project-${project.id}`}
-                                style={{ borderColor: '#dc2626', color: '#b91c1c' }}
+                                style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger-text)' }}
                                 onClick={() => borrar(project.id)}>
                           {aBorrar === project.id ? t('f6_delete_confirm') : t('delete')}
                         </button>
@@ -335,7 +335,7 @@ export default function ProjectsPage() {
             </p>
           </div>
           {createError && (
-            <p className="text-sm" style={{ color: 'var(--color-danger, #b91c1c)' }}>{createError}</p>
+            <p className="text-sm" style={{ color: 'var(--color-danger-text)' }}>{createError}</p>
           )}
           <div className="flex gap-2 justify-end">
             <button className="btn btn-outline" onClick={() => setShowCreate(false)}>

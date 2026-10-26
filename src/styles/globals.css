@@ -45,6 +45,11 @@
     font-family: var(--font-mono);
   }
 
+  /* El texto de ayuda de un campo numérico no es un número: va en la letra del texto. */
+  input[type='number']::placeholder {
+    font-family: var(--font-body);
+  }
+
   table {
     border-collapse: collapse;
     width: 100%;
@@ -254,6 +259,10 @@
   .report-table { max-height: none; overflow: visible; }
   .print-report td, .print-report th { padding: 3px 6px; }
 }
+/* Tablas de datos (editor de secciones y reporte): las cabeceras llevan unidades y nombres
+   que distinguen mayúsculas (m², mm/d, pH, Li+), así que van como se escriben, no en versalitas. */
+.data-table th { text-transform: none; letter-spacing: 0; }
+
 /* Bloques de columnas impresos: cabeceras que parten línea y celdas compactas. */
 .print-table th { white-space: normal; padding: 4px 6px; vertical-align: bottom; }
 .print-table td { padding: 3px 6px; font-size: 0.75rem; }
