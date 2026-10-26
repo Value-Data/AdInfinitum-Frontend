@@ -234,25 +234,6 @@ export async function importConfiguration(
 }
 
 // ---------------------------------------------------------------------------
-// Escenarios de inventario (Mariana): una precon dinámica con las pozas cargadas
-// ---------------------------------------------------------------------------
-export type InventarioEscenario = Schemas['InventarioEscenario'];
-export type InventarioLoadResult = Schemas['InventarioLoadResponse'];
-
-export async function listInventarioEscenarios(): Promise<InventarioEscenario[]> {
-  const { data } = await api.get<InventarioEscenario[]>('/inventario/escenarios');
-  return data;
-}
-
-export async function loadInventarioEscenario(
-  projectId: string, escenario: string, language: Language,
-): Promise<InventarioLoadResult> {
-  const { data } = await api.post<InventarioLoadResult>(
-    `/projects/${projectId}/inventario/load`, { escenario }, { params: { language } });
-  return data;
-}
-
-// ---------------------------------------------------------------------------
 // Ejecuciones
 // ---------------------------------------------------------------------------
 export interface LaunchRequest {

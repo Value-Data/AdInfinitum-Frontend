@@ -51,14 +51,6 @@ export function resolveWellBrineFeed(
     flow =
       ((dc?.precon as Record<string, unknown> | undefined)?.average_flow_ton_day as number) ??
       ((dc?.simulation as Record<string, unknown> | undefined)?.average_flow_ton_day as number);
-    // Modo con inventario: misma tabla, otro lugar en el snapshot. Su salmuera de pozo
-    // ya está en %w/w (`composicion_pp`) y el caudal es `flowrate_tpd`.
-    if (!brine) {
-      const ic = snapshot.inventario_config as Record<string, unknown> | undefined;
-      const feed = ic?.feed as Record<string, unknown> | undefined;
-      brine = feed?.composicion_pp as Record<string, number> | undefined;
-      flow = feed?.flowrate_tpd as number | undefined;
-    }
   } else {
     brine = snapshot.brine as Record<string, number> | undefined;
     // Sin esto el flujo salía como la suma de la composición, o sea 100 t/d fijos.

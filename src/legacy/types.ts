@@ -180,8 +180,6 @@ export interface ProjectConfig {
   encalado_days_year: number | null;
   postliming_days_year: number | null;
   dynamic_config: DynamicConfig | null;
-  /** Escenario del modo con inventario. `_path` = uno de los que trae el motor. */
-  inventario_config: InventarioConfig | null;
   /** Catalogo AQSOL en que estan brine y los *_faktor de esta config. */
   aqsol_version: AqsolVersion;
   /** Convencion del arrastre: 'wet' = % de la torta humeda, 'dry' = % de la sal. */
@@ -206,7 +204,6 @@ export interface ProjectConfigUpdate {
   encalado_days_year?: number;
   postliming_days_year?: number;
   dynamic_config?: DynamicConfig;
-  inventario_config?: InventarioConfig;
 }
 
 export interface ProjectConfigDefaults {
@@ -224,7 +221,6 @@ export interface ProjectConfigDefaults {
   encalado_days_year: number;
   postliming_days_year: number;
   dynamic_config: DynamicConfig;
-  inventario_config: InventarioConfig;
 }
 
 // ---- Modelo Dinámico ----
@@ -416,12 +412,7 @@ export type ExecutionType =
   | 'preconcentracion'
   | 'modelo_dinamico_cascade'
   | 'modelo_dinamico_encalado'
-  | 'modelo_dinamico_postliming'
-  // Modo con inventario (motor Mariana): la cascada arranca con las pozas cargadas.
-  // Tres etapas encadenadas; la del medio corre con el motor dinámico.
-  | 'inventario_precon'
-  | 'inventario_encalado'
-  | 'inventario_postliming';
+  | 'modelo_dinamico_postliming';
 export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'interrupted';
 
 export interface Execution {
@@ -623,108 +614,6 @@ export interface DynamicPartialInfo {
 
 export type DynamicResults =
   (DynamicCascadeOrPostlimingResults | DynamicEncaladoResults) & DynamicPartialInfo;
-
-// =========================================================
-// Modo con inventario (motor Mariana)
-// =========================================================
-
-/**
- * Escenario que trae el motor: apunta a los JSON de pozas, feed, clima, factores e
- * inventario inicial. `con_inventario` es lo que distingue este modo — false
- * significa que ese escenario arranca con las pozas vacías, como el dinámico.
- */
-/**
- * Escenario configurado en el proyecto. Dos formas: solo `_path` cuando se eligió
- * uno de los que trae el motor (lo que manda el selector), o el escenario entero
- * para uno propio.
- */
-/** Poza del escenario. Mismos campos que `DynamicPondConfig` del motor. */
-export interface InventarioPond {
-  name: string;
-  number: number;
-  area_design_m2: number;
-  control_mode?: 'ALTURA' | 'FLUJO_FIJO';
-  target_height_m?: number | null;
-  max_height_m?: number | null;
-  leakage_mm_day?: number | null;
-  dilution_frac?: number | null;
-  apply_berm_factor?: boolean;
-  [campo: string]: unknown;
-}
-
-export interface InventarioConfig {
-  /** De qué escenario de la entrega salió. Marca de origen, no fuente de verdad:
-   *  si el blob trae bloques editados, mandan ellos. */
-  _path?: string;
-  /** Bloques editables. Presentes = escenario editado; ausentes = se lee de `_path`. */
-  pozas?: InventarioPond[];
-  feed?: {
-    flowrate_tpd?: number;
-    /** Tope de la modulación estacional. Vacío = 1,5× el promedio (default del motor). */
-    max_flow_tpd?: number;
-    composicion_pp?: Record<string, number>;
-    [k: string]: unknown;
-  };
-  clima?: Record<string, unknown>;
-  factores?: Record<string, number>;
-  inventario?: Record<string, Record<string, unknown>>;
-  /** Etapas 2 y 3 de la cadena. El escenario de la entrega no las trae —su CLI solo
-   *  corre la preconcentración—, así que el backend las agrega al expandirlo. */
-  encalado?: { config: DynamicEncaladoParams; factors: SaltFactor[] };
-  postliming?: {
-    config: DynamicPostlimingParams;
-    ponds: DynamicPostlimingPondConfig[];
-    factors: SaltFactor[];
-    validation_targets?: Record<string, unknown>;
-  };
-  start_date?: string;
-  days_max?: number;
-  target?: Record<string, unknown>;
-  [campo: string]: unknown;
-}
-
-export interface InventarioEscenario {
-  path: string;
-  nombre: string;
-  descripcion: string;
-  dias: number | null;
-  start_date: string | null;
-  con_inventario: boolean;
-}
-
-/**
- * Resultados del modo con inventario.
- *
- * Son **los del modo dinámico**: el runner arma el resumen con el mismo
- * `build_stage_summary`, así que traen las mismas tablas anuales, la misma serie
- * diaria y los mismos KPIs, y se dibujan con la misma pantalla. Lo propio del modo
- * son los dos bloques de abajo: de qué escenario salió la corrida y contra qué
- * objetivo de litio se compara.
- */
-export type InventarioResults = DynamicResults & {
-  modo?: 'inventario';
-  escenario?: {
-    descripcion: string;
-    start_date: string | null;
-    days_max: number | null;
-    ponds_config: string | null;
-    initial_states: string | null;
-    /** Si la corrida arrancó con las pozas cargadas. */
-    con_inventario: boolean;
-    pozas_sembradas: number;
-  };
-  target?: {
-    pond_name: string | null;
-    li_pct_target: number | null;
-    band_rel: number;
-    /** Li% de la última poza al final de la corrida. */
-    li_pct_final: number | null;
-  };
-  elapsed_seconds?: number;
-};
-
-/** Igual que el dinámico: una corrida cortada guarda lo que alcanzó a calcular. */
-export type InventarioResultsWithPartial = InventarioResults & DynamicPartialInfo;
 
 export interface ExecutionStatusResponse {
   id: string;

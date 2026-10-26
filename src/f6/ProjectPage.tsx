@@ -14,7 +14,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import ConfigPanel, { type LaunchDefaults } from './ConfigPanel';
+import ConfigPanel from './ConfigPanel';
 import LaunchPanel from './LaunchPanel';
 import { canDo } from './executionTabs';
 import ProjectEditModal from './ProjectEditModal';
@@ -91,8 +91,6 @@ export default function ProjectPage() {
   const [sections, setSections] = useState<SectionState[]>([]);
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Fecha y días del último escenario de inventario cargado: precargan Lanzar.
-  const [precarga, setPrecarga] = useState<LaunchDefaults | null>(null);
 
   // Antes un error dejaba la lista vacía en silencio; ahora se dice.
   const [errorSecciones, setErrorSecciones] = useState<string | null>(null);
@@ -187,13 +185,12 @@ export default function ProjectPage() {
         </div>
       )}
       {tab === 'config' ? (
-        <ConfigPanel projectId={id} sections={sections} onChanged={cargarSecciones}
-                     aqsolVersion={project.aqsol_version} onInventoryLoaded={setPrecarga} />
+        <ConfigPanel projectId={id} sections={sections} onChanged={cargarSecciones} />
       ) : (
         <>
           {canDo(caps, 'launch') && (
             <LaunchPanel projectId={id} executions={executions} sections={sections}
-                         defaults={precarga} onLaunched={() => cargarEjecuciones()} />
+                         onLaunched={() => cargarEjecuciones()} />
           )}
           <ExecutionsTable executions={executions} />
           {canDo(caps, 'view_legacy') && (

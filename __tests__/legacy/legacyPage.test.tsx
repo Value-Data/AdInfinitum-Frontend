@@ -1,5 +1,7 @@
 /* Humo: la página de una ejecución de la versión anterior dibuja una del estático y
-   dos del dinámico (con la cadena) con datos reales recortados. */
+   dos del dinámico (con la cadena) con datos de prueba sintéticos: ids nuevos, fechas
+   corridas, pozas P1…Pn y todos los valores numéricos multiplicados por un factor fijo
+   por archivo (salvo días, índices y conteos, que arman la forma de los datos). */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';

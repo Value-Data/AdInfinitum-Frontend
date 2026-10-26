@@ -84,15 +84,16 @@ describe('HomePage', () => {
     expect(screen.getByTestId('home-role')).toHaveTextContent('Administrador');
     expect(await screen.findByRole('link', { name: /administrar usuarios/i })).toHaveAttribute('href', '/users');
     expect(screen.getByRole('heading', { name: 'Comparar corridas' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Inventario' })).toBeInTheDocument();
+    // La tarjeta de Inventario (cargar escenario) se eliminó: ya no aparece para nadie.
+    expect(screen.queryByRole('heading', { name: 'Inventario' })).toBeNull();
   });
 
-  it('un lector ve Comparar e Inventario (dónde están, sin enlace) pero no Usuarios', async () => {
+  it('un lector ve Comparar (dónde está, sin enlace) pero no Usuarios', async () => {
     vi.mocked(getProjects).mockResolvedValue([proyecto(1)]);
     ver();
 
     expect(await screen.findByRole('heading', { name: 'Comparar corridas' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Inventario' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Inventario' })).toBeNull();
     expect(screen.getByText('Proyecto › Ejecución › Comparar')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Usuarios' })).toBeNull();
     expect(screen.queryByRole('link', { name: /administrar usuarios/i })).toBeNull();

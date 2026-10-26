@@ -12,7 +12,7 @@ import {
 } from '../services/apiV2';
 import { useT } from '../i18n/LanguageContext';
 import { executionTypeLabel, formatDateTime } from './common';
-import { InventoryBadge, type LaunchDefaults } from './ConfigPanel';
+import { InventoryBadge } from './ConfigPanel';
 
 const RUN_TAG = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
 
@@ -44,8 +44,8 @@ export function needsSource(tipo: ExecutionTypeV2, secciones: SectionState[]): b
 }
 
 /**
- * Pozas que arrancan cargadas con el estado inicial de la sección (el "modo con
- * inventario"): solo en las cascadas del dinámico y si no se continúa otra ejecución
+ * Pozas que arrancan cargadas con el estado inicial de la sección (corrida con
+ * inventario): solo en las cascadas del dinámico y si no se continúa otra ejecución
  * (una continuación toma el estado de esa ejecución). 0 = arrancan vacías.
  */
 export function inventoryPonds(tipo: ExecutionTypeV2, continuar: string, secciones: SectionState[]): number {
@@ -78,14 +78,12 @@ export function buildLaunchRequest(f: {
 }
 
 export default function LaunchPanel({
-  projectId, executions, sections, onLaunched, defaults,
+  projectId, executions, sections, onLaunched,
 }: {
   projectId: string;
   executions: ExecutionSummary[];
   sections: SectionState[];
   onLaunched: (e: ExecutionSummary) => void;
-  /** Fecha y días de un escenario de inventario recién cargado: precargan una precon dinámica. */
-  defaults?: LaunchDefaults | null;
 }) {
   const t = useT();
   const [tipo, setTipo] = useState<ExecutionTypeV2>('static_full');
@@ -107,15 +105,6 @@ export default function LaunchPanel({
       setEscenariosPrecon(filas.map((f) => f.label));
     }).catch(() => setEscenariosPrecon([]));
   }, [tipo, projectId]);
-  useEffect(() => {
-    if (!defaults) return;
-    setTipo('dynamic_precon');
-    setSource('');
-    setContinuar('');
-    setDia('');
-    setInicio(defaults.start_date);
-    setDias(defaults.n_days != null ? String(defaults.n_days) : '');
-  }, [defaults]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

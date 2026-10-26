@@ -7,8 +7,8 @@ import { useT } from '../../../i18n/LanguageContext';
  * alcanzó a calcularse (`services/partial_rescue`).
  *
  * Va bien visible a propósito: leer un promedio calculado sobre 137 de 1460 días
- * como si fuera la corrida entera es peor que no mostrar nada. Lo comparten el modo
- * dinámico y el de inventario, que cuentan en días; el estático tiene su propia
+ * como si fuera la corrida entera es peor que no mostrar nada. Lo usa el modo
+ * dinámico, que cuenta en días; el estático tiene su propia
  * versión en `ExecutionResultsPage` porque ahí la unidad es la poza.
  */
 export default function PartialRunBanner({ results }: { results: DynamicPartialInfo }) {

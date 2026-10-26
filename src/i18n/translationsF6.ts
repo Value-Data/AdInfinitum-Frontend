@@ -363,28 +363,6 @@ export const F6_TRANSLATIONS = {
     es: 'La corrida arranca con las pozas cargadas con el estado inicial de la sección',
     en: 'The run starts with the ponds loaded with the section initial state',
   },
-  f6_inventory_title: { es: 'Cargar escenario de inventario (Mariana)', en: 'Load inventory scenario (Mariana)' },
-  f6_inventory_hint: {
-    es: 'Guarda la preconcentración dinámica del escenario —pozas, factores, clima, alimentación y el estado inicial de cada poza— como una versión nueva. Después se lanza como un dinámico.',
-    en: 'Saves the scenario dynamic preconcentration —ponds, factors, climate, feed and each pond initial state— as a new version. Then launch it as a dynamic run.',
-  },
-  f6_inventory_choose: { es: 'Escenario', en: 'Scenario' },
-  f6_inventory_load: { es: 'Cargar escenario', en: 'Load scenario' },
-  f6_inventory_loaded: { es: 'Escenario cargado', en: 'Scenario loaded' },
-  f6_inventory_not_saved: {
-    es: 'El escenario tiene errores y no se guardó.',
-    en: 'The scenario has errors and was not saved.',
-  },
-  f6_inventory_not_loadable: { es: 'no se puede cargar', en: 'cannot be loaded' },
-  f6_inventory_other_version: {
-    es: 'Los escenarios de Mariana son de AQSOL 027: no se pueden cargar en un proyecto de otra versión',
-    en: 'Mariana scenarios are AQSOL 027: they cannot be loaded into a project of another version',
-  },
-  f6_inventory_prefilled: {
-    es: 'precargados en Ejecuciones → Lanzar (se pueden cambiar)',
-    en: 'prefilled in Executions → Launch (can be changed)',
-  },
-  f6_inventory_launch_with: { es: 'Para correrlo como la entrega: inicio', en: 'To run it as delivered: start' },
 
   // Editor de sección: bloques plegables y tablas especie | valor (F8)
   f6_section_params: { es: 'Parámetros generales', en: 'General parameters' },

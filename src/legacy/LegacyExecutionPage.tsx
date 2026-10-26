@@ -2,9 +2,10 @@
  * Una ejecución de la versión anterior, de solo lectura, con las pantallas de antes.
  *
  * El estático (preconcentración, proceso completo) usa la página de resultados de
- * antes tal cual; el dinámico, la vista de resultados del panel dinámico de antes (o
- * la del modo con inventario) y la vista de cadena cuando la etapa se alimentó de otra.
- * Todo lee `GET /legacy-executions/{id}` vía `./api`.
+ * antes tal cual; el dinámico, la vista de resultados del panel dinámico de antes y la
+ * vista de cadena cuando la etapa se alimentó de otra. Las corridas del modo con
+ * inventario de antes también se ven con la vista del dinámico, que oculta las
+ * pestañas para las que no trae datos. Todo lee `GET /legacy-executions/{id}` vía `./api`.
  */
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -13,11 +14,10 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { RunStatusBadge, formatDateTime } from '../f6/common';
 import { getLegacyExecution, listExecutionFiles } from './api';
 import type { LegacyExecutionDetail } from './apiTypes';
-import type { DynamicResults, ExecutionFile, InventarioResultsWithPartial } from './types';
+import type { DynamicResults, ExecutionFile } from './types';
 import { LegacyBanner, isLegacyDynamic, legacyTypeLabel } from './labels';
 import ExecutionResultsPage from './pages/ExecutionResultsPage';
 import DynamicResultsView from './components/DynamicResultsView';
-import InventarioResultsView from './components/InventarioResultsView';
 import DynamicChainView from './components/DynamicChainView';
 import ExecutionFilesTable from './components/common/ExecutionFilesTable';
 
@@ -34,8 +34,6 @@ function DynamicBody({ exec, files }: { exec: LegacyExecutionDetail; files: Exec
       </div>
     );
   }
-  // Las corridas del modo con inventario eran cascadas con `inventario_config`.
-  const inventario = snapshot != null && snapshot.inventario_config != null;
   return (
     <div>
       {exec.source_execution_id && exec.status === 'completed' && (
@@ -50,14 +48,8 @@ function DynamicBody({ exec, files }: { exec: LegacyExecutionDetail; files: Exec
         <DynamicChainView rootExecutionId={exec.id} onClose={() => setChain(false)} />
       ) : (
         <div className="card p-4">
-          {inventario ? (
-            <InventarioResultsView executionId={exec.id}
-                                   results={results as unknown as InventarioResultsWithPartial}
-                                   files={files} snapshot={snapshot} />
-          ) : (
-            <DynamicResultsView executionId={exec.id} results={results} files={files}
-                                snapshot={snapshot} />
-          )}
+          <DynamicResultsView executionId={exec.id} results={results} files={files}
+                              snapshot={snapshot} />
         </div>
       )}
     </div>
