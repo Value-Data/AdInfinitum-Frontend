@@ -1,9 +1,9 @@
 # STATE.md — AdInfinitum Frontend
 
 <!-- GENERADO por scripts/cartograph.py. No editar a mano: regenerar. -->
-Generado: 2026-10-25 23:25 · rama `f9-cambios-finales` @ `9f18124`
+Generado: 2026-10-26 03:53 · rama `f9-cambios-finales` @ `d774f60`
 
-**10 rutas en App.tsx · 66 archivos de componente (f6 20, legacy 27, pages 4, components 11, layouts 1, context 2, i18n 1) · 13 hooks · 43 llamadas a endpoints en 3 servicios · 58 operaciones en openapi.json · 37 archivos de test · 103 archivos .ts/.tsx en src**
+**10 rutas en App.tsx · 66 archivos de componente (f6 20, legacy 27, pages 4, components 11, layouts 1, context 2, i18n 1) · 13 hooks · 43 llamadas a endpoints en 3 servicios · 58 operaciones en openapi.json · 43 archivos de test · 103 archivos .ts/.tsx en src**
 
 ## Rutas (src/App.tsx)
 | Path | Elemento |
@@ -26,23 +26,23 @@ Generado: 2026-10-25 23:25 · rama `f9-cambios-finales` @ `9f18124`
 | `src/f6/ChainDailyCharts.tsx` | ChainDailyCharts | 34 |
 | `src/f6/chartPanel.tsx` | Panel, Toggle, SmoothContext | 71 |
 | `src/f6/Charts.tsx` | PRINT_SERIES_SPECIES, DailyCharts, ReportCharts | 554 |
-| `src/f6/common.tsx` | RunStatusBadge, PartialRunBanner | 92 |
+| `src/f6/common.tsx` | RunStatusBadge, StaleHeartbeatBadge, StaleHeartbeatBanner, PartialRunBanner | 205 |
 | `src/f6/CompareExecutions.tsx` | MAX_COMPARE, CompareExecutions | 274 |
-| `src/f6/ConfigPanel.tsx` | IssueList, InventoryBadge, ConfigPanel | 242 |
+| `src/f6/ConfigPanel.tsx` | IssueList, InventoryBadge, ExcelPanel, ConfigPanel | 264 |
 | `src/f6/EChart.tsx` | ChartPrintContext, EChart | 54 |
-| `src/f6/ExecutionPage.tsx` | ExecutionPage | 452 |
-| `src/f6/InputParameters.tsx` | InputParameters | 184 |
+| `src/f6/ExecutionPage.tsx` | ExecutionPage | 460 |
+| `src/f6/InputParameters.tsx` | InputParameters | 187 |
 | `src/f6/labels.tsx` | — | 63 |
-| `src/f6/LaunchPanel.tsx` | LaunchPanel | 247 |
+| `src/f6/LaunchPanel.tsx` | LaunchPanel | 279 |
 | `src/f6/paging.tsx` | PAGE_SIZE, Pager | 25 |
 | `src/f6/PdfPreview.tsx` | PdfPreview | 52 |
 | `src/f6/PrintReportPage.tsx` | PrintReportPage | 177 |
 | `src/f6/ProCharts.tsx` | LiSankeyPanel, PondHeatmap | 102 |
 | `src/f6/ProjectEditModal.tsx` | ProjectEditModal, ClientInput | 97 |
-| `src/f6/ProjectPage.tsx` | ProjectPage | 206 |
-| `src/f6/ReportView.tsx` | TOTAL_ROW_IDS, PRINT_COLUMNS, PrintTablesContext, ReportTableView, KPI_FIRST, KpiCards, RecoveryBars, ReportView | 457 |
+| `src/f6/ProjectPage.tsx` | ProjectPage | 204 |
+| `src/f6/ReportView.tsx` | TOTAL_ROW_IDS, PRINT_COLUMNS, PrintTablesContext, ReportTableView, KPI_FIRST, KpiCards, RecoveryBars, ReportView | 456 |
 | `src/f6/ReportWarnings.tsx` | ReportWarnings | 42 |
-| `src/f6/SectionEditorPage.tsx` | TableEditor, KeyValueEditor, InitialStatesEditor, SectionEditorPage | 1111 |
+| `src/f6/SectionEditorPage.tsx` | TableEditor, KeyValueEditor, InitialStatesEditor, ReagentsEditor, SectionEditorPage | 1417 |
 
 ### src/legacy (27)
 | Archivo | Exporta | Líneas |
@@ -55,7 +55,7 @@ Generado: 2026-10-25 23:25 · rama `f9-cambios-finales` @ `9f18124`
 | `src/legacy/components/DynamicChainView.tsx` | DynamicChainView | 258 |
 | `src/legacy/components/DynamicReportDocument.tsx` | DynamicReportDocument | 324 |
 | `src/legacy/components/DynamicReportModal.tsx` | DynamicReportModal | 214 |
-| `src/legacy/components/DynamicResultsView.tsx` | KpiCards, Tabla1, Tabla2, Tabla3, TablaCompacta, ChartsEncalado, DynamicResultsView | 980 |
+| `src/legacy/components/DynamicResultsView.tsx` | KpiCards, Tabla1, Tabla2, Tabla3, TablaCompacta, ChartsEncalado, DynamicResultsView | 1000 |
 | `src/legacy/components/EncaladoConfigForm.tsx` | EncaladoConfigForm | 193 |
 | `src/legacy/components/EncaladoResultPanel.tsx` | EncaladoResultPanel | 517 |
 | `src/legacy/components/GlobalBalanceTable.tsx` | GlobalBalanceTable | 394 |
@@ -186,7 +186,7 @@ Generado: 2026-10-25 23:25 · rama `f9-cambios-finales` @ `9f18124`
 
 ## Tests (__tests__/)
 - `components/`: 8
-- `f6/`: 20
+- `f6/`: 26
 - `hooks/`: 1
 - `legacy/`: 7
 - `utils/`: 1
@@ -195,19 +195,19 @@ Generado: 2026-10-25 23:25 · rama `f9-cambios-finales` @ `9f18124`
 | Patrón | Ocurrencias | Archivos |
 |---|---|---|
 | `isAdmin` | 31 | 8 |
-| `style={{` | 395 | 56 |
-| `hex sueltos (fuera de tokens.css)` | 163 | 32 |
+| `style={{` | 405 | 56 |
+| `hex sueltos (fuera de tokens.css)` | 159 | 31 |
 | `error tragado .catch(() => setX([]|null))` | 4 | 3 |
 | `window.confirm` | 1 | 1 |
 | `gauge` | 0 | 0 |
 | `: any / as any` | 0 | 0 |
 
 ## Archivos más grandes
-- `src/types/api.d.ts` — 4247 líneas
+- `src/types/api.d.ts` — 4325 líneas
+- `src/f6/SectionEditorPage.tsx` — 1417 líneas
 - `src/legacy/pages/ExecutionResultsPage.tsx` — 1306 líneas
-- `src/f6/SectionEditorPage.tsx` — 1111 líneas
 - `src/i18n/translations.ts` — 1031 líneas
-- `src/legacy/components/DynamicResultsView.tsx` — 980 líneas
+- `src/legacy/components/DynamicResultsView.tsx` — 1000 líneas
 - `src/legacy/utils/exportExecutionExcel.ts` — 926 líneas
 - `src/types/index.ts` — 713 líneas
 - `src/legacy/types.ts` — 703 líneas
