@@ -10,6 +10,7 @@ export default {
         danger: 'var(--color-danger)',
         success: 'var(--color-success)',
         warning: 'var(--color-warning)',
+        'warning-text': 'var(--color-warning-text)',
         surface: 'var(--color-surface)',
         'app-bg': 'var(--color-bg)',
         'text-main': 'var(--color-text)',

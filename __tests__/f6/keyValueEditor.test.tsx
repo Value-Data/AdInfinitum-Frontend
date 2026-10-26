@@ -101,7 +101,8 @@ describe('factores de precipitación: fase | valor', () => {
                              neutral={1} keyKind="phase" defaultOpen={false} issues={[issue]}
                              onChange={() => undefined} />);
     expect(bloque.open).toBe(true);
-    expect(screen.getByTestId('kv-summary').textContent).toContain('1 observación');
+    // Cambios finales: errores y avisos se cuentan por separado (antes "1 observación").
+    expect(screen.getByTestId('kv-summary').textContent).toContain('1 error');
     expect(within(bloque).getByText('Factor negativo')).toBeTruthy();
   });
 });

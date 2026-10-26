@@ -429,4 +429,32 @@ export const F6_TRANSLATIONS = {
     es: 'El trabajador no ha registrado ningún latido.',
     en: 'The worker has not recorded any heartbeat.',
   },
+
+  // Editor de sección: avisos, valores por defecto, reactivos y lavado (cambios finales, puntos 8, 9, 21, 22)
+  f9_error_one: { es: 'error', en: 'error' },
+  f9_error_many: { es: 'errores', en: 'errors' },
+  f9_default: { es: 'por defecto', en: 'default' },
+  f9_default_is: { es: 'Valor por defecto: {value}', en: 'Default value: {value}' },
+  f9_default_if_empty: {
+    es: 'Vacío: se usa el valor por defecto ({value})',
+    en: 'Empty: the default value ({value}) is used',
+  },
+  f9_purity: { es: 'Pureza', en: 'Purity' },
+  f9_purity_computed: { es: 'calculada: 1 − Σ impurezas', en: 'computed: 1 − Σ impurities' },
+  f9_purity_overflow: {
+    es: 'Las impurezas suman 100 % o más: la pureza tiene que quedar sobre 0.',
+    en: 'Impurities add up to 100 % or more: purity must stay above 0.',
+  },
+  f9_inerts_label: { es: 'Inertes / otros', en: 'Inerts / other' },
+  f9_inerts_add: { es: 'Agregar «Inertes / otros»', en: 'Add «Inerts / other»' },
+  f9_inerts_hint: {
+    es: 'Lo no identificado del reactivo: solo va a la torta.',
+    en: 'The unidentified part of the reagent: it only goes to the cake.',
+  },
+  f9_no_impurities: { es: 'Sin impurezas (pureza 100 %).', en: 'No impurities (purity 100 %).' },
+  f9_wash_default: { es: 'Agua 100 % (valor por defecto)', en: 'Water 100 % (default value)' },
+  f9_wash_use_default: { es: 'Usar el valor por defecto', en: 'Use the default value' },
+  f9_pond_params_mode: { es: 'Parámetros de pozas', en: 'Pond parameters' },
+  f9_pond_params_fixed: { es: 'Fijos', en: 'Fixed' },
+  f9_pond_params_by_date: { es: 'Por fecha (hoja «Cambios de pozas»)', en: 'By date («Pond changes» sheet)' },
 } as const;

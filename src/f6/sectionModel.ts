@@ -155,8 +155,143 @@ export function addDays(iso: string, n: number): string {
 }
 
 /** Problemas de validación de un campo (y fila, 1-based) de la sección. */
-export function issuesAt(issues: ValidationIssue[], field: string, row?: number): ValidationIssue[] {
+export function issuesAt<T extends ValidationIssue>(issues: T[], field: string, row?: number): T[] {
   return issues.filter((i) => i.field === field && (row === undefined || i.row == null || i.row === row));
+}
+
+// ---------------------------------------------------------------------------
+// Errores y avisos
+// ---------------------------------------------------------------------------
+/**
+ * Un problema del informe de validación con su gravedad. El informe trae dos listas
+ * (`errors` y `warnings`) y el editor las junta para ubicar cada problema en su campo y
+ * fila; la gravedad dice cómo se pinta: un error en rojo (no se guarda), un aviso en ámbar
+ * (se guarda igual: p. ej. `default_applied`). Sin gravedad, se toma como error.
+ */
+export type Severity = 'error' | 'warning';
+export type EditorIssue = ValidationIssue & { severity?: Severity };
+
+export function tagIssues(report: { errors?: ValidationIssue[]; warnings?: ValidationIssue[] } | null | undefined): EditorIssue[] {
+  return [
+    ...(report?.errors ?? []).map((i): EditorIssue => ({ ...i, severity: 'error' })),
+    ...(report?.warnings ?? []).map((i): EditorIssue => ({ ...i, severity: 'warning' })),
+  ];
+}
+
+export function isWarning(i: EditorIssue): boolean {
+  return i.severity === 'warning';
+}
+
+export function splitIssues<T extends EditorIssue>(issues: T[]): { errors: T[]; warnings: T[] } {
+  return { errors: issues.filter((i) => !isWarning(i)), warnings: issues.filter(isWarning) };
+}
+
+/** Los mensajes juntos para la ayuda de una celda; undefined si no hay. */
+export function joinMessages(issues: ValidationIssue[]): string | undefined {
+  return issues.map((p) => p.message).join(' · ') || undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Valores por defecto documentados (cambios finales, punto 21)
+// ---------------------------------------------------------------------------
+/**
+ * El valor por defecto de un campo con su tipo, o undefined si no tiene. El diccionario
+ * lo trae como texto ('15.0', '0.01', 'true', 'fixed'): se lee con el tipo del campo.
+ */
+export function defaultOf(e: DictionaryEntry): unknown {
+  const d = e.default_value;
+  if (d === null || d === undefined || d.trim() === '' || !isScalar(e)) return undefined;
+  if (e.data_type === 'boolean') {
+    const s = d.trim().toLowerCase();
+    return s === 'true' ? true : s === 'false' ? false : undefined;
+  }
+  const v = coerce(e, d);
+  return v === null ? undefined : v;
+}
+
+/** Un default que es "nada" (0, falso, texto vacío): vacío ya significa eso. Es la misma
+ * regla del backend para no avisar (`section_defaults.is_nothing`). */
+export function isNothing(v: unknown): boolean {
+  return v === undefined || v === null || v === false || v === '' || v === 0;
+}
+
+/** El valor es el por defecto documentado del campo (y ese default dice algo). */
+export function isDefaultValue(e: DictionaryEntry, value: unknown): boolean {
+  const d = defaultOf(e);
+  return !isNothing(d) && value === d;
+}
+
+/** El campo está vacío y tiene un default documentado: el backend lo aplica con aviso. */
+export function takesDefaultWhenEmpty(e: DictionaryEntry, value: unknown): boolean {
+  return (value === null || value === undefined || value === '') && !isNothing(defaultOf(e));
+}
+
+// ---------------------------------------------------------------------------
+// Fichas de reactivos (cambios finales, punto 8)
+// ---------------------------------------------------------------------------
+/** La línea de lo no identificado de un reactivo ("Inertes / otros"): solo va a la torta. */
+export const INERTS = 'inertes';
+
+export function isInerts(species: unknown): boolean {
+  return typeof species === 'string' && species.trim().toLowerCase() === INERTS;
+}
+
+/** Suma de las fracciones de las impurezas de una ficha. */
+export function impuritiesSum(impurities: Record<string, unknown>[] | null | undefined): number {
+  return (impurities ?? []).reduce((a, i) => a + (typeof i?.frac === 'number' ? i.frac : 0), 0);
+}
+
+/** Pureza de un reactivo: 1 − Σ impurezas (sin impurezas, 1). La misma cuenta que el
+ * backend; solo se muestra, no se manda. */
+export function computedPurity(impurities: Record<string, unknown>[] | null | undefined): number {
+  return 1 - impuritiesSum(impurities);
+}
+
+/**
+ * Las fichas como se mandan: sin `purity_frac` (la calcula el backend; una pureza vieja
+ * que quedara en el formulario después de borrar una impureza le agregaría inertes) y con
+ * la línea de inertes siempre a la torta, como se ve en pantalla.
+ */
+export function reagentsForSave(reagents: unknown): unknown {
+  if (!reagents || typeof reagents !== 'object' || Array.isArray(reagents)) return reagents;
+  return Object.fromEntries(Object.entries(reagents as Record<string, unknown>).map(([r, ficha]) => {
+    if (!ficha || typeof ficha !== 'object') return [r, ficha];
+    const { purity_frac: _p, ...resto } = ficha as Record<string, unknown>;
+    const imps = resto.impurities;
+    if (Array.isArray(imps)) {
+      resto.impurities = imps.map((i) => (i && typeof i === 'object' && isInerts((i as Row).species)
+        ? { ...(i as Row), destination: 'cake' } : i));
+    }
+    return [r, resto];
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Medio de lavado de la torta (cambios finales, punto 22)
+// ---------------------------------------------------------------------------
+/** Una composición sin ninguna especie con valor (vacía, o todo en 0). */
+export function isEmptyComposition(comp: unknown): boolean {
+  if (!comp || typeof comp !== 'object') return true;
+  return !Object.values(comp as Record<string, unknown>).some((v) => typeof v === 'number' && v !== 0);
+}
+
+/** El medio de lavado es el por defecto: agua 100 %. */
+export function isWaterOnly(comp: unknown): boolean {
+  if (isEmptyComposition(comp)) return false;
+  const con = Object.entries(comp as Record<string, unknown>).filter(([, v]) => typeof v === 'number' && v !== 0);
+  return con.length === 1 && con[0][0] === 'H2O' && Math.abs((con[0][1] as number) - 100) <= PCT_TOLERANCE;
+}
+
+/** La planta como se manda: fichas sin pureza y el medio de lavado vacío como `null`
+ * (el backend usa agua 100 % y avisa; `{}` sería un error). */
+function plantForSave(plant: unknown): unknown {
+  if (!plant || typeof plant !== 'object' || Array.isArray(plant)) return plant;
+  const out: Row = { ...(plant as Row) };
+  if ('reagents' in out) out.reagents = reagentsForSave(out.reagents);
+  if ('cake_wash_medium_pct' in out && isEmptyComposition(out.cake_wash_medium_pct)) {
+    out.cake_wash_medium_pct = null;
+  }
+  return out;
 }
 
 /**
@@ -191,6 +326,9 @@ export function cleanPayload(payload: Record<string, unknown>, schema?: SectionS
     out.initial_states = initialStatesForSave(out.initial_states as Record<string, unknown>[],
       (out.ponds as Record<string, unknown>[] | undefined) ?? [], bufferCondition(schema));
   }
+  if ('plant' in out) out.plant = plantForSave(out.plant);
+  // Un campo vaciado queda en `null` y se manda así: con un default documentado el
+  // backend lo aplica y avisa (`default_applied`); no se borra ni se omite.
   return out;
 }
 

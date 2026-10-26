@@ -835,6 +835,8 @@ export interface paths {
         /**
          * Get Template
          * @description Plantilla vacía para una versión de AQSOL (sin proyecto).
+         *
+         *     `pond_params_mode`: la hoja "Cambios de pozas" va solo con `by_date`.
          */
         get: operations["get_template_api_v1_excel_templates__process__get"];
         put?: never;
@@ -855,6 +857,8 @@ export interface paths {
         /**
          * Get Project Template
          * @description Plantilla vacía con las especies y fases de la versión de AQSOL del proyecto.
+         *
+         *     `pond_params_mode`: la hoja "Cambios de pozas" va solo con `by_date`.
          */
         get: operations["get_project_template_api_v1_projects__project_id__excel_template__process__get"];
         put?: never;
@@ -1171,6 +1175,13 @@ export interface components {
             visible_if?: string | null;
             /** Section Kinds */
             section_kinds?: string[];
+            /** Note */
+            note?: string | null;
+            /**
+             * Read Only
+             * @default false
+             */
+            read_only: boolean;
         };
         /** DictionarySyncResponse */
         DictionarySyncResponse: {
@@ -1299,7 +1310,7 @@ export interface components {
             selected_days?: number[] | null;
             /**
              * Source Execution Id
-             * @description Required for modelo_dinamico_encalado and _postliming: id of the previous execution (cascade for encalado, encalado for postliming) whose feed CSV is used.
+             * @description Required for modelo_dinamico_encalado and _postliming: id of the previous execution (cascade for encalado, encalado for postliming) whose feed CSV is used. F4 (static_liming/_postliming, dynamic_liming/_postliming): only when the section's feed_source is 'execution'; a section fed with data takes none.
              */
             source_execution_id?: string | null;
             /**
@@ -1319,12 +1330,12 @@ export interface components {
             aqsol_version?: ("027" | "066") | null;
             /**
              * Start Date
-             * @description Fecha del día 1 de la corrida (dynamic_precon).
+             * @description Fecha del día 1 de la corrida: obligatoria en dynamic_precon y en dynamic_liming / dynamic_postliming alimentadas con los datos de su sección (feed_source = data), salvo en una continuación. Una etapa alimentada por una ejecución sigue las fechas de su origen y no la lleva.
              */
             start_date?: string | null;
             /**
              * N Days
-             * @description Días a simular (dynamic_precon; opcional en dynamic_postliming, hasta los de su origen).
+             * @description Días a simular: obligatorio en dynamic_precon y en dynamic_liming / dynamic_postliming alimentadas con datos; opcional en dynamic_postliming alimentado por una ejecución (hasta los de su origen); la planta alimentada por una ejecución no lo lleva.
              */
             n_days?: number | null;
             /**
@@ -1829,7 +1840,7 @@ export interface components {
             feed_source: "data" | "execution";
             plant: components["schemas"]["LimingPlant"];
             /** Scenarios */
-            scenarios?: components["schemas"]["Scenario"][];
+            scenarios?: components["schemas"]["PlantScenario"][];
         };
         /**
          * LoginRequest
@@ -1840,6 +1851,31 @@ export interface components {
             username: string;
             /** Password */
             password: string;
+        };
+        /**
+         * PlantScenario
+         * @description Un escenario de la planta del estático alimentada con datos.
+         *
+         *     La planta calcula a su temperatura fija (`plant.plant_temperature_C`): el clima del
+         *     escenario no lo usa. Es opcional (punto 11) y solo sirve para una concentración
+         *     lanzada después desde esta planta, que hereda los escenarios; si falta, esa
+         *     concentración no se puede lanzar (`execution_v2.validate_launch`).
+         */
+        PlantScenario: {
+            /** Label */
+            label: string;
+            /** Temperature C */
+            temperature_C?: number | null;
+            /** Evaporation Mm D */
+            evaporation_mm_d?: number | null;
+            /** Brine Flow T D */
+            brine_flow_t_d: number;
+            /** Feed Density Kg M3 */
+            feed_density_kg_m3?: number | null;
+            /** Composition Pct */
+            composition_pct?: {
+                [key: string]: number;
+            } | null;
         };
         /**
          * PondParamChange
@@ -2070,15 +2106,17 @@ export interface components {
         };
         /**
          * ReagentSpec
-         * @description Ficha de un reactivo: pureza de su forma comercial e impurezas. Lo que no es
-         *     reactivo ni impureza declarada va a la torta.
+         * @description Ficha de un reactivo: sus impurezas y la pureza que dejan (punto 8).
+         *
+         *     La pureza se calcula: 1 − Σ impurezas (sin impurezas, 1). Lo no identificado va en
+         *     la línea `inertes` (a la torta). `purity_frac` en los datos que llegan solo sirve
+         *     para traer fichas de antes, que la escribían a mano: si no cierra con las impurezas,
+         *     la diferencia se agrega como `inertes` (`_migrate_purity`), que da el mismo
+         *     resultado. Después siempre vale 1 − Σ.
          */
         ReagentSpec: {
-            /**
-             * Purity Frac
-             * @default 1
-             */
-            purity_frac: number;
+            /** Purity Frac */
+            readonly purity_frac?: number | null;
             /** Impurities */
             impurities?: components["schemas"]["Impurity"][];
         };
@@ -2135,7 +2173,11 @@ export interface components {
         };
         /**
          * Scenario
-         * @description Un escenario del estático. Los escenarios son independientes entre sí.
+         * @description Un escenario del estático de una cascada de pozas (precon y concentración). Los
+         *     escenarios son independientes entre sí.
+         *
+         *     Sin densidad de la alimentación (cambios finales, punto 10): la precon la calcula
+         *     con AQSOL y la concentración no la usa. Solo la planta la lee (`PlantScenario`).
          */
         Scenario: {
             /** Label */
@@ -2146,8 +2188,6 @@ export interface components {
             evaporation_mm_d: number;
             /** Brine Flow T D */
             brine_flow_t_d: number;
-            /** Feed Density Kg M3 */
-            feed_density_kg_m3?: number | null;
             /** Composition Pct */
             composition_pct?: {
                 [key: string]: number;
@@ -3970,6 +4010,7 @@ export interface operations {
                 engine_kind?: "static" | "dynamic";
                 feed_source?: ("data" | "execution") | null;
                 composition_mode?: "fixed" | "per_row";
+                pond_params_mode?: "fixed" | "by_date";
                 language?: "es" | "en";
             };
             header?: never;
@@ -4006,6 +4047,7 @@ export interface operations {
                 engine_kind?: "static" | "dynamic";
                 feed_source?: ("data" | "execution") | null;
                 composition_mode?: "fixed" | "per_row";
+                pond_params_mode?: "fixed" | "by_date";
                 language?: "es" | "en";
             };
             header?: never;

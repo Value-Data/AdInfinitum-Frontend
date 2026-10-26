@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   apiError, EXECUTION_TYPES_V2, getSection, isDynamicType, launchExecution, SOURCE_OF,
-  type ExecutionSummary, type ExecutionTypeV2, type LaunchRequest, type SectionState,
+  type ApiError, type ExecutionSummary, type ExecutionTypeV2, type LaunchRequest, type SectionState,
 } from '../services/apiV2';
 import { useT } from '../i18n/LanguageContext';
 import { executionTypeLabel, formatDateTime } from './common';
@@ -33,14 +33,47 @@ export function continuationCandidates(tipo: ExecutionTypeV2, ejecuciones: Execu
     && e.upload_status === 'uploaded');
 }
 
+/** La sección de la que una etapa encadenable toma su alimentación (planta o concentración). */
+function feedSourceOf(tipo: ExecutionTypeV2, secciones: SectionState[]): SectionState['feed_source'] | undefined {
+  const m = tipo.match(/^(static|dynamic)_(liming|postliming)$/);
+  if (!m) return undefined;
+  return secciones.find((s) => s.kind === `${m[2]}_${m[1]}`)?.feed_source;
+}
+
+/**
+ * La planta o la concentración del dinámico alimentadas con los datos de su sección
+ * (punto 7): no llevan origen y tienen sus propias fechas, como la precon.
+ */
+export function dynamicFromData(tipo: ExecutionTypeV2, secciones: SectionState[]): boolean {
+  return (tipo === 'dynamic_liming' || tipo === 'dynamic_postliming') && feedSourceOf(tipo, secciones) === 'data';
+}
+
 /** Si el tipo se alimenta de una ejecución anterior, según la sección guardada. */
 export function needsSource(tipo: ExecutionTypeV2, secciones: SectionState[]): boolean {
-  if (tipo === 'dynamic_liming' || tipo === 'dynamic_postliming') return true;
+  // Del dinámico, sin sección guardada (o sin decir de dónde) se pide el origen, como siempre.
+  if (tipo === 'dynamic_liming' || tipo === 'dynamic_postliming') return !dynamicFromData(tipo, secciones);
   if (tipo === 'static_liming' || tipo === 'static_postliming') {
-    const kind = `${tipo.replace('static_', '')}_static`;
-    return secciones.find((s) => s.kind === kind)?.feed_source === 'execution';
+    return feedSourceOf(tipo, secciones) === 'execution';
   }
   return false;
+}
+
+/** Si la corrida lleva su fecha de inicio (la precon y las etapas con datos, salvo una continuación). */
+export function takesStartDate(tipo: ExecutionTypeV2, continuar: string, secciones: SectionState[]): boolean {
+  return !continuar && (tipo === 'dynamic_precon' || dynamicFromData(tipo, secciones));
+}
+
+/** Si la corrida lleva sus días: obligatorios en la precon y con datos; opcionales en la
+ * concentración alimentada por una ejecución (hasta los de su origen). */
+export function takesNDays(tipo: ExecutionTypeV2, secciones: SectionState[]): 'required' | 'optional' | null {
+  if (tipo === 'dynamic_precon' || dynamicFromData(tipo, secciones)) return 'required';
+  return tipo === 'dynamic_postliming' ? 'optional' : null;
+}
+
+/** El mensaje de un error al lanzar, con su código y el campo si lo trae (`horizon`: la serie que no alcanza). */
+export function launchErrorText(e: ApiError): string {
+  const campo = typeof e.extra.field === 'string' && !e.message.includes(e.extra.field) ? ` · ${e.extra.field}` : '';
+  return e.code ? `${e.message}${campo} (${e.code})` : `${e.message}${campo}`;
 }
 
 /**
@@ -65,10 +98,8 @@ export function buildLaunchRequest(f: {
     req.initial_state_execution_id = f.continuar;
     req.initial_state_day = Number(f.dia);
   }
-  if (f.tipo === 'dynamic_precon' && !f.continuar && f.inicio) req.start_date = f.inicio;
-  if ((f.tipo === 'dynamic_precon' || f.tipo === 'dynamic_postliming') && f.dias) {
-    req.n_days = Number(f.dias);
-  }
+  if (takesStartDate(f.tipo, f.continuar, secciones) && f.inicio) req.start_date = f.inicio;
+  if (takesNDays(f.tipo, secciones) && f.dias) req.n_days = Number(f.dias);
   if (f.escenarios && f.escenarios.length) req.selected_scenarios = [...f.escenarios].sort((a, b) => a - b);
   if (isDynamicType(f.tipo)) {
     req.temperature_retry = f.reintento;
@@ -112,6 +143,8 @@ export default function LaunchPanel({
   const continuaciones = useMemo(() => continuationCandidates(tipo, executions), [tipo, executions]);
   const elegidaContinuacion = continuaciones.find((e) => e.id === continuar);
   const pideOrigen = needsSource(tipo, sections);
+  const pideInicio = takesStartDate(tipo, continuar, sections);
+  const pideDias = takesNDays(tipo, sections);
   const dinamico = isDynamicType(tipo);
   const conInventario = inventoryPonds(tipo, continuar, sections);
 
@@ -132,8 +165,7 @@ export default function LaunchPanel({
         { tipo, runTag, source, continuar, dia, inicio, dias, reintento, timeout, escenarios: elegidos }, sections));
       onLaunched(e);
     } catch (err) {
-      const e = apiError(err);
-      setError(e.code ? `${e.message} (${e.code})` : e.message);
+      setError(launchErrorText(apiError(err)));
     } finally {
       setEnviando(false);
     }
@@ -191,16 +223,16 @@ export default function LaunchPanel({
                    value={dia} onChange={(e) => setDia(e.target.value)} />
           </label>
         )}
-        {tipo === 'dynamic_precon' && !continuar && (
+        {pideInicio && (
           <label className="text-sm">
             <span className="label">{t('f6_start_date')}</span>
             <input type="date" className="input" value={inicio} data-testid="launch-start"
                    onChange={(e) => setInicio(e.target.value)} />
           </label>
         )}
-        {(tipo === 'dynamic_precon' || tipo === 'dynamic_postliming') && (
+        {pideDias && (
           <label className="text-sm">
-            <span className="label">{t('f6_n_days')}{tipo === 'dynamic_postliming' ? ` (${t('f6_optional')})` : ''}</span>
+            <span className="label">{t('f6_n_days')}{pideDias === 'optional' ? ` (${t('f6_optional')})` : ''}</span>
             <input type="number" className="input" min={1} value={dias} data-testid="launch-days"
                    onChange={(e) => setDias(e.target.value)} />
           </label>
@@ -235,7 +267,7 @@ export default function LaunchPanel({
           <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_scenarios_all_hint')}</span>
         </div>
       )}
-      {error && <p className="text-sm mt-3" style={{ color: '#b91c1c' }} data-testid="launch-error">{error}</p>}
+      {error && <p className="text-sm mt-3" style={{ color: 'var(--color-danger-text)' }} data-testid="launch-error">{error}</p>}
       <div className="flex justify-end mt-3">
         <button className="btn btn-primary" onClick={lanzar} disabled={enviando}>
           {t('f6_launch')}

@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import {
   apiError, downloadTemplate, exportConfiguration, getReportParams, importConfiguration,
   saveBlob, updateReportParams,
-  type EngineKind, type ExcelImportResult,
+  type EngineKind, type ExcelImportResult, type PondParamsMode,
   type Process, type ReportParams, type SectionKind, type SectionState, type ValidationIssue,
 } from '../services/apiV2';
 import { useLanguage, useT } from '../i18n/LanguageContext';
@@ -21,12 +21,19 @@ const ETAPAS = ['precon', 'liming', 'postliming'] as const;
 export function IssueList({ issues = [], kind }: {
   issues?: ValidationIssue[]; kind: 'error' | 'warning';
 }) {
+  const t = useT();
   if (issues.length === 0) return null;
   // El backend redacta el mensaje con la etiqueta del campo y la fila, en el idioma pedido.
+  // Un aviso no impide guardar: va en ámbar y con su palabra (no solo el color).
+  const aviso = kind === 'warning';
   return (
-    <ul className="text-sm list-disc pl-5" style={{ color: kind === 'error' ? '#b91c1c' : '#92400e' }}>
+    <ul className="text-sm list-disc pl-5" data-kind={kind}
+        style={{ color: aviso ? 'var(--color-warning-text)' : 'var(--color-danger-text)' }}>
       {issues.map((i, n) => (
-        <li key={`${i.field}-${i.row}-${n}`} title={i.field}>{i.message}</li>
+        <li key={`${i.field}-${i.row}-${n}`} title={i.field} data-code={i.code}>
+          {aviso && <span className="font-semibold">{t('f9_warning')}: </span>}
+          {i.message}
+        </li>
       ))}
     </ul>
   );
@@ -82,7 +89,7 @@ function SectionCards({ projectId, sections, engine }: {
   );
 }
 
-function ExcelPanel({ projectId, engine, onSaved }: {
+export function ExcelPanel({ projectId, engine, onSaved }: {
   projectId: string; engine: EngineKind; onSaved: () => void;
 }) {
   const t = useT();
@@ -90,6 +97,9 @@ function ExcelPanel({ projectId, engine, onSaved }: {
   const [process, setProcess] = useState<Process>('full');
   const [feed, setFeed] = useState<'data' | 'execution'>('execution');
   const [modo, setModo] = useState<'fixed' | 'per_row'>('fixed');
+  // Punto 25: las cascadas del dinámico bajan la hoja "Cambios de pozas" solo con `by_date`.
+  const [modoPozas, setModoPozas] = useState<PondParamsMode>('fixed');
+  const conPozasDinamicas = engine === 'dynamic' && process !== 'liming';
   const [archivo, setArchivo] = useState<File | null>(null);
   const [revision, setRevision] = useState<ExcelImportResult | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -103,8 +113,10 @@ function ExcelPanel({ projectId, engine, onSaved }: {
   };
 
   const plantilla = () => correr(async () => {
-    const b = await downloadTemplate(projectId, process, engine, lang,
-      { feed_source: feed, composition_mode: modo });
+    const b = await downloadTemplate(projectId, process, engine, lang, {
+      feed_source: feed, composition_mode: modo,
+      ...(conPozasDinamicas ? { pond_params_mode: modoPozas } : {}),
+    });
     saveBlob(b, `plantilla_${process}_${engine}_${lang}.xlsx`);
   });
   const exportar = () => correr(async () => {
@@ -147,6 +159,16 @@ function ExcelPanel({ projectId, engine, onSaved }: {
             <option value="per_row">{engine === 'static' ? t('f6_composition_per_scenario') : t('f6_composition_per_day')}</option>
           </select>
         </label>
+        {conPozasDinamicas && (
+          <label className="text-sm">
+            <span className="label">{t('f9_pond_params_mode')}</span>
+            <select className="input" value={modoPozas} data-testid="template-pond-params-mode"
+                    onChange={(e) => setModoPozas(e.target.value as PondParamsMode)}>
+              <option value="fixed">{t('f9_pond_params_fixed')}</option>
+              <option value="by_date">{t('f9_pond_params_by_date')}</option>
+            </select>
+          </label>
+        )}
         <button className="btn btn-outline" onClick={plantilla} disabled={ocupado}>{t('f6_download_template')}</button>
         <button className="btn btn-outline" onClick={exportar} disabled={ocupado}>{t('f6_export_config')}</button>
         <button className="btn btn-primary" onClick={() => input.current?.click()} disabled={ocupado}>
@@ -156,7 +178,7 @@ function ExcelPanel({ projectId, engine, onSaved }: {
                onChange={(e) => { const f = e.target.files?.[0]; if (f) revisar(f); e.target.value = ''; }} />
         {ocupado && <LoadingSpinner size="sm" />}
       </div>
-      {error && <p className="text-sm" style={{ color: '#b91c1c' }}>{error}</p>}
+      {error && <p className="text-sm" style={{ color: 'var(--color-danger-text)' }}>{error}</p>}
       {revision && (
         <div className="mt-2" data-testid="import-review">
           <p className="text-sm mb-2">

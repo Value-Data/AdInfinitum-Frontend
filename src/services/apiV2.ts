@@ -6,7 +6,7 @@
  * instancia de axios que el resto (token, renovación con /auth/refresh).
  */
 import api from './api';
-import type { components } from '../types/api';
+import type { components, operations } from '../types/api';
 import type { ChainSummary, DailySeries, LogTail, Report } from '../types/report';
 
 export type Schemas = components['schemas'];
@@ -139,6 +139,16 @@ export async function getSection(
   }
 }
 
+/** Punto de partida de una sección vacía: los valores por defecto del schema (los de la
+ * plantilla de Excel). La planta trae sus cuatro reactivos con su composición (punto 8). */
+export async function getSectionDefaults(
+  projectId: string, kind: SectionKind,
+): Promise<Record<string, unknown>> {
+  const { data } = await api.get<Record<string, unknown>>(
+    `/projects/${projectId}/sections/${kind}/defaults`);
+  return data;
+}
+
 export async function getSectionVersions(
   projectId: string, kind: SectionKind,
 ): Promise<SectionVersionSummary[]> {
@@ -207,9 +217,15 @@ async function blob(url: string, params: Record<string, unknown>): Promise<Blob>
   return data as Blob;
 }
 
+/** Parámetros de las pozas de una cascada del dinámico: fijos o por fecha (la hoja
+ * "Cambios de pozas" solo va con `by_date`; punto 25). */
+export type PondParamsMode = NonNullable<
+  NonNullable<operations['get_project_template_api_v1_projects__project_id__excel_template__process__get']['parameters']['query']>['pond_params_mode']>;
+
 export function downloadTemplate(
   projectId: string, process: Process, engineKind: EngineKind, language: Language,
-  opts: { feed_source?: 'data' | 'execution'; composition_mode?: 'fixed' | 'per_row' } = {},
+  opts: { feed_source?: 'data' | 'execution'; composition_mode?: 'fixed' | 'per_row';
+    pond_params_mode?: PondParamsMode } = {},
 ): Promise<Blob> {
   return blob(`/projects/${projectId}/excel/template/${process}`,
     { engine_kind: engineKind, language, ...opts });

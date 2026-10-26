@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildLaunchRequest, continuationCandidates, inventoryPonds, needsSource, sourceCandidates,
+  buildLaunchRequest, continuationCandidates, dynamicFromData, inventoryPonds, launchErrorText, needsSource,
+  sourceCandidates, takesNDays, takesStartDate,
 } from '../../src/f6/LaunchPanel';
 import { apiError, type ExecutionSummary, type SectionState } from '../../src/services/apiV2';
 
@@ -59,6 +60,75 @@ describe('el pedido de lanzamiento', () => {
   it('el estático no lleva parámetros del dinámico', () => {
     expect(buildLaunchRequest({ ...base, tipo: 'static_full', dias: '5' }, []))
       .toEqual({ execution_type: 'static_full', run_tag: 'r1' });
+  });
+});
+
+describe('planta y concentración del dinámico con datos cargados (punto 7)', () => {
+  const base = { runTag: 'r1', source: 'pre-ok', continuar: '', dia: '', inicio: '2024-01-23', dias: '30',
+                 reintento: false, timeout: '300' };
+  const conDatos = [
+    { kind: 'liming_dynamic', feed_source: 'data' },
+    { kind: 'postliming_dynamic', feed_source: 'data' },
+  ] as SectionState[];
+  const deEjecucion = [
+    { kind: 'liming_dynamic', feed_source: 'execution' },
+    { kind: 'postliming_dynamic', feed_source: 'execution' },
+  ] as SectionState[];
+
+  it('el origen depende del feed_source de la sección; sin sección se pide, como antes', () => {
+    expect(needsSource('dynamic_liming', conDatos)).toBe(false);
+    expect(needsSource('dynamic_postliming', conDatos)).toBe(false);
+    expect(dynamicFromData('dynamic_liming', conDatos)).toBe(true);
+    expect(needsSource('dynamic_liming', deEjecucion)).toBe(true);
+    expect(needsSource('dynamic_postliming', deEjecucion)).toBe(true);
+    expect(needsSource('dynamic_liming', [])).toBe(true);
+    expect(dynamicFromData('dynamic_liming', [])).toBe(false);
+    // La sección del estático no cuenta para el dinámico.
+    expect(needsSource('dynamic_liming', [{ kind: 'liming_static', feed_source: 'data' }] as SectionState[])).toBe(true);
+  });
+
+  it('con datos: fecha de inicio y días, sin origen (aunque haya uno elegido de antes)', () => {
+    for (const tipo of ['dynamic_liming', 'dynamic_postliming'] as const) {
+      expect(buildLaunchRequest({ ...base, tipo }, conDatos)).toEqual({
+        execution_type: tipo, run_tag: 'r1', start_date: '2024-01-23', n_days: 30,
+        temperature_retry: false, dll_timeout_s: 300 });
+    }
+    expect(takesStartDate('dynamic_liming', '', conDatos)).toBe(true);
+    expect(takesNDays('dynamic_liming', conDatos)).toBe('required');
+    expect(takesNDays('dynamic_postliming', conDatos)).toBe('required');
+  });
+
+  it('la concentración con datos que continúa otra no lleva fecha (sale del estado elegido)', () => {
+    const r = buildLaunchRequest({ ...base, tipo: 'dynamic_postliming', continuar: 'x', dia: '12' }, conDatos);
+    expect(r.start_date).toBeUndefined();
+    expect(r.source_execution_id).toBeUndefined();
+    expect([r.initial_state_execution_id, r.initial_state_day, r.n_days]).toEqual(['x', 12, 30]);
+  });
+
+  it('alimentadas por una ejecución: igual que antes', () => {
+    // La planta: origen, sin fecha ni días.
+    expect(buildLaunchRequest({ ...base, tipo: 'dynamic_liming' }, deEjecucion)).toEqual({
+      execution_type: 'dynamic_liming', run_tag: 'r1', source_execution_id: 'pre-ok',
+      temperature_retry: false, dll_timeout_s: 300 });
+    // La concentración: origen y días opcionales, sin fecha.
+    expect(buildLaunchRequest({ ...base, tipo: 'dynamic_postliming' }, deEjecucion)).toEqual({
+      execution_type: 'dynamic_postliming', run_tag: 'r1', source_execution_id: 'pre-ok', n_days: 30,
+      temperature_retry: false, dll_timeout_s: 300 });
+    expect(takesNDays('dynamic_postliming', deEjecucion)).toBe('optional');
+    expect(takesNDays('dynamic_liming', deEjecucion)).toBeNull();
+    expect(takesStartDate('dynamic_postliming', '', deEjecucion)).toBe(false);
+  });
+
+  it('el error de horizonte dice qué serie no alcanza', () => {
+    const e = apiError({ response: { status: 422, data: { detail: 'x', code: 'horizon',
+      message: 'La serie no cubre la corrida', field: 'series.brine_flow_t_d' } } });
+    expect(launchErrorText(e)).toBe('La serie no cubre la corrida · series.brine_flow_t_d (horizon)');
+    // Si el mensaje ya lo nombra, no se repite.
+    const e2 = apiError({ response: { status: 422, data: { code: 'horizon',
+      message: 'series.temperature_C: faltan días', field: 'series.temperature_C' } } });
+    expect(launchErrorText(e2)).toBe('series.temperature_C: faltan días (horizon)');
+    const e3 = apiError({ response: { status: 409, data: { code: 'source_not_allowed', message: 'no lleva origen' } } });
+    expect(launchErrorText(e3)).toBe('no lleva origen (source_not_allowed)');
   });
 });
 

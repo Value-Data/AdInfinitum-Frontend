@@ -2993,7 +2993,7 @@
           "excel"
         ],
         "summary": "Get Template",
-        "description": "Plantilla vacía para una versión de AQSOL (sin proyecto).",
+        "description": "Plantilla vacía para una versión de AQSOL (sin proyecto).\n\n`pond_params_mode`: la hoja \"Cambios de pozas\" va solo con `by_date`.",
         "operationId": "get_template_api_v1_excel_templates__process__get",
         "security": [
           {
@@ -3074,6 +3074,20 @@
             }
           },
           {
+            "name": "pond_params_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fixed",
+                "by_date"
+              ],
+              "type": "string",
+              "default": "fixed",
+              "title": "Pond Params Mode"
+            }
+          },
+          {
             "name": "language",
             "in": "query",
             "required": false,
@@ -3116,7 +3130,7 @@
           "excel"
         ],
         "summary": "Get Project Template",
-        "description": "Plantilla vacía con las especies y fases de la versión de AQSOL del proyecto.",
+        "description": "Plantilla vacía con las especies y fases de la versión de AQSOL del proyecto.\n\n`pond_params_mode`: la hoja \"Cambios de pozas\" va solo con `by_date`.",
         "operationId": "get_project_template_api_v1_projects__project_id__excel_template__process__get",
         "security": [
           {
@@ -3194,6 +3208,20 @@
               "type": "string",
               "default": "fixed",
               "title": "Composition Mode"
+            }
+          },
+          {
+            "name": "pond_params_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fixed",
+                "by_date"
+              ],
+              "type": "string",
+              "default": "fixed",
+              "title": "Pond Params Mode"
             }
           },
           {
@@ -4066,6 +4094,22 @@
             },
             "type": "array",
             "title": "Section Kinds"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only",
+            "default": false
           }
         },
         "type": "object",
@@ -4486,7 +4530,7 @@
               }
             ],
             "title": "Source Execution Id",
-            "description": "Required for modelo_dinamico_encalado and _postliming: id of the previous execution (cascade for encalado, encalado for postliming) whose feed CSV is used."
+            "description": "Required for modelo_dinamico_encalado and _postliming: id of the previous execution (cascade for encalado, encalado for postliming) whose feed CSV is used. F4 (static_liming/_postliming, dynamic_liming/_postliming): only when the section's feed_source is 'execution'; a section fed with data takes none."
           },
           "n_days_override": {
             "anyOf": [
@@ -4532,7 +4576,7 @@
               }
             ],
             "title": "Start Date",
-            "description": "Fecha del día 1 de la corrida (dynamic_precon)."
+            "description": "Fecha del día 1 de la corrida: obligatoria en dynamic_precon y en dynamic_liming / dynamic_postliming alimentadas con los datos de su sección (feed_source = data), salvo en una continuación. Una etapa alimentada por una ejecución sigue las fechas de su origen y no la lleva."
           },
           "n_days": {
             "anyOf": [
@@ -4545,7 +4589,7 @@
               }
             ],
             "title": "N Days",
-            "description": "Días a simular (dynamic_precon; opcional en dynamic_postliming, hasta los de su origen)."
+            "description": "Días a simular: obligatorio en dynamic_precon y en dynamic_liming / dynamic_postliming alimentadas con datos; opcional en dynamic_postliming alimentado por una ejecución (hasta los de su origen); la planta alimentada por una ejecución no lo lleva."
           },
           "initial_state_execution_id": {
             "anyOf": [
@@ -6001,6 +6045,7 @@
             ],
             "title": "Cacl2 Min So4 Mg Ratio",
             "x-adinf": {
+              "note": "empty_doses_always",
               "unit": "t/t"
             }
           },
@@ -6139,7 +6184,7 @@
           },
           "scenarios": {
             "items": {
-              "$ref": "#/components/schemas/Scenario"
+              "$ref": "#/components/schemas/PlantScenario"
             },
             "type": "array",
             "title": "Scenarios"
@@ -6171,6 +6216,97 @@
         ],
         "title": "LoginRequest",
         "description": "Schema for login request."
+      },
+      "PlantScenario": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "temperature_C": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 100.0,
+                "minimum": -50.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature C",
+            "x-adinf": {
+              "note": "climate_for_postliming",
+              "unit": "°C"
+            }
+          },
+          "evaporation_mm_d": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaporation Mm D",
+            "x-adinf": {
+              "note": "climate_for_postliming",
+              "unit": "mm/d"
+            }
+          },
+          "brine_flow_t_d": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Brine Flow T D",
+            "x-adinf": {
+              "unit": "t/d"
+            }
+          },
+          "feed_density_kg_m3": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feed Density Kg M3",
+            "x-adinf": {
+              "unit": "kg/m3"
+            }
+          },
+          "composition_pct": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Pct",
+            "x-adinf": {
+              "unit": "%p/p"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "brine_flow_t_d"
+        ],
+        "title": "PlantScenario",
+        "description": "Un escenario de la planta del estático alimentada con datos.\n\nLa planta calcula a su temperatura fija (`plant.plant_temperature_C`): el clima del\nescenario no lo usa. Es opcional (punto 11) y solo sirve para una concentración\nlanzada después desde esta planta, que hereda los escenarios; si falta, esa\nconcentración no se puede lanzar (`execution_v2.validate_launch`)."
       },
       "PondParamChange": {
         "properties": {
@@ -6836,12 +6972,22 @@
       "ReagentSpec": {
         "properties": {
           "purity_frac": {
-            "type": "number",
-            "maximum": 1.0,
-            "exclusiveMinimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Purity Frac",
-            "default": 1.0,
+            "readOnly": true,
             "x-adinf": {
+              "formula": "purity_frac = 1 - sum(impurities.frac)",
+              "note": "computed_purity",
+              "read_only": true,
               "unit": "frac"
             }
           },
@@ -6856,7 +7002,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ReagentSpec",
-        "description": "Ficha de un reactivo: pureza de su forma comercial e impurezas. Lo que no es\nreactivo ni impureza declarada va a la torta."
+        "description": "Ficha de un reactivo: sus impurezas y la pureza que dejan (punto 8).\n\nLa pureza se calcula: 1 − Σ impurezas (sin impurezas, 1). Lo no identificado va en\nla línea `inertes` (a la torta). `purity_frac` en los datos que llegan solo sirve\npara traer fichas de antes, que la escribían a mano: si no cierra con las impurezas,\nla diferencia se agrega como `inertes` (`_migrate_purity`), que da el mismo\nresultado. Después siempre vale 1 − Σ."
       },
       "RefreshRequest": {
         "properties": {
@@ -7006,21 +7152,6 @@
               "unit": "t/d"
             }
           },
-          "feed_density_kg_m3": {
-            "anyOf": [
-              {
-                "type": "number",
-                "exclusiveMinimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Feed Density Kg M3",
-            "x-adinf": {
-              "unit": "kg/m3"
-            }
-          },
           "composition_pct": {
             "anyOf": [
               {
@@ -7048,7 +7179,7 @@
           "brine_flow_t_d"
         ],
         "title": "Scenario",
-        "description": "Un escenario del estático. Los escenarios son independientes entre sí."
+        "description": "Un escenario del estático de una cascada de pozas (precon y concentración). Los\nescenarios son independientes entre sí.\n\nSin densidad de la alimentación (cambios finales, punto 10): la precon la calcula\ncon AQSOL y la concentración no la usa. Solo la planta la lee (`PlantScenario`)."
       },
       "SeasonalOutflowRequest": {
         "properties": {
