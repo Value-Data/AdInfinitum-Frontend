@@ -7002,7 +7002,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ReagentSpec",
-        "description": "Ficha de un reactivo: sus impurezas y la pureza que dejan (punto 8).\n\nLa pureza se calcula: 1 − Σ impurezas (sin impurezas, 1). Lo no identificado va en\nla línea `inertes` (a la torta). `purity_frac` en los datos que llegan solo sirve\npara traer fichas de antes, que la escribían a mano: si no cierra con las impurezas,\nla diferencia se agrega como `inertes` (`_migrate_purity`), que da el mismo\nresultado. Después siempre vale 1 − Σ."
+        "description": "Ficha de un reactivo: sus impurezas y la pureza que dejan (punto 8).\n\nLa pureza se calcula: 1 − Σ impurezas (sin impurezas, 1). Lo no identificado va en\nla línea `inertes` (a la torta). Al guardar o validar una sección por la API, una\n`purity_frac` que llega no se usa (aviso `reagent_purity_ignored` si no es la\ncalculada). Solo los datos de antes, que la escribían a mano (versiones guardadas,\nlibros Excel, configuraciones JSON), la convierten: si no cierra con las impurezas,\nla diferencia se agrega como `inertes`, que da el mismo resultado. Después siempre\nvale 1 − Σ."
       },
       "RefreshRequest": {
         "properties": {

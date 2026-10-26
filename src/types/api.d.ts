@@ -2109,10 +2109,12 @@ export interface components {
          * @description Ficha de un reactivo: sus impurezas y la pureza que dejan (punto 8).
          *
          *     La pureza se calcula: 1 − Σ impurezas (sin impurezas, 1). Lo no identificado va en
-         *     la línea `inertes` (a la torta). `purity_frac` en los datos que llegan solo sirve
-         *     para traer fichas de antes, que la escribían a mano: si no cierra con las impurezas,
-         *     la diferencia se agrega como `inertes` (`_migrate_purity`), que da el mismo
-         *     resultado. Después siempre vale 1 − Σ.
+         *     la línea `inertes` (a la torta). Al guardar o validar una sección por la API, una
+         *     `purity_frac` que llega no se usa (aviso `reagent_purity_ignored` si no es la
+         *     calculada). Solo los datos de antes, que la escribían a mano (versiones guardadas,
+         *     libros Excel, configuraciones JSON), la convierten: si no cierra con las impurezas,
+         *     la diferencia se agrega como `inertes`, que da el mismo resultado. Después siempre
+         *     vale 1 − Σ.
          */
         ReagentSpec: {
             /** Purity Frac */
