@@ -56,7 +56,7 @@ function normUnit(u: string): string {
 
 /** Otras formas de escribir la misma unidad en una etiqueta del diccionario. */
 const UNIT_ALIASES: Record<string, string[]> = {
-  '%w/w': ['%p/p'], '%p/p': ['%w/w'], frac: ['fracción', 'fraction'],
+  '%w/w': ['%p/p'], '%p/p': ['%w/w'], frac: ['fracción', 'fraction'], 'fracción': ['frac'], fraction: ['frac'],
 };
 
 /** "Etiqueta (unidad)", sin repetirla si la etiqueta del diccionario ya la trae

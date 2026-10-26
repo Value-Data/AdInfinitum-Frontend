@@ -300,8 +300,10 @@ function StageKpisInSummary({ stages, processKpis }: {
   stages: StageReport[]; processKpis: Record<string, number | null>;
 }) {
   const t = useT();
-  const enPantalla = useContext(SectionContext) !== null;
-  if (!enPantalla || Object.keys(processKpis).length > 0) return null;
+  // Con sub-pestañas (`paged`, la vista en pantalla) hay sección elegida; impreso (`printAll`)
+  // el contexto es null y todo va en una sola página.
+  const paginado = useContext(SectionContext) !== null;
+  if (!paginado || Object.keys(processKpis).length > 0) return null;
   return (
     <>
       {stages.filter((st) => Object.keys(st.kpis).length > 0).map((st) => (

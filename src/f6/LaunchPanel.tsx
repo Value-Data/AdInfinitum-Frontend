@@ -127,11 +127,13 @@ export function buildLaunchRequest(f: {
 }
 
 export default function LaunchPanel({
-  projectId, executions, sections, onLaunched,
+  projectId, executions, sections, sectionsLoaded = true, onLaunched,
 }: {
   projectId: string;
   executions: ExecutionSummary[];
   sections: SectionState[];
+  /** Si ya llegaron las secciones: antes (o si fallaron) no se marca ningún tipo como sin configurar. */
+  sectionsLoaded?: boolean;
   onLaunched: (e: ExecutionSummary) => void;
 }) {
   const t = useT();
@@ -206,7 +208,8 @@ export default function LaunchPanel({
                   onChange={(e) => cambiarTipo(e.target.value as ExecutionTypeV2)}>
             {EXECUTION_TYPES_V2.map((x) => (
               <option key={x} value={x}>
-                {executionTypeLabel(x, t)}{typeConfigured(x, sections) ? '' : ` · ${t('f6_section_empty').toLowerCase()}`}
+                {executionTypeLabel(x, t)}
+                {sectionsLoaded && !typeConfigured(x, sections) ? ` · ${t('f6_section_empty').toLowerCase()}` : ''}
               </option>
             ))}
           </select>

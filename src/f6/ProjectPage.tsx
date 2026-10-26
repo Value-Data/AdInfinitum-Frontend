@@ -87,6 +87,8 @@ export default function ProjectPage() {
   const tabPedida = search.get('tab') === 'executions' ? 'executions' : 'config';
   const [project, setProject] = useState<ProjectV2 | null>(null);
   const [sections, setSections] = useState<SectionState[]>([]);
+  // Hasta que llegan, "Lanzar" no marca ningún tipo como sin configurar.
+  const [seccionesCargadas, setSeccionesCargadas] = useState(false);
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,8 +96,8 @@ export default function ProjectPage() {
   const [errorSecciones, setErrorSecciones] = useState<string | null>(null);
   const [errorEjecuciones, setErrorEjecuciones] = useState<string | null>(null);
   const cargarSecciones = useCallback(() => {
-    getSectionStates(id).then((l) => { setSections(l); setErrorSecciones(null); })
-      .catch((err) => { setSections([]); setErrorSecciones(apiError(err).message); });
+    getSectionStates(id).then((l) => { setSections(l); setSeccionesCargadas(true); setErrorSecciones(null); })
+      .catch((err) => { setSections([]); setSeccionesCargadas(false); setErrorSecciones(apiError(err).message); });
   }, [id]);
   const cargarEjecuciones = useCallback(() => {
     listExecutions(id).then((l) => { setExecutions(l.filter((e) => isV2Type(e.execution_type))); setErrorEjecuciones(null); })
@@ -175,19 +177,22 @@ export default function ProjectPage() {
           </button>
         ))}
       </div>
-      {(tab === 'config' ? errorSecciones : errorEjecuciones) && (
-        <div className="card p-3 mb-4 text-sm flex items-center gap-3" role="alert" style={{ borderColor: 'var(--color-danger-border)' }}>
-          <span style={{ color: 'var(--color-danger)' }}>{tab === 'config' ? errorSecciones : errorEjecuciones}</span>
-          <button className="btn btn-outline btn-sm"
-                  onClick={tab === 'config' ? cargarSecciones : cargarEjecuciones}>{t('f7_retry')}</button>
+      {/* Las secciones también hacen falta en Ejecuciones: "Lanzar" decide con ellas. */}
+      {([
+        [errorSecciones, cargarSecciones, tab === 'config' || canDo(caps, 'launch')],
+        [errorEjecuciones, cargarEjecuciones, tab === 'executions'],
+      ] as const).filter(([msg, , ver]) => msg && ver).map(([msg, reintentar]) => (
+        <div key={msg} className="card p-3 mb-4 text-sm flex items-center gap-3" role="alert" style={{ borderColor: 'var(--color-danger-border)' }}>
+          <span style={{ color: 'var(--color-danger-text)' }}>{msg}</span>
+          <button className="btn btn-outline btn-sm" onClick={reintentar}>{t('f7_retry')}</button>
         </div>
-      )}
+      ))}
       {tab === 'config' ? (
         <ConfigPanel projectId={id} sections={sections} onChanged={cargarSecciones} />
       ) : (
         <>
           {canDo(caps, 'launch') && (
-            <LaunchPanel projectId={id} executions={executions} sections={sections}
+            <LaunchPanel projectId={id} executions={executions} sections={sections} sectionsLoaded={seccionesCargadas}
                          onLaunched={() => cargarEjecuciones()} />
           )}
           <ExecutionsTable executions={executions} />

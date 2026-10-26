@@ -5,6 +5,7 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 vi.mock('../../src/services/apiV2', async (orig) => ({
   ...(await orig<typeof import('../../src/services/apiV2')>()),
@@ -25,6 +26,7 @@ describe('etiqueta con unidad', () => {
     expect(labelWithUnit('Composición (%p/p)', '%w/w')).toBe('Composición (%p/p)');
     expect(labelWithUnit('Dilución (fracción)', 'frac')).toBe('Dilución (fracción)');
     expect(labelWithUnit('Área de proceso (m²)', 'm2')).toBe('Área de proceso (m²)');
+    expect(labelWithUnit('Purga (frac)', 'fracción')).toBe('Purga (frac)');
   });
 
   it('la agrega cuando la etiqueta no la tiene', () => {
@@ -97,5 +99,35 @@ describe('tipo que ofrece "Lanzar una ejecución"', () => {
     expect(textos.find((x) => x.startsWith('Estático · proceso completo'))).toMatch(/sin configurar/);
     expect(textos.find((x) => x.startsWith('Dinámico · preconcentración'))).not.toMatch(/sin configurar/);
     expect(getSection).not.toHaveBeenCalled();
+  });
+
+  it('sin secciones guardadas ofrece el proceso completo pero no pide su precon (daba 404)', () => {
+    vi.mocked(getSection).mockClear();
+    render(<LaunchPanel projectId="p1" executions={[]} sections={[]} onLaunched={() => undefined} />);
+    expect((screen.getByTestId('launch-type') as HTMLSelectElement).value).toBe('static_full');
+    expect(getSection).not.toHaveBeenCalled();
+  });
+
+  it('con la precon estática guardada sí pide sus escenarios', () => {
+    vi.mocked(getSection).mockClear();
+    render(<LaunchPanel projectId="p1" executions={[]} sections={[guardada('precon_static')]} onLaunched={() => undefined} />);
+    expect(getSection).toHaveBeenCalledWith('p1', 'precon_static');
+  });
+
+  it('las secciones llegan después del panel: el tipo las sigue hasta que el usuario elige uno', async () => {
+    const vista = render(<LaunchPanel projectId="p1" executions={[]} sections={[]} onLaunched={() => undefined} />);
+    const tipo = () => screen.getByTestId('launch-type') as HTMLSelectElement;
+    expect(tipo().value).toBe('static_full');
+    vista.rerender(<LaunchPanel projectId="p1" executions={[]} sections={[guardada('precon_dynamic')]} onLaunched={() => undefined} />);
+    expect(tipo().value).toBe('dynamic_precon');
+    await userEvent.setup().selectOptions(tipo(), 'static_precon');
+    vista.rerender(<LaunchPanel projectId="p1" executions={[]} sections={[guardada('liming_dynamic')]} onLaunched={() => undefined} />);
+    expect(tipo().value).toBe('static_precon');
+  });
+
+  it('mientras no llegan las secciones (o si fallaron) no marca ningún tipo como sin configurar', () => {
+    render(<LaunchPanel projectId="p1" executions={[]} sections={[]} sectionsLoaded={false} onLaunched={() => undefined} />);
+    const textos = Array.from((screen.getByTestId('launch-type') as HTMLSelectElement).options).map((o) => o.textContent ?? '');
+    expect(textos.some((x) => /sin configurar/.test(x))).toBe(false);
   });
 });

@@ -77,8 +77,15 @@ function DefaultTag({ testId }: { testId?: string }) {
   );
 }
 
+/** Ancho que deja ver entera la opción más larga de un selector: una letra de texto es en
+ * promedio unos 0,8 `ch` (el ancho del "0"), más el relleno y la flecha. */
+export function optionWidth(labels: string[]): string {
+  const largo = Math.max(1, ...labels.map((l) => l.length));
+  return `calc(${Math.ceil(largo * 0.8)}ch + 2.25rem)`;
+}
+
 function CellInput({ entry, value, onChange, choices, invalid, warning, disabled, notApplicable, testId, placeholder,
-  className, ariaLabel, required }: {
+  className, ariaLabel, required, minWidth = 80 }: {
   entry: DictionaryEntry; value: unknown; onChange: (v: unknown) => void; choices?: EnumChoice[];
   /** Errores del campo (rojo: con errores no se guarda). */
   invalid?: string;
@@ -93,6 +100,8 @@ function CellInput({ entry, value, onChange, choices, invalid, warning, disabled
   className?: string; ariaLabel?: string;
   /** Obligatorio en esta fila aunque el diccionario no lo marque (p. ej. la altura en composición). */
   required?: boolean;
+  /** Ancho mínimo del campo de texto (las toneladas por especie no cabían en 80 px). */
+  minWidth?: number | string;
 }) {
   const t = useT();
   const textoDefault = useDefaultText();
@@ -133,10 +142,14 @@ function CellInput({ entry, value, onChange, choices, invalid, warning, disabled
     );
   }
   if (entry.data_type === 'enum' && choices) {
+    // En una tabla la columna se ajusta al contenido: sin un mínimo, la opción se cortaba
+    // ("Por altu…"). Ancho de la opción más larga más la flecha, hasta 18rem.
+    const largo = optionWidth(choices.map((c) => c.label));
     return (
       <>
         <select className={esDefault ? 'input italic' : 'input'} value={na || value == null ? '' : String(value)}
-                disabled={apagado} style={estilo} title={ayuda ?? ayudaDefault} aria-label={ariaLabel}
+                disabled={apagado} style={{ minWidth: `min(${largo}, 18rem)`, ...estilo }}
+                title={ayuda ?? ayudaDefault} aria-label={ariaLabel}
                 aria-invalid={severidad === 'error' ? true : undefined} aria-describedby={describeNa}
                 aria-required={obligatorio} data-severity={severidad}
                 data-default={marcaDefault} data-testid={testId}
@@ -157,7 +170,7 @@ function CellInput({ entry, value, onChange, choices, invalid, warning, disabled
            aria-invalid={severidad === 'error' ? true : undefined}
            aria-describedby={describeNa} aria-required={obligatorio}
            readOnly={entry.read_only === true || undefined}
-           disabled={apagado} style={{ minWidth: 80, ...estilo }}
+           disabled={apagado} style={{ minWidth, ...estilo }}
            title={ayuda ?? ayudaDefault ?? (typeof value === 'number' ? String(value) : undefined)} data-testid={testId}
            data-severity={severidad} data-default={marcaDefault}
            onFocus={() => setFoco(true)}
@@ -272,7 +285,6 @@ export function orderColumns(cols: DictionaryEntry[]): DictionaryEntry[] {
 
 /** Las cabeceras con unidad no van en mayúsculas: "(T/D)" junto a "(t/d)" confunde. */
 const SIN_MAYUSCULAS: React.CSSProperties = { textTransform: 'none', letterSpacing: 0 };
-const caps = (e: DictionaryEntry) => (e.unit ? SIN_MAYUSCULAS : undefined);
 
 function headerOf(e: DictionaryEntry): string {
   return labelWithUnit(e.label, e.unit);
@@ -309,7 +321,8 @@ function FieldsForm({ schema, prefix, entries, value, onChange, issues, classNam
           && e.data_type !== 'boolean' && e.data_type !== 'enum';
         return (
           <label key={e.key} className="text-sm" title={tooltipOf(e)}>
-            <span className="label" style={caps(e)}>
+            {/* Como se escriben: con unidad o sin ella, todas igual (antes unas en versalitas). */}
+            <span className="label" style={SIN_MAYUSCULAS}>
               {headerOf(e)}<Tip text={tooltipOf(e)} />
               {porDefecto && <DefaultTag testId={`default-${prefix}${e.field}`} />}
             </span>
@@ -414,7 +427,7 @@ export function TableEditor({ schema, prefix, rows, onChange, issues, species, t
           <thead>
             <tr>
               <th>#</th>
-              {columnas.map((c) => <th key={c.key} className="whitespace-nowrap" style={caps(c)}><ColumnHeader entry={c} /></th>)}
+              {columnas.map((c) => <th key={c.key} className="whitespace-nowrap"><ColumnHeader entry={c} /></th>)}
               {porEspecie && species.map((sp) => <th key={sp} className="whitespace-nowrap" style={{ textTransform: 'none' }}>{sp}{porEspecie.unit ? ` (${porEspecie.unit})` : ''}</th>)}
               <th />
             </tr>
@@ -737,7 +750,7 @@ function SeriesEditor({ schema, payload, onChange, issues, species, storageKey }
                  )}>
       <div className="flex flex-wrap items-end gap-2 mb-2">
         <label className="text-xs">
-          <span className="label">{schema.byKey.get('series.series_start_date')?.label ?? 'series_start_date'}</span>
+          <span className="label" style={SIN_MAYUSCULAS}>{schema.byKey.get('series.series_start_date')?.label ?? 'series_start_date'}</span>
           <input type="date" className="input" value={inicio}
                  onChange={(e) => onChange({ ...serie, series_start_date: e.target.value || null })} />
         </label>
@@ -770,7 +783,7 @@ function SeriesEditor({ schema, payload, onChange, issues, species, storageKey }
           <thead>
             <tr>
               <th>{t('f6_date')}</th>
-              {entradas.map((e) => <th key={e.key} title={tooltipOf(e)} style={caps(e)}>{headerOf(e)}</th>)}
+              {entradas.map((e) => <th key={e.key} title={tooltipOf(e)}>{headerOf(e)}</th>)}
               {porDia && species.map((sp) => <th key={sp} style={{ textTransform: 'none' }}>{sp} (%p/p)</th>)}
               <th />
             </tr>
@@ -876,6 +889,8 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
     if (!why) return undefined;
     return t(why.kind === 'pending' ? 'f9_na_outflow_pending' : 'f9_na_outflow_target');
   };
+  // Que el selector de la forma muestre su opción entera (como los enumerados de las tablas).
+  const anchoForma = optionWidth([t('f9_form_mass'), t('f9_form_composition')]);
   const cabecera = (c: DictionaryEntry) => {
     if (c.field === 'height_m') {
       // El diccionario la tiene opcional (con toneladas no va), pero en composición es
@@ -930,7 +945,7 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
                 <th className="whitespace-nowrap" style={SIN_MAYUSCULAS}>{t('f9_initial_form')}</th>
                 {columnas.map((c) => (
                   <th key={c.key} className={c.data_type === 'boolean' ? undefined : 'whitespace-nowrap'}
-                      style={c.data_type === 'boolean' ? { ...SIN_MAYUSCULAS, minWidth: '9rem' } : caps(c)}>
+                      style={c.data_type === 'boolean' ? { minWidth: '9rem' } : undefined}>
                     {cabecera(c)}
                   </th>
                 ))}
@@ -971,9 +986,9 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
                     </td>
                     <td>
                       <select className="input" value={forma} data-testid={`initial-state-${i + 1}-form`}
+                              style={{ minWidth: anchoForma, ...(deFila ? { borderColor: 'var(--color-danger)', background: 'var(--color-danger-bg)' } : {}) }}
                               aria-label={t('f9_initial_form_of').replace('{pond}', String(r.pond ?? ''))}
                               aria-invalid={deFila ? true : undefined} title={deFila}
-                              style={deFila ? { borderColor: 'var(--color-danger)', background: 'var(--color-danger-bg)' } : undefined}
                               onChange={(e) => cambiar(i, switchInitialStateForm(r, e.target.value as InitialForm))}>
                         <option value="mass">{t('f9_form_mass')}</option>
                         <option value="composition">{t('f9_form_composition')}</option>
@@ -1011,7 +1026,7 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
                     })}
                     {species.map((sp) => (
                       <td key={sp}>
-                        <CellInput entry={{ ...especie, data_type: 'number' }}
+                        <CellInput entry={{ ...especie, data_type: 'number' }} minWidth="7.5rem"
                                    value={((r[speciesFieldOf(forma)] as Obj | null) ?? {})[sp]}
                                    invalid={malEspecie} warning={avisoEspecie}
                                    ariaLabel={`${sp} (${unidad(forma)}) · ${String(r.pond ?? '')}`}
@@ -1111,7 +1126,7 @@ function ImpuritiesTable({ schema, reagent, rows, onChange, issues }: {
               <tr>
                 <th>#</th>
                 {[especie, frac, destino].map((c) => (
-                  <th key={c.key} className="whitespace-nowrap" style={caps(c)}><ColumnHeader entry={c} /></th>
+                  <th key={c.key} className="whitespace-nowrap"><ColumnHeader entry={c} /></th>
                 ))}
                 <th />
               </tr>

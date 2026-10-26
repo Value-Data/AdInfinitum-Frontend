@@ -183,6 +183,7 @@ export default function UsersPage() {
                   <button
                     onClick={() => handleToggleActive(user)}
                     role="switch" aria-checked={user.is_active}
+                    aria-label={t('f10_user_active').replace('{user}', user.username)}
                     className="relative inline-flex h-5 w-10 items-center transition-colors"
                     style={{
                       backgroundColor: user.is_active ? 'var(--color-success)' : 'var(--color-border)',
