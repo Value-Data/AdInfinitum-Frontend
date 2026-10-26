@@ -177,6 +177,8 @@ export default function LaunchPanel({
     setSource('');
     setContinuar('');
     setDia('');
+    // Los escenarios elegidos son de la precon estática: no viajan a otro tipo.
+    setElegidos([]);
     setError(null);
   };
 

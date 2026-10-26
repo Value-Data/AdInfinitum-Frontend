@@ -11,9 +11,10 @@ vi.mock('../../src/services/apiV2', async (orig) => ({
   ...(await orig<typeof import('../../src/services/apiV2')>()),
   getDictionaryLabels: vi.fn(async () => ({})),
   getSection: vi.fn(async () => ({ data: { scenarios: [] } })),
+  launchExecution: vi.fn(async () => ({ id: 'e1' })),
 }));
 
-import { getSection, type SectionState } from '../../src/services/apiV2';
+import { getSection, launchExecution, type SectionState } from '../../src/services/apiV2';
 import { labelWithUnit } from '../../src/f6/labels';
 import ReportView, { KpiCards } from '../../src/f6/ReportView';
 import LaunchPanel, { defaultLaunchType, typeConfigured } from '../../src/f6/LaunchPanel';
@@ -129,5 +130,18 @@ describe('tipo que ofrece "Lanzar una ejecución"', () => {
     render(<LaunchPanel projectId="p1" executions={[]} sections={[]} sectionsLoaded={false} onLaunched={() => undefined} />);
     const textos = Array.from((screen.getByTestId('launch-type') as HTMLSelectElement).options).map((o) => o.textContent ?? '');
     expect(textos.some((x) => /sin configurar/.test(x))).toBe(false);
+  });
+
+  it('los escenarios elegidos de la precon estática no viajan al cambiar a otro tipo', async () => {
+    const user = userEvent.setup();
+    vi.mocked(getSection).mockResolvedValue({ data: { scenarios: [{ label: 'Verano' }, { label: 'Invierno' }] } } as never);
+    vi.mocked(launchExecution).mockClear();
+    render(<LaunchPanel projectId="p1" executions={[]} sections={[guardada('precon_static'), guardada('precon_dynamic')]}
+                        onLaunched={() => undefined} />);
+    await user.selectOptions(screen.getByTestId('launch-type'), 'static_precon');
+    await user.click(await screen.findByLabelText('Verano'));
+    await user.selectOptions(screen.getByTestId('launch-type'), 'dynamic_precon');
+    await user.click(screen.getByRole('button', { name: 'Lanzar' }));
+    expect(vi.mocked(launchExecution).mock.calls[0][1]).not.toHaveProperty('selected_scenarios');
   });
 });
