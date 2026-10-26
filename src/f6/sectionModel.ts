@@ -294,12 +294,30 @@ function plantForSave(plant: unknown): unknown {
   return out;
 }
 
+/** La planta para leer: cada ficha con su pureza, 1 − Σ impurezas (la misma cuenta del
+ * backend), y el resto tal cual. */
+function plantForDisplay(plant: unknown): unknown {
+  if (!plant || typeof plant !== 'object' || Array.isArray(plant)) return plant;
+  const out: Row = { ...(plant as Row) };
+  const fichas = out.reagents;
+  if (fichas && typeof fichas === 'object' && !Array.isArray(fichas)) {
+    out.reagents = Object.fromEntries(Object.entries(fichas as Row).map(([r, ficha]) => {
+      if (!ficha || typeof ficha !== 'object' || Array.isArray(ficha)) return [r, ficha];
+      const imps = (ficha as Row).impurities;
+      return [r, { ...(ficha as Row), purity_frac: computedPurity(Array.isArray(imps) ? imps as Row[] : []) }];
+    }));
+  }
+  return out;
+}
+
 /**
- * La sección lista para mandar: sin lo que no aplica (partes de la sección y, con el
- * esquema, los campos de cada fila que su `visible_if` deja fuera: el tipo de poza, el
- * marco de alturas), y las series con una columna entera vacía como serie no cargada.
+ * Lo que aplica de la sección, igual para guardar que para leer: sin las partes que sus
+ * elecciones dejan fuera; con el esquema, sin los campos de cada fila que su
+ * `visible_if` deja fuera (el tipo de poza, el marco de alturas); las series solo con
+ * sus columnas, y una columna entera vacía como serie no cargada; y el estado inicial
+ * de cada poza en su forma.
  */
-export function cleanPayload(payload: Record<string, unknown>, schema?: SectionSchema): Record<string, unknown> {
+function applicablePayload(payload: Record<string, unknown>, schema?: SectionSchema): Record<string, unknown> {
   const out: Record<string, unknown> = { ...payload };
   for (const k of hiddenTopLevel(payload)) delete out[k];
   if (schema) {
@@ -326,9 +344,29 @@ export function cleanPayload(payload: Record<string, unknown>, schema?: SectionS
     out.initial_states = initialStatesForSave(out.initial_states as Record<string, unknown>[],
       (out.ponds as Record<string, unknown>[] | undefined) ?? [], bufferCondition(schema));
   }
+  return out;
+}
+
+/**
+ * La sección lista para mandar: lo que aplica (`applicablePayload`) y la planta como se
+ * guarda (fichas sin pureza, medio de lavado vacío como `null`).
+ */
+export function cleanPayload(payload: Record<string, unknown>, schema?: SectionSchema): Record<string, unknown> {
+  const out = applicablePayload(payload, schema);
   if ('plant' in out) out.plant = plantForSave(out.plant);
   // Un campo vaciado queda en `null` y se manda así: con un default documentado el
   // backend lo aplica y avisa (`default_applied`); no se borra ni se omite.
+  return out;
+}
+
+/**
+ * La sección para leer (los parámetros de entrada del reporte impreso): lo mismo que
+ * aplica al guardar, sin las transformaciones de guardar. Las fichas de reactivos llevan
+ * su pureza calculada y el medio de lavado queda como viene.
+ */
+export function displayPayload(payload: Record<string, unknown>, schema?: SectionSchema): Record<string, unknown> {
+  const out = applicablePayload(payload, schema);
+  if ('plant' in out) out.plant = plantForDisplay(out.plant);
   return out;
 }
 

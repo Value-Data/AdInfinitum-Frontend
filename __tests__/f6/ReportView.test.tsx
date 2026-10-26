@@ -219,7 +219,8 @@ describe('reporte del dinámico: balance de Li y avisos (cambios finales, puntos
   it('en pantalla por pestañas, la de la etapa con avisos lo dice; un aviso de otra etapa va en el resumen', () => {
     render(<ReportView paged report={rep([aviso(), aviso({ stage: 'liming', pond: null,
       message: { es: 'Aviso de una etapa que no está.' } })])} />);
-    expect(screen.getByTestId('result-section-warnings-stage:postliming').textContent).toContain('1');
+    // Con texto, sin glifos: "· 1 aviso".
+    expect(screen.getByTestId('result-section-warnings-stage:postliming').textContent).toBe(' · 1 aviso');
     expect(screen.queryByTestId('result-section-warnings-stage:precon')).toBeNull();
     // Resumen: el aviso suelto.
     expect(screen.getByTestId('report-warnings').textContent).toContain('Aviso de una etapa que no está.');

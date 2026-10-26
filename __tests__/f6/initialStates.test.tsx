@@ -168,8 +168,12 @@ describe('estado inicial de las pozas: tabla', () => {
     expect(altura.textContent).toBe('la calcula la app');
     expect(altura.className).toContain('cell-na');
 
+    // La altura es obligatoria en composición: la cabecera lo marca y la celda lo dice.
+    expect(screen.getByTestId('initial-states-height-required').textContent).toContain('*');
+    expect(screen.getByTestId('initial-states-height-required').textContent).toContain('obligatoria en composición');
     fireEvent.change(screen.getByTestId('initial-state-3-form'), { target: { value: 'composition' } });
     expect(screen.getByTestId('initial-state-row-3').getAttribute('data-form')).toBe('composition');
+    expect(screen.getByTestId('initial-state-3-height_m').getAttribute('aria-required')).toBe('true');
     escribir('initial-state-3-height_m', '0,45');
     escribir('initial-state-3-sp-H2O', '80');
     escribir('initial-state-3-sp-Li+', '19,5');
@@ -199,6 +203,8 @@ describe('estado inicial de las pozas: tabla', () => {
     const porAltura = screen.getByTestId('initial-state-1-outflow_started') as HTMLInputElement;
     expect(porAltura.disabled).toBe(true);
     expect(porAltura.getAttribute('title')).toMatch(/altura objetivo/);
+    expect(document.getElementById(porAltura.getAttribute('aria-describedby') ?? '')?.textContent)
+      .toBe(porAltura.getAttribute('title'));
     expect(screen.getByTestId('initial-state-1-outflow_started-td').className).toContain('cell-na');
     const buffer = screen.getByTestId('initial-state-2-outflow_started') as HTMLInputElement;
     expect(buffer.disabled).toBe(false);

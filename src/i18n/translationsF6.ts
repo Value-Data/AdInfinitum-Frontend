@@ -337,6 +337,10 @@ export const F6_TRANSLATIONS = {
     en: 'It was left running in the previous version and never finished.',
   },
   legacy_no_results: { es: 'Esta ejecución no guardó resultados.', en: 'This execution saved no results.' },
+  legacy_old_format_results: {
+    es: 'Resultados guardados en el formato anterior; ver archivos abajo.',
+    en: 'Results saved in the previous format; see the files below.',
+  },
   legacy_not_found: { es: 'Ejecución no encontrada.', en: 'Execution not found.' },
   legacy_created_by: { es: 'Creada por', en: 'Created by' },
   legacy_started: { es: 'Inicio', en: 'Started' },
@@ -362,6 +366,7 @@ export const F6_TRANSLATIONS = {
   },
   f9_optional: { es: 'opcional', en: 'optional' },
   f9_required: { es: 'obligatorio', en: 'required' },
+  f9_height_required_hint: { es: 'obligatoria en composición', en: 'required with composition' },
   f9_density_hint: {
     es: 'Solo si se midió; si falta, la app la calcula con AQSOL.',
     en: 'Only if it was measured; if missing, the app computes it with AQSOL.',
@@ -409,9 +414,6 @@ export const F6_TRANSLATIONS = {
   f6_kv_n_phases: { es: 'fases', en: 'phases' },
   f6_kv_not_neutral: { es: 'distintos de', en: 'other than' },
   f6_kv_none_filtered: { es: 'Ninguna con este filtro.', en: 'None match this filter.' },
-  // Los bloques juntan errores y avisos: "observación" no afirma que sea un error.
-  f8_issue_one: { es: 'observación', en: 'issue' },
-  f8_issue_many: { es: 'observaciones', en: 'issues' },
 
   // Avance y latido de las ejecuciones (cambios finales, puntos 2 y 13)
   f9_progress_col: { es: 'Avance', en: 'Progress' },

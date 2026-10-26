@@ -7,7 +7,7 @@
  * fichas de reactivos. Guardar crea una versión nueva; con errores no se guarda y el
  * informe del backend marca campo y fila.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { labelWithUnit } from './labels';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { usePageTrail } from '../components/common/trail';
@@ -78,7 +78,7 @@ function DefaultTag({ testId }: { testId?: string }) {
 }
 
 function CellInput({ entry, value, onChange, choices, invalid, warning, disabled, notApplicable, testId, placeholder,
-  className, ariaLabel }: {
+  className, ariaLabel, required }: {
   entry: DictionaryEntry; value: unknown; onChange: (v: unknown) => void; choices?: EnumChoice[];
   /** Errores del campo (rojo: con errores no se guarda). */
   invalid?: string;
@@ -91,9 +91,12 @@ function CellInput({ entry, value, onChange, choices, invalid, warning, disabled
   testId?: string; placeholder?: string;
   /** Clases extra del campo de texto (p. ej. `input-number` en las tablas especie | valor). */
   className?: string; ariaLabel?: string;
+  /** Obligatorio en esta fila aunque el diccionario no lo marque (p. ej. la altura en composición). */
+  required?: boolean;
 }) {
   const t = useT();
   const textoDefault = useDefaultText();
+  const idMotivo = useId();
   const [foco, setFoco] = useState(false);
   const [texto, setTexto] = useState(value == null ? '' : String(value));
   useEffect(() => { setTexto(value == null ? '' : String(value)); }, [value]);
@@ -113,30 +116,46 @@ function CellInput({ entry, value, onChange, choices, invalid, warning, disabled
   // El aviso lleva su palabra además del color.
   const ayuda = na ? notApplicable : invalid || (warning ? `${t('f9_warning')}: ${warning}` : undefined);
   const marcaDefault = esDefault ? 'true' : tomaDefault ? 'empty' : undefined;
+  // El motivo de que no aplique también para el lector de pantalla (el `title` no basta).
+  const describeNa = na ? idMotivo : undefined;
+  const motivoNa = na ? <span id={idMotivo} className="sr-only">{notApplicable}</span> : null;
+  const obligatorio = !na && required ? true : undefined;
   if (entry.data_type === 'boolean') {
-    return <input type="checkbox" checked={!na && Boolean(value)} disabled={apagado} title={ayuda ?? ayudaDefault}
-                  aria-label={ariaLabel} aria-invalid={severidad === 'error' ? true : undefined}
-                  data-severity={severidad} data-default={marcaDefault}
-                  data-testid={testId} onChange={(e) => onChange(e.target.checked)} />;
+    return (
+      <>
+        <input type="checkbox" checked={!na && Boolean(value)} disabled={apagado} title={ayuda ?? ayudaDefault}
+               aria-label={ariaLabel} aria-invalid={severidad === 'error' ? true : undefined}
+               aria-describedby={describeNa} aria-required={obligatorio}
+               data-severity={severidad} data-default={marcaDefault}
+               data-testid={testId} onChange={(e) => onChange(e.target.checked)} />
+        {motivoNa}
+      </>
+    );
   }
   if (entry.data_type === 'enum' && choices) {
     return (
-      <select className={esDefault ? 'input italic' : 'input'} value={na || value == null ? '' : String(value)}
-              disabled={apagado} style={estilo} title={ayuda ?? ayudaDefault} aria-label={ariaLabel}
-              aria-invalid={severidad === 'error' ? true : undefined} data-severity={severidad}
-              data-default={marcaDefault} data-testid={testId}
-              onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}>
-        <option value="">{!isNothing(def) ? `– (${t('f9_default')}: ${valorDefault})` : '–'}</option>
-        {choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-      </select>
+      <>
+        <select className={esDefault ? 'input italic' : 'input'} value={na || value == null ? '' : String(value)}
+                disabled={apagado} style={estilo} title={ayuda ?? ayudaDefault} aria-label={ariaLabel}
+                aria-invalid={severidad === 'error' ? true : undefined} aria-describedby={describeNa}
+                aria-required={obligatorio} data-severity={severidad}
+                data-default={marcaDefault} data-testid={testId}
+                onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}>
+          <option value="">{!isNothing(def) ? `– (${t('f9_default')}: ${valorDefault})` : '–'}</option>
+          {choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
+        {motivoNa}
+      </>
     );
   }
   const clases = ['input', className, esDefault ? 'italic' : ''].filter(Boolean).join(' ');
   return (
+    <>
     <input className={clases} type={entry.data_type === 'date' ? 'date' : 'text'}
            value={na ? '' : !foco && typeof value === 'number' && texto === String(value) ? displayNumber(value) : texto}
            placeholder={na ? '—' : placeholder ?? (tomaDefault ? valorDefault : undefined)} aria-label={ariaLabel}
            aria-invalid={severidad === 'error' ? true : undefined}
+           aria-describedby={describeNa} aria-required={obligatorio}
            readOnly={entry.read_only === true || undefined}
            disabled={apagado} style={{ minWidth: 80, ...estilo }}
            title={ayuda ?? ayudaDefault ?? (typeof value === 'number' ? String(value) : undefined)} data-testid={testId}
@@ -145,6 +164,8 @@ function CellInput({ entry, value, onChange, choices, invalid, warning, disabled
            onChange={(e) => setTexto(e.target.value)}
            onBlur={() => { setFoco(false); onChange(coerce(entry, texto)); }}
            onKeyDown={(e) => { if (e.key === 'Enter') onChange(coerce(entry, texto)); }} />
+    {motivoNa}
+    </>
   );
 }
 
@@ -281,7 +302,8 @@ function FieldsForm({ schema, prefix, entries, value, onChange, issues, classNam
         const v = value[e.field];
         const porDefecto = isDefaultValue(e, v) || takesDefaultWhenEmpty(e, v);
         // Opcional sin default y vacío: la nota dice qué significa el vacío ("vacío =
-        // dosificar siempre") y va dentro del campo; con valor, bajo él.
+        // dosificar siempre"). Va siempre bajo el campo y, mientras está vacío, también
+        // dentro de él.
         const vacio = v === null || v === undefined || v === '';
         const notaDentro = Boolean(e.note) && vacio && !e.required && defaultOf(e) === undefined
           && e.data_type !== 'boolean' && e.data_type !== 'enum';
@@ -296,7 +318,7 @@ function FieldsForm({ schema, prefix, entries, value, onChange, issues, classNam
                        placeholder={notaDentro ? e.note ?? undefined : undefined}
                        testId={`field-${prefix}${e.field}`}
                        onChange={(nuevo) => onChange({ ...value, [e.field]: nuevo })} />
-            {!notaDentro && <FieldNote entry={e} testId={`note-${prefix}${e.field}`} />}
+            <FieldNote entry={e} testId={`note-${prefix}${e.field}`} />
           </label>
         );
       })}
@@ -855,6 +877,23 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
     return t(why.kind === 'pending' ? 'f9_na_outflow_pending' : 'f9_na_outflow_target');
   };
   const cabecera = (c: DictionaryEntry) => {
+    if (c.field === 'height_m') {
+      // El diccionario la tiene opcional (con toneladas no va), pero en composición es
+      // obligatoria: se marca como cualquier obligatorio, con la condición a la vista.
+      return (
+        <span>
+          {headerOf(c)}
+          <span title={t('f9_height_required_hint')} style={{ color: 'var(--color-danger-text)' }}
+                data-testid="initial-states-height-required">
+            <span aria-hidden="true"> *</span><span className="sr-only"> ({t('f9_height_required_hint')})</span>
+          </span>
+          <Tip text={tooltipOf(c)} />
+          <span className="block text-[11px] font-normal" style={SIN_MAYUSCULAS} aria-hidden="true">
+            {t('f9_height_required_hint')}
+          </span>
+        </span>
+      );
+    }
     if (c.field === 'density_kg_m3') {
       return (
         <span>
@@ -962,6 +1001,7 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
                             data-testid={`initial-state-${i + 1}-${c.field}-td`}>
                           <CellInput entry={c} value={r[c.field]} invalid={problema(i, c.field)} notApplicable={na}
                                      warning={aviso(i, c.field)}
+                                     required={c.field === 'height_m' && forma === 'composition'}
                                      ariaLabel={etiqueta}
                                      placeholder={c.field === 'density_kg_m3' ? t('f9_optional') : undefined}
                                      testId={`initial-state-${i + 1}-${c.field}`}
@@ -1116,6 +1156,7 @@ export function ReagentsEditor({ schema, value, onChange, issues }: {
   schema: SectionSchema; value: Obj; onChange: (v: Obj) => void; issues: ValidationIssue[];
 }) {
   const t = useT();
+  const idBase = useId();
   const enumerados = schema.enumValues('plant.dosing_sequence.reagent').map((c) => c.value);
   // Una ficha cargada de un reactivo que no esté en el enumerado también se ve.
   const reactivos = [...enumerados, ...Object.keys(value).filter((r) => !enumerados.includes(r))];
@@ -1127,7 +1168,7 @@ export function ReagentsEditor({ schema, value, onChange, issues }: {
     <section className="card p-3 mb-4" data-testid="reagents-editor">
       <h4 className="font-semibold text-sm mb-2">{t('f6_reagents')}</h4>
       <Issues issues={generales} />
-      {reactivos.map((r) => {
+      {reactivos.map((r, n) => {
         const ficha = (value[r] as Obj | undefined) ?? null;
         const impurezas = (ficha?.impurities as Obj[] | undefined) ?? [];
         const deReactivo = propios.filter((i) => i.row_label === r);
@@ -1138,19 +1179,24 @@ export function ReagentsEditor({ schema, value, onChange, issues }: {
           const { purity_frac: _p, ...resto } = ficha ?? {};
           onChange({ ...value, [r]: { ...resto, impurities: filas } });
         };
+        // La pureza se lee con su etiqueta y el reactivo ("CaCl2 Pureza (%)") y su nota.
+        // Por posición: el nombre de un reactivo podría traer espacios.
+        const id = `${idBase}-${n}`;
         return (
           <div key={r} className="mb-4 pb-3 border-b last:border-b-0" data-testid={`reagent-${r}`}>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
-              <span className="font-medium text-sm" style={{ minWidth: 80 }}>{r}</span>
-              <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+              <span className="font-medium text-sm" style={{ minWidth: 80 }} id={`${id}-name`}>{r}</span>
+              <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }} id={`${id}-label`}>
                 {pureza?.label || t('f9_purity')} (%)
               </span>
               <output className="cell-na font-mono tabular-nums text-sm px-2 py-0.5" data-testid={`reagent-${r}-purity`}
-                      title={notaPureza}
+                      title={notaPureza} aria-labelledby={`${id}-name ${id}-label`} aria-describedby={`${id}-note`}
                       style={desborde ? { background: 'var(--color-danger-bg)', color: 'var(--color-danger-text)' } : undefined}>
                 {displayNumber(calculada * 100)} %
               </output>
-              <span className="text-xs italic" style={{ color: 'var(--color-text-secondary)' }}>{notaPureza}</span>
+              <span className="text-xs italic" style={{ color: 'var(--color-text-secondary)' }} id={`${id}-note`}>
+                {notaPureza}
+              </span>
             </div>
             {desborde && (
               <p className="text-xs mb-1" style={{ color: 'var(--color-danger-text)' }} data-testid={`reagent-${r}-overflow`}>

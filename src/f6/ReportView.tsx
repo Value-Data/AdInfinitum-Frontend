@@ -440,9 +440,8 @@ export default function ReportView({ report, printAll, paged, scenario, onScenar
                     onClick={() => setElegida(k)}>
               {nombre(k)}
               {avisosDe(k) > 0 && (
-                <span data-testid={`result-section-warnings-${k}`}>
-                  {' ⚠ '}{avisosDe(k)}
-                  <span className="sr-only"> {t(avisosDe(k) === 1 ? 'f9_warning_one' : 'f9_warning_many')}</span>
+                <span data-testid={`result-section-warnings-${k}`} className="font-normal">
+                  {` · ${avisosDe(k)} ${t(avisosDe(k) === 1 ? 'f9_warning_one' : 'f9_warning_many')}`}
                 </span>
               )}
             </button>

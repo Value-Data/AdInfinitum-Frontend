@@ -127,9 +127,24 @@ export function StaleHeartbeatBadge() {
 }
 
 /**
+ * Cuánto pasó, en minutos enteros: "20 min", "1 h 05 min". Para lo que se refresca con
+ * cada consulta y no tiene por qué cambiar cada pocos segundos.
+ */
+export function elapsedMinutes(desde: string, ahora = Date.now()): string {
+  const t0 = Date.parse(desde.endsWith('Z') || desde.includes('+') ? desde : `${desde}Z`);
+  const min = Math.max(0, Math.floor((ahora - t0) / 60000));
+  const h = Math.floor(min / 60), m = min % 60;
+  return h ? `${h} h ${String(m).padStart(2, '0')} min` : min < 1 ? '< 1 min' : `${m} min`;
+}
+
+/**
  * Aviso de la página de la ejecución: el backend la marca `heartbeat_stale` cuando
  * sigue `running` pero el trabajador lleva más de 15 min sin latir. `heartbeatAt`
  * (de `/status`) da el "hace cuánto"; sin él no se dice nada del tiempo.
+ *
+ * Solo el aviso es `role="alert"`, con un texto que no cambia: el lector de pantalla lo
+ * anuncia una vez. El "hace cuánto" va fuera de esa región, en minutos, para que la
+ * consulta de cada 5 s no lo vuelva a anunciar.
  */
 export function StaleHeartbeatBanner({ stale, heartbeatAt, now }: {
   stale: boolean; heartbeatAt?: string | null; now?: number;
@@ -138,12 +153,14 @@ export function StaleHeartbeatBanner({ stale, heartbeatAt, now }: {
   if (!stale) return null;
   const cuando = heartbeatAt === undefined ? ''
     : heartbeatAt === null ? t('f9_heartbeat_never')
-      : t('f9_heartbeat_ago').replace('{t}', duration(heartbeatAt, null, now));
+      : t('f9_heartbeat_ago').replace('{t}', elapsedMinutes(heartbeatAt, now));
   return (
-    <div className="card p-3 mb-4 text-sm" role="alert" data-testid="heartbeat-banner"
+    <div className="card p-3 mb-4 text-sm" data-testid="heartbeat-banner"
          style={{ backgroundColor: 'var(--color-warning-bg)', borderColor: 'var(--color-warning)' }}>
-      <strong>{t('f9_heartbeat_stale_title')}</strong> {t('f9_heartbeat_stale_body')}
-      {cuando && <> {cuando}</>}
+      <span role="alert">
+        <strong>{t('f9_heartbeat_stale_title')}</strong> {t('f9_heartbeat_stale_body')}
+      </span>
+      {cuando && <span data-testid="heartbeat-ago"> {cuando}</span>}
     </div>
   );
 }

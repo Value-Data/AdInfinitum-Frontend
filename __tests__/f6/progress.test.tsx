@@ -31,7 +31,7 @@ vi.mock('../../src/services/apiV2', async (orig) => ({
 
 import ProjectPage from '../../src/f6/ProjectPage';
 import ExecutionPage from '../../src/f6/ExecutionPage';
-import { progressText, runProgress } from '../../src/f6/common';
+import { elapsedMinutes, progressText, runProgress } from '../../src/f6/common';
 import { TRANSLATIONS, type TranslationKey } from '../../src/i18n/translations';
 
 const t = (k: TranslationKey) => TRANSLATIONS[k].es;
@@ -114,10 +114,21 @@ describe('la página de la ejecución', () => {
     datos.estado = { id: 'din', status: 'running', heartbeat_at: hace, heartbeat_stale: true };
     ver();
     const aviso = await screen.findByTestId('heartbeat-banner');
-    expect(aviso).toHaveAttribute('role', 'alert');
-    expect(aviso).toHaveTextContent('Sin latido del trabajador');
-    expect(aviso).toHaveTextContent(/revise el trabajador o cancele la ejecución/);
-    expect(await within(aviso).findByText(/Último latido hace 20 min/)).toBeInTheDocument();
+    // Lo que se anuncia es el aviso, con un texto fijo; el "hace cuánto" (en minutos)
+    // va fuera de la región viva, para que cada consulta no lo vuelva a anunciar.
+    const alerta = within(aviso).getByRole('alert');
+    expect(alerta).toHaveTextContent('Sin latido del trabajador');
+    expect(alerta).toHaveTextContent(/revise el trabajador o cancele la ejecución/);
+    expect(alerta.textContent).not.toMatch(/Último latido|min/);
+    expect(await within(aviso).findByText(/Último latido hace 20 min\./)).toBeInTheDocument();
+    expect(within(aviso).getByTestId('heartbeat-ago').textContent).not.toMatch(/ s/);
+  });
+
+  it('el "hace cuánto" va en minutos enteros', () => {
+    const ahora = Date.parse('2026-10-26T12:00:00Z');
+    expect(elapsedMinutes('2026-10-26T11:39:35', ahora)).toBe('20 min');
+    expect(elapsedMinutes('2026-10-26T10:55:00Z', ahora)).toBe('1 h 05 min');
+    expect(elapsedMinutes('2026-10-26T11:59:30Z', ahora)).toBe('< 1 min');
   });
 
   it('sin latido y sin ninguno registrado: lo dice', async () => {

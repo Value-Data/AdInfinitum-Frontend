@@ -125,6 +125,8 @@ describe('fichas de reactivos (punto 8)', () => {
     expect(screen.getByTestId('reagent-Na2SO4-purity').textContent).toBe('100 %');
     // No es un campo: no hay donde escribir la pureza.
     expect(screen.getByTestId('reagent-NaOH-purity').tagName).toBe('OUTPUT');
+    // Se lee con el reactivo y su etiqueta.
+    expect(screen.getByTestId('reagent-CaCl2-purity')).toHaveAccessibleName(/^CaCl2 .*\(%\)$/);
     expect(within(screen.getByTestId('reagents-editor')).queryByRole('textbox', { name: /pureza/i })).toBeNull();
     expect(screen.getByTestId('impurities-NaOH-empty').textContent).toBe('Sin impurezas (pureza 100 %).');
     // Lo que trae la plantilla se edita.
@@ -214,6 +216,8 @@ describe('umbral SO4/Mg del CaCl2 (punto 9)', () => {
     const umbral = campo('field-plant.cacl2_min_so4_mg_ratio');
     expect(umbral.value).toBe('');
     expect(umbral.placeholder).toBe('vacío = dosificar siempre');
+    // La nota no depende del placeholder: está bajo el campo también vacío.
+    expect(screen.getByTestId('note-plant.cacl2_min_so4_mg_ratio').textContent).toBe('opcional · vacío = dosificar siempre');
     escribir(umbral, '4,5');
     expect(screen.getByTestId('note-plant.cacl2_min_so4_mg_ratio').textContent).toBe('opcional · vacío = dosificar siempre');
     fireEvent.click(screen.getByText('Validar'));

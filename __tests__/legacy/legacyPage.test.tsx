@@ -61,6 +61,22 @@ describe('ejecución de la versión anterior', () => {
     expect(text).toContain('Planta de Reactivos (Pz8-Pz9)');
   }, 30000);
 
+  it('dinámico del formato anterior (sin KPIs ni lista de pozas): lo dice y deja los archivos', async () => {
+    const viejo = structuredClone(fx(dynCascade)) as LegacyExecutionDetail;
+    viejo.id = 'formato-anterior';
+    viejo.project_id = 'p-viejo';
+    const res = viejo.results as Record<string, unknown>;
+    delete res.kpis;
+    delete res.pond_names;
+    store.set(viejo.id, viejo);
+    const { error, text } = await renderAndWalk(viejo.id);
+    expect(error).toBeNull();
+    expect(text).toContain('Resultados guardados en el formato anterior; ver archivos abajo.');
+    expect(text).toContain('cascade_feed_to_encalado_local.csv');
+    expect(text).not.toContain('undefined');
+    expect(text).not.toContain('Factor de escala');
+  }, 30000);
+
   it('una ejecución que no existe muestra el aviso, no se cae', async () => {
     const { error, text } = await renderAndWalk('no-existe');
     expect(error).toBeNull();

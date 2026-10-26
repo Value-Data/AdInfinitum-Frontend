@@ -102,7 +102,8 @@ function scaleCascadeOrPostliming(
     annual_composition_pct: r.annual_composition_pct,
     annual_salts_pct: r.annual_salts_pct,
   };
-  for (const name of r.pond_names) {
+  // Una corrida del formato anterior puede no traer la lista de pozas.
+  for (const name of r.pond_names ?? []) {
     scaled.daily_series[name] = (r.daily_series?.[name] || []).map((s) =>
       mulRecord(s, CP_DAILY_SCALE_KEYS, f),
     );

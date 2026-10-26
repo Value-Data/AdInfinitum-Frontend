@@ -71,6 +71,11 @@ describe('tabla de pozas: lo que no aplica al tipo va gris, no oculto', () => {
       expect(celda(fila, 'target_outflow_t_d').disabled).toBe(true);
       expect(td(fila, 'target_outflow_t_d').className).toContain('cell-na');
       expect(celda(fila, 'target_outflow_t_d').getAttribute('title')).toBe('No aplica a este tipo de poza');
+      // El motivo también para el lector de pantalla, no solo en el `title`.
+      const motivo = document.getElementById(celda(fila, 'target_outflow_t_d').getAttribute('aria-describedby') ?? '');
+      expect(motivo?.textContent).toBe('No aplica a este tipo de poza');
+      expect(motivo?.className).toContain('sr-only');
+      expect(celda(fila, 'target_height_m').getAttribute('aria-describedby')).toBeNull();
       // El valor cargado no se muestra (no se manda).
       expect(celda(fila, 'target_outflow_t_d').value).toBe('');
       expect(celda(fila, 'startup_height_m').disabled).toBe(true);
