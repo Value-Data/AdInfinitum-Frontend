@@ -8,6 +8,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import DIC from './fixtures/dictionary_f9.json';
 import type { ValidationIssue, ValidationReport } from '../../src/services/apiV2';
 
@@ -67,7 +68,13 @@ function ver(kind = 'liming_static') {
 const campo = (testId: string) => screen.getByTestId(testId) as HTMLInputElement;
 /** Lo que se mandó en la última validación. */
 const validado = () => m.validateSection.mock.calls.at(-1)![2] as Record<string, any>;
-const escribir = (el: HTMLElement, v: string) => { fireEvent.change(el, { target: { value: v } }); fireEvent.blur(el); };
+/** Escribe como un usuario: foco, borra, teclea y sale con tab (el campo confirma al perder el foco). */
+const escribir = async (el: HTMLElement, v: string) => {
+  const u = userEvent.setup();
+  await u.clear(el);
+  if (v) await u.type(el, v);
+  await u.tab();
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -142,7 +149,7 @@ describe('fichas de reactivos (punto 8)', REINTENTOS, () => {
   it('la pureza se recalcula al editar una impureza y no se manda', async () => {
     ver();
     await screen.findByTestId('reagents-editor');
-    escribir(campo('impurity-Ca(OH)2-1-frac'), '0,2');
+    await escribir(campo('impurity-Ca(OH)2-1-frac'), '0,2');
     expect(screen.getByTestId('reagent-Ca(OH)2-purity').textContent).toBe('80 %');
     fireEvent.click(screen.getByText('Validar'));
     await waitFor(() => expect(m.validateSection).toHaveBeenCalled());
@@ -163,13 +170,13 @@ describe('fichas de reactivos (punto 8)', REINTENTOS, () => {
     fireEvent.click(screen.getByTestId('impurities-NaOH-add-inerts'));
     expect(screen.getByTestId('impurity-NaOH-1-inerts').textContent).toBe('Inertes / otros');
     expect(campo('impurity-NaOH-1-destination').disabled).toBe(true);
-    escribir(campo('impurity-NaOH-1-frac'), '0.02');
+    await escribir(campo('impurity-NaOH-1-frac'), '0.02');
     expect(screen.getByTestId('reagent-NaOH-purity').textContent).toBe('98 %');
     expect(screen.queryByTestId('impurities-NaOH-add-inerts')).toBeNull();
     // Escribir "Inertes" en una impureza común la vuelve la línea de inertes (a la torta).
     fireEvent.click(screen.getByTestId('impurities-Na2SO4-add'));
     fireEvent.change(campo('impurity-Na2SO4-1-destination'), { target: { value: 'liquid' } });
-    escribir(campo('impurity-Na2SO4-1-species'), ' Inertes ');
+    await escribir(campo('impurity-Na2SO4-1-species'), ' Inertes ');
     expect(campo('impurity-Na2SO4-1-destination').disabled).toBe(true);
     fireEvent.click(screen.getByText('Validar'));
     await waitFor(() => expect(m.validateSection).toHaveBeenCalled());
@@ -180,7 +187,7 @@ describe('fichas de reactivos (punto 8)', REINTENTOS, () => {
   it('impurezas que suman 1 o más: la pureza queda en 0 y se avisa antes de validar', async () => {
     ver();
     await screen.findByTestId('reagents-editor');
-    escribir(campo('impurity-Ca(OH)2-1-frac'), '1');
+    await escribir(campo('impurity-Ca(OH)2-1-frac'), '1');
     expect(screen.getByTestId('reagent-Ca(OH)2-purity').textContent).toBe('0 %');
     expect(screen.getByTestId('reagent-Ca(OH)2-overflow')).toBeTruthy();
   });
@@ -223,7 +230,7 @@ describe('umbral SO4/Mg del CaCl2 (punto 9)', REINTENTOS, () => {
     expect(umbral.placeholder).toBe('vacío = dosificar siempre');
     // La nota no depende del placeholder: está bajo el campo también vacío.
     expect(screen.getByTestId('note-plant.cacl2_min_so4_mg_ratio').textContent).toBe('opcional · vacío = dosificar siempre');
-    escribir(umbral, '4,5');
+    await escribir(umbral, '4,5');
     expect(screen.getByTestId('note-plant.cacl2_min_so4_mg_ratio').textContent).toBe('opcional · vacío = dosificar siempre');
     fireEvent.click(screen.getByText('Validar'));
     await waitFor(() => expect(m.validateSection).toHaveBeenCalled());
@@ -238,7 +245,7 @@ describe('valores por defecto (punto 21)', REINTENTOS, () => {
     expect(screen.getByTestId('default-plant.dilution_frac')).toBeTruthy();
     expect(screen.getByTestId('default-plant.plant_temperature_C')).toBeTruthy();
     expect(campo('field-plant.dilution_frac').className).toContain('italic');
-    escribir(campo('field-plant.dilution_frac'), '0.02');
+    await escribir(campo('field-plant.dilution_frac'), '0.02');
     expect(screen.queryByTestId('default-plant.dilution_frac')).toBeNull();
     expect(campo('field-plant.dilution_frac').className).not.toContain('italic');
   });
@@ -247,7 +254,7 @@ describe('valores por defecto (punto 21)', REINTENTOS, () => {
     ver();
     await screen.findByTestId('reagents-editor');
     const dil = campo('field-plant.dilution_frac');
-    escribir(dil, '');
+    await escribir(dil, '');
     expect(dil.placeholder).toBe('0.01');
     expect(dil.getAttribute('title')).toBe('Vacío: se usa el valor por defecto (0.01)');
     expect(screen.getByTestId('default-plant.dilution_frac')).toBeTruthy();
@@ -263,7 +270,7 @@ describe('valores por defecto (punto 21)', REINTENTOS, () => {
     m.saveSection.mockResolvedValue({ ok: true, version_no: 1, validation: informe });
     ver();
     await screen.findByTestId('reagents-editor');
-    escribir(campo('field-plant.dilution_frac'), '');
+    await escribir(campo('field-plant.dilution_frac'), '');
     const guardar = screen.getByTestId('save-section') as HTMLButtonElement;
     expect(guardar.disabled).toBe(false);
     fireEvent.click(guardar);
@@ -303,8 +310,8 @@ describe('medio de lavado (punto 22)', REINTENTOS, () => {
     expect(screen.getByTestId('wash-medium-is-default')).toBeTruthy();
     // Ya es el default: no se ofrece volver a él.
     expect(screen.queryByTestId('wash-medium-use-default')).toBeNull();
-    escribir(screen.getByTestId('wash-medium-H2O'), '98');
-    escribir(screen.getByTestId('wash-medium-Na+'), '2');
+    await escribir(screen.getByTestId('wash-medium-H2O'), '98');
+    await escribir(screen.getByTestId('wash-medium-Na+'), '2');
     expect(screen.queryByTestId('wash-medium-is-default')).toBeNull();
     fireEvent.click(screen.getByTestId('wash-medium-use-default'));
     expect(screen.getByTestId('wash-medium-default-summary').textContent).toBe('Agua 100 % (valor por defecto)');
@@ -319,10 +326,10 @@ describe('medio de lavado (punto 22)', REINTENTOS, () => {
   it('borrar el agua celda a celda también lo deja vacío (no {}), y otro medio se manda tal cual', async () => {
     ver();
     await screen.findByTestId('reagents-editor');
-    escribir(screen.getByTestId('wash-medium-H2O'), '');
+    await escribir(screen.getByTestId('wash-medium-H2O'), '');
     expect(screen.getByTestId('wash-medium-default-summary')).toBeTruthy();
-    escribir(screen.getByTestId('wash-medium-H2O'), '95');
-    escribir(screen.getByTestId('wash-medium-Na+'), '5');
+    await escribir(screen.getByTestId('wash-medium-H2O'), '95');
+    await escribir(screen.getByTestId('wash-medium-Na+'), '5');
     expect(screen.queryByTestId('wash-medium-is-default')).toBeNull();
     fireEvent.click(screen.getByText('Validar'));
     await waitFor(() => expect(m.validateSection).toHaveBeenCalled());
