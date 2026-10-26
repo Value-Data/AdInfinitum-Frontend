@@ -207,54 +207,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/projects/inventario/escenarios": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Inventario Escenarios
-         * @description Escenarios que trae el motor con inventario, para elegir uno en la UI.
-         *
-         *     Cada entrada dice su descripcion, horizonte, fecha de inicio y si arranca con
-         *     inventario o con las pozas vacias. Lista vacia si el motor no esta instalado.
-         */
-        get: operations["list_inventario_escenarios_api_v1_projects_inventario_escenarios_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/inventario/escenarios/expandido": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Inventario Escenario Expandido
-         * @description Un escenario con sus datos ADENTRO, para editarlo en la UI.
-         *
-         *     Los escenarios de la entrega apuntan a JSON sueltos (pozas, feed, clima,
-         *     factores, inventario); esto los resuelve y devuelve todo embebido, que es lo que
-         *     el editor necesita para mostrar tablas y lo que se guarda en el proyecto al
-         *     editarlas. Sin `path` devuelve el de referencia.
-         */
-        get: operations["get_inventario_escenario_expandido_api_v1_projects_inventario_escenarios_expandido_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/projects/{project_id}/report-params": {
         parameters: {
             query?: never;
@@ -1039,51 +991,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/inventario/escenarios": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Escenarios
-         * @description Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,
-         *     por qué: así la UI los muestra deshabilitados en vez de fallar al cargar.
-         */
-        get: operations["list_escenarios_api_v1_inventario_escenarios_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/{project_id}/inventario/load": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Load Escenario
-         * @description Carga un escenario de inventario en el proyecto.
-         *
-         *     Convierte el escenario a secciones, valida cada una y, si ninguna tiene errores,
-         *     las guarda todas como versiones nuevas (una transacción: todas o ninguna). Con
-         *     errores responde igual 200, con `saved = false` y el informe de cada sección.
-         */
-        post: operations["load_escenario_api_v1_projects__project_id__inventario_load_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -1405,7 +1312,7 @@ export interface components {
              * Execution Type
              * @enum {string}
              */
-            execution_type: "proceso_completo" | "preconcentracion" | "modelo_dinamico_cascade" | "modelo_dinamico_encalado" | "modelo_dinamico_postliming" | "inventario_precon" | "inventario_encalado" | "inventario_postliming" | "static_full" | "static_precon" | "static_liming" | "static_postliming" | "dynamic_precon" | "dynamic_liming" | "dynamic_postliming";
+            execution_type: "proceso_completo" | "preconcentracion" | "modelo_dinamico_cascade" | "modelo_dinamico_encalado" | "modelo_dinamico_postliming" | "static_full" | "static_precon" | "static_liming" | "static_postliming" | "dynamic_precon" | "dynamic_liming" | "dynamic_postliming";
             /**
              * Selected Days
              * @description Indices of days from daily_schedule to simulate. None = all days.
@@ -1677,63 +1584,6 @@ export interface components {
              * @default false
              */
             at_operating_level: boolean;
-        };
-        /** InventarioEscenario */
-        InventarioEscenario: {
-            /** Path */
-            path: string;
-            /** Nombre */
-            nombre: string;
-            /** Descripcion */
-            descripcion: string;
-            /** Dias */
-            dias?: number | null;
-            /** Start Date */
-            start_date?: string | null;
-            /** Con Inventario */
-            con_inventario: boolean;
-            /**
-             * Loadable
-             * @default true
-             */
-            loadable: boolean;
-            /** Reason */
-            reason?: string | null;
-        };
-        /** InventarioLoadRequest */
-        InventarioLoadRequest: {
-            /** Escenario */
-            escenario: string;
-        };
-        /** InventarioLoadResponse */
-        InventarioLoadResponse: {
-            /** Escenario */
-            escenario: string;
-            /** Ok */
-            ok: boolean;
-            /** Saved */
-            saved: boolean;
-            /** Start Date */
-            start_date?: string | null;
-            /** Days Max */
-            days_max?: number | null;
-            /**
-             * Descripcion
-             * @default
-             */
-            descripcion: string;
-            /** N Initial States */
-            n_initial_states: number;
-            /** Sections */
-            sections: {
-                [key: string]: components["schemas"]["InventarioLoadedSection"];
-            };
-        };
-        /** InventarioLoadedSection */
-        InventarioLoadedSection: {
-            validation: components["schemas"]["ValidationReport"];
-            /** Saved Version */
-            saved_version?: number | null;
         };
         /**
          * LabelUpdate
@@ -2990,57 +2840,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_inventario_escenarios_api_v1_projects_inventario_escenarios_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_inventario_escenario_expandido_api_v1_projects_inventario_escenarios_expandido_get: {
-        parameters: {
-            query?: {
-                path?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
             /** @description Validation Error */
             422: {
@@ -4420,63 +4219,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_escenarios_api_v1_inventario_escenarios_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InventarioEscenario"][];
-                };
-            };
-        };
-    };
-    load_escenario_api_v1_projects__project_id__inventario_load_post: {
-        parameters: {
-            query?: {
-                language?: "es" | "en";
-            };
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InventarioLoadRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InventarioLoadResponse"];
                 };
             };
             /** @description Validation Error */
