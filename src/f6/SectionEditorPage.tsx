@@ -409,8 +409,8 @@ export function TableEditor({ schema, prefix, rows, onChange, issues, species, t
         <PasteBox onPaste={pegar} />
       </div>
       <Issues issues={issues.filter((i) => i.field === prefix && i.row == null)} />
-      <div className="overflow-x-auto">
-        <table className="text-xs">
+      <div className="overflow-x-auto relative">
+        <table className="text-xs data-table">
           <thead>
             <tr>
               <th>#</th>
@@ -563,7 +563,7 @@ export function KeyValueEditor({ title, keys, value, onChange, unit, testId, iss
         <div className="grid gap-x-6 gap-y-3 items-start"
              style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', maxWidth: `${bloques.length * 26}rem` }}>
           {bloques.map((bloque, b) => (
-            <table key={b} className="[&_td]:py-0.5 [&_td]:px-2 [&_th]:py-1 [&_th]:px-2" data-testid={`${testId}-block`}>
+            <table key={b} className="data-table [&_td]:py-0.5 [&_td]:px-2 [&_th]:py-1 [&_th]:px-2" data-testid={`${testId}-block`}>
               <thead>
                 <tr>
                   <th scope="col">{t(keyKind === 'phase' ? 'f6_kv_phase' : 'f6_kv_species')}</th>
@@ -765,8 +765,8 @@ function SeriesEditor({ schema, payload, onChange, issues, species, storageKey }
       )}
       {csvAviso && <p className="text-xs mb-2" role="status">{csvAviso}</p>}
       <Issues issues={propios} />
-      <div className="overflow-x-auto">
-        <table className="text-xs">
+      <div className="overflow-x-auto relative">
+        <table className="text-xs data-table">
           <thead>
             <tr>
               <th>{t('f6_date')}</th>
@@ -922,8 +922,8 @@ export function InitialStatesEditor({ schema, payload, onChange, issues, species
       {filas.length === 0 ? (
         <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_initial_states_no_ponds')}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="text-xs">
+        <div className="overflow-x-auto relative">
+          <table className="text-xs data-table">
             <thead>
               <tr>
                 <th>{schema.byKey.get('initial_states.pond')?.label ?? 'pond'}</th>
@@ -1105,8 +1105,8 @@ function ImpuritiesTable({ schema, reagent, rows, onChange, issues }: {
           {t('f9_no_impurities')}
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="text-xs">
+        <div className="overflow-x-auto relative">
+          <table className="text-xs data-table">
             <thead>
               <tr>
                 <th>#</th>

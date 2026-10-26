@@ -67,8 +67,8 @@ function ExecutionsTable({ executions }: { executions: ExecutionSummary[] }) {
               </td>
               <td className="font-mono">{e.run_tag}</td>
               <td className="font-mono" data-testid="execution-progress">{progressText(e, t)}</td>
-              <td className="font-mono">{formatDateTime(e.created_at)}</td>
-              <td className="font-mono">{duration(e.started_at, e.completed_at)}</td>
+              <td className="font-mono whitespace-nowrap">{formatDateTime(e.created_at)}</td>
+              <td className="font-mono whitespace-nowrap">{duration(e.started_at, e.completed_at)}</td>
             </tr>
           ))}
         </tbody>
@@ -176,7 +176,7 @@ export default function ProjectPage() {
         ))}
       </div>
       {(tab === 'config' ? errorSecciones : errorEjecuciones) && (
-        <div className="card p-3 mb-4 text-sm flex items-center gap-3" role="alert" style={{ borderColor: '#fca5a5' }}>
+        <div className="card p-3 mb-4 text-sm flex items-center gap-3" role="alert" style={{ borderColor: 'var(--color-danger-border)' }}>
           <span style={{ color: 'var(--color-danger)' }}>{tab === 'config' ? errorSecciones : errorEjecuciones}</span>
           <button className="btn btn-outline btn-sm"
                   onClick={tab === 'config' ? cargarSecciones : cargarEjecuciones}>{t('f7_retry')}</button>

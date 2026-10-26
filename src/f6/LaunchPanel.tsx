@@ -16,6 +16,24 @@ import { InventoryBadge } from './ConfigPanel';
 
 const RUN_TAG = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
 
+/** Etapas que usa cada tipo (como `SECTIONS_OF` de `app/services/execution_v2.py`). */
+const STAGES_OF: Record<ExecutionTypeV2, string[]> = {
+  static_full: ['precon', 'liming', 'postliming'], static_precon: ['precon'],
+  static_liming: ['liming'], static_postliming: ['postliming'],
+  dynamic_precon: ['precon'], dynamic_liming: ['liming'], dynamic_postliming: ['postliming'],
+};
+
+/** Si el proyecto tiene guardadas las secciones que usa el tipo (sin ellas el backend no lo lanza). */
+export function typeConfigured(tipo: ExecutionTypeV2, secciones: SectionState[]): boolean {
+  const motor = isDynamicType(tipo) ? 'dynamic' : 'static';
+  return STAGES_OF[tipo].every((st) => Boolean(secciones.find((s) => s.kind === `${st}_${motor}`)?.latest_version_no));
+}
+
+/** El tipo que se ofrece primero: el primero que el proyecto puede correr (si ninguno, el de siempre). */
+export function defaultLaunchType(secciones: SectionState[]): ExecutionTypeV2 {
+  return EXECUTION_TYPES_V2.find((x) => typeConfigured(x, secciones)) ?? 'static_full';
+}
+
 /** Ejecuciones que pueden alimentar a `tipo`: la etapa anterior, terminada y con resultados. */
 export function sourceCandidates(tipo: ExecutionTypeV2, ejecuciones: ExecutionSummary[]): ExecutionSummary[] {
   const anterior = SOURCE_OF[tipo];
@@ -117,7 +135,9 @@ export default function LaunchPanel({
   onLaunched: (e: ExecutionSummary) => void;
 }) {
   const t = useT();
-  const [tipo, setTipo] = useState<ExecutionTypeV2>('static_full');
+  // Hasta que el usuario elige, el tipo sigue a las secciones (llegan después del panel).
+  const [tipoElegido, setTipo] = useState<ExecutionTypeV2 | null>(null);
+  const tipo = tipoElegido ?? defaultLaunchType(sections);
   const [runTag, setRunTag] = useState('baseline');
   const [source, setSource] = useState('');
   const [continuar, setContinuar] = useState('');
@@ -129,13 +149,15 @@ export default function LaunchPanel({
   // Escenarios de la precon del estático, para correr solo algunos (vacío = todos).
   const [escenariosPrecon, setEscenariosPrecon] = useState<string[]>([]);
   const [elegidos, setElegidos] = useState<number[]>([]);
+  // Sin precon del estático guardada no hay escenarios que pedir (el pedido daba 404).
+  const conPrecon = typeConfigured('static_precon', sections);
   useEffect(() => {
-    if (tipo !== 'static_full' && tipo !== 'static_precon') { setEscenariosPrecon([]); return; }
+    if ((tipo !== 'static_full' && tipo !== 'static_precon') || !conPrecon) { setEscenariosPrecon([]); return; }
     getSection(projectId, 'precon_static').then((s) => {
       const filas = ((s?.data as unknown as { scenarios?: { label: string }[] })?.scenarios) ?? [];
       setEscenariosPrecon(filas.map((f) => f.label));
     }).catch(() => setEscenariosPrecon([]));
-  }, [tipo, projectId]);
+  }, [tipo, projectId, conPrecon]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -182,7 +204,11 @@ export default function LaunchPanel({
           <span className="label">{t('f6_execution_type')}</span>
           <select className="input" value={tipo} data-testid="launch-type"
                   onChange={(e) => cambiarTipo(e.target.value as ExecutionTypeV2)}>
-            {EXECUTION_TYPES_V2.map((x) => <option key={x} value={x}>{executionTypeLabel(x, t)}</option>)}
+            {EXECUTION_TYPES_V2.map((x) => (
+              <option key={x} value={x}>
+                {executionTypeLabel(x, t)}{typeConfigured(x, sections) ? '' : ` · ${t('f6_section_empty').toLowerCase()}`}
+              </option>
+            ))}
           </select>
         </label>
         <label className="text-sm">

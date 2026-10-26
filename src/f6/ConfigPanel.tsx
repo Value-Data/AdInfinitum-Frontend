@@ -55,16 +55,16 @@ function SectionCards({ projectId, sections, engine }: {
 }) {
   const t = useT();
   return (
-    <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+    <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
       {ETAPAS.map((etapa) => {
         const kind = `${etapa}_${engine}` as SectionKind;
         const s = sections.find((x) => x.kind === kind);
         const vacia = !s?.latest_version_no;
         return (
           <div key={kind} className="card p-4" data-testid={`section-${kind}`}>
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-start justify-between gap-2 mb-1">
               <span className="font-semibold">{t(`f6_stage_${etapa}` as never)}</span>
-              <span className="text-xs px-2 py-0.5 border"
+              <span className="text-xs px-2 py-0.5 border whitespace-nowrap shrink-0"
                     style={vacia ? { color: '#92400e', borderColor: '#fde68a' }
                                  : { color: '#166534', borderColor: '#86efac' }}>
                 {vacia ? t('f6_section_empty') : `v${s?.latest_version_no}`}

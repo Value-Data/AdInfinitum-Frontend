@@ -65,7 +65,7 @@ export default function ProjectEditModal({ project, clients = [], onClose, onSav
           <textarea id="pe-desc" className="input" rows={3} value={desc}
                     onChange={(e) => setDesc(e.target.value)} />
         </div>
-        {error && <p className="text-sm" role="alert" style={{ color: 'var(--color-danger, #b91c1c)' }}>{error}</p>}
+        {error && <p className="text-sm" role="alert" style={{ color: 'var(--color-danger-text)' }}>{error}</p>}
         <div className="flex gap-2 justify-end">
           <button type="button" className="btn btn-outline" onClick={onClose}>{t('cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={!name.trim() || saving}>

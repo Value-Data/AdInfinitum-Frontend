@@ -26,6 +26,7 @@ import { EChart, useChartPrint } from './EChart';
 import { Panel, SmoothContext, Toggle, nombreArchivo, useSmooth, useTools } from './chartPanel';
 import { LiSankeyPanel, PondHeatmap } from './ProCharts';
 import { canvasToBlob, panelCanvas } from './chartImage';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
 export { GRID } from './chartOptions';
 export { Panel, Toggle } from './chartPanel';
@@ -155,7 +156,15 @@ export function DailyCharts({ executionId, query, print: printProp = false, onSe
   }, [data, grupos, eje, geo.interval, geo.angled, print, decimals, label, t]);
 
   if (error) return <p className="text-sm mb-4" style={{ color: 'var(--color-danger)' }}>{error}</p>;
-  if (!data) return null;
+  // Las series de una corrida larga tardan: mientras llegan, se dice (antes quedaba en blanco).
+  if (!data) {
+    return (
+      <div className="flex items-center gap-2 py-8 justify-center text-sm" role="status" data-testid="daily-charts-loading"
+           style={{ color: 'var(--color-text-secondary)' }}>
+        <LoadingSpinner size="sm" /> {t('f6_series_loading')}
+      </div>
+    );
+  }
   const listaEspecies = (data.composition?.species ?? []).filter((sp) => data.stage === 'liming' || sp !== 'Li+');
   return (
     <section className="mb-6" data-testid="daily-charts" ref={caja}>

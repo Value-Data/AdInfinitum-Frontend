@@ -92,13 +92,12 @@ function TableBody({ table, columnas, label, print = false }: {
   table: ReportTable; columnas: ReportColumn[]; label: LabelFn; print?: boolean;
 }) {
   return (
-    <table className={print ? 'text-xs print-table' : 'text-sm'}>
+    <table className={print ? 'text-xs print-table data-table' : 'text-sm data-table'}>
       <thead>
         <tr>
           <th className="sticky-col" />
           {columnas.map((c) => (
             <th key={c.key} className={`text-right ${print ? '' : 'whitespace-nowrap'}`}
-                style={c.unit || c.kind !== 'label' ? { textTransform: 'none', letterSpacing: 0 } : undefined}
                 title={c.formula ? formulaText(c.formula, label) : undefined}>
               {columnHeader(c, label)}
               {c.formula && <span style={MARCA} aria-label={formulaText(c.formula, label)}>ⓘ</span>}
@@ -183,7 +182,14 @@ export function ReportTableView({ table }: { table: ReportTable }) {
 
 /** Las tarjetas que iban primero en el reporte de antes: recuperación, producción de Li y
  * convergencia del AQSOL; después las demás, como las manda el backend. */
-export const KPI_FIRST = ['li_recovery_pct', 'li_out_t_y', 'aqsol_converged_pct'];
+export const KPI_FIRST = ['process_li_recovery_pct', 'li_recovery_pct', 'li_out_t_y', 'aqsol_converged_pct'];
+/** Unidad de cada KPI: copia de `KPI_UNITS` de `app/reporting/model.py` (el reporte JSON
+ * no la manda todavía; el PDF y el Excel sí la ponen). Sin entrada, el KPI va sin unidad. */
+export const KPI_UNITS: Record<string, string> = {
+  li_in_t: 't', li_out_t: 't', li_in_t_d: 't/d', li_out_t_d: 't/d',
+  li_in_t_y: 't/y', li_out_t_y: 't/y', li_out_pct: '%w/w',
+  outflow_t_d_avg: 't/d', outflow_t_d: 't/d', li_recovery_pct: '%', process_li_recovery_pct: '%',
+};
 /** Van dentro de la tarjeta de la convergencia del AQSOL, no solas. */
 const KPI_IN_AQSOL = ['n_aqsol_failed_days', 'n_aqsol_ok_days', 'n_aqsol_days'];
 
@@ -212,10 +218,14 @@ export function KpiCards({ kpis }: { kpis: Record<string, number | null> }) {
     <div className="grid gap-3 mb-4 pdf-block" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
       {entradas.map(([k, v]) => {
         const c = k === 'aqsol_converged_pct' ? aqsol(v) : { titulo: label(`result.${k}`, k), valor: formatCell(v), sub: null };
+        const unidad = k !== 'aqsol_converged_pct' && v !== null ? KPI_UNITS[k] : undefined;
         return (
           <div key={k} className="card p-3" data-testid={`kpi-${k}`}>
             <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{c.titulo}</div>
-            <div className="text-lg font-semibold font-mono">{c.valor}</div>
+            <div className="text-lg font-semibold font-mono">
+              {c.valor}
+              {unidad && <span className="ml-1 text-xs font-normal" style={{ color: 'var(--color-text-secondary)' }}>{unidad}</span>}
+            </div>
             {c.sub && <div className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>{c.sub}</div>}
           </div>
         );
@@ -249,7 +259,7 @@ export function RecoveryBars({ stages, processKpis }: {
             <div className="flex-1 rounded" style={{ height: 10, background: 'var(--color-border)' }}
                  role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={f.value ?? undefined}>
               <div className="rounded" style={{ height: 10, width: `${ancho}%`,
-                background: f.key === 'process' ? '#1baf7a' : 'var(--color-primary)' }} />
+                background: f.key === 'process' ? 'var(--chart-series-3)' : 'var(--color-primary)' }} />
             </div>
             <span className="font-mono text-right" style={{ width: 84 }}>
               {f.value === null ? '–' : `${formatCell(f.value)} %`}
@@ -279,6 +289,29 @@ export function resultSections(report: Report, scenario = 0): ResultSection[] {
   (fuente?.stages ?? []).forEach((st) => out.push(`stage:${st.stage}`));
   if (fuente?.global_balance) out.push('global');
   return out;
+}
+
+/**
+ * Sin KPIs del proceso (una corrida de una sola etapa), el resumen en pantalla quedaba con
+ * el período y nada más: muestra los KPIs de cada etapa. Impreso no, porque cada etapa ya
+ * va completa debajo.
+ */
+function StageKpisInSummary({ stages, processKpis }: {
+  stages: StageReport[]; processKpis: Record<string, number | null>;
+}) {
+  const t = useT();
+  const enPantalla = useContext(SectionContext) !== null;
+  if (!enPantalla || Object.keys(processKpis).length > 0) return null;
+  return (
+    <>
+      {stages.filter((st) => Object.keys(st.kpis).length > 0).map((st) => (
+        <section key={st.stage} className="mb-2" data-testid={`summary-kpis-${st.stage}`}>
+          <h3 className="text-base font-semibold mb-2">{t(`f6_stage_${st.stage}` as never)}</h3>
+          <KpiCards kpis={st.kpis} />
+        </section>
+      ))}
+    </>
+  );
 }
 
 /** Tablas del detalle de la planta (el "Detalle planta de reactivos" de antes). */
@@ -331,6 +364,7 @@ function DynamicReportView({ report }: { report: DynamicReport }) {
           <KpiCards kpis={report.process_kpis} />
         </section>
       )}
+      {ver('summary') && <StageKpisInSummary stages={report.stages} processKpis={report.process_kpis} />}
       {ver('summary') && <ReportWarnings warnings={sueltos} />}
       {ver('summary') && <RecoveryBars stages={report.stages} processKpis={report.process_kpis} />}
       {report.stages.filter((s) => ver(`stage:${s.stage}`)).map((s) => (
@@ -347,7 +381,7 @@ function ScenarioBlock({ sc }: { sc: StaticReport['scenarios'][number] }) {
   return (
     <>
       {ver('summary') && sc.status === 'failed' && (
-        <div className="card p-3 mb-3 text-sm pdf-block" style={{ borderColor: '#fca5a5' }}>
+        <div className="card p-3 mb-3 text-sm pdf-block" style={{ borderColor: 'var(--color-danger-border)' }}>
           {t('f6_scenario_failed')} ({sc.failed_stage ?? '–'}): {sc.error_message}
         </div>
       )}
@@ -357,6 +391,7 @@ function ScenarioBlock({ sc }: { sc: StaticReport['scenarios'][number] }) {
         </p>
       )}
       {ver('summary') && Object.keys(sc.process_kpis).length > 0 && <KpiCards kpis={sc.process_kpis} />}
+      {ver('summary') && <StageKpisInSummary stages={sc.stages} processKpis={sc.process_kpis} />}
       {ver('summary') && <RecoveryBars stages={sc.stages} processKpis={sc.process_kpis} />}
       {sc.stages.filter((s) => ver(`stage:${s.stage}`)).map((s) => <StageBlock key={s.stage} stage={s} />)}
       {ver('global') && sc.global_balance && <ReportTableView table={sc.global_balance} />}
