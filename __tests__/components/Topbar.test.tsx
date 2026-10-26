@@ -13,9 +13,9 @@ describe('miga de pan con nombres', () => {
     ver(path);
     act(() => setTrail(path, [
       { label: 'Proyectos', path: '/projects' },
-      { label: 'Galán — dinámico', path: '/projects/8ff179a6-1111-2222-3333-444455556666' },
+      { label: 'Proyecto A — dinámico', path: '/projects/8ff179a6-1111-2222-3333-444455556666' },
       { label: 'Preconcentración · dinámico' }]));
-    expect(screen.getByRole('link', { name: 'Galán — dinámico' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Proyecto A — dinámico' })).toBeTruthy();
     expect(screen.getByText('Preconcentración · dinámico')).toBeTruthy();
     expect(screen.queryByText(/8ff179a6/)).toBeNull();
     expect(screen.queryByText('precon_dynamic')).toBeNull();

@@ -78,7 +78,7 @@ export function KpiCards({ results }: { results: DynamicResults }) {
     <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
       <Card title={t('recovery_li')} value={`${fmt(k.recovery_li_pct, 2)}%`} sub={t('last_year')} />
       <Card title={t('li_production')} value={`${fmt(k.annual_li_production_ton, 1)} t/y`} sub={t('last_year')} />
-      <Card title={t('days_simulated')} value={String(k.n_days_simulated)} sub={`${t('dynres_annual_window')} ${results.stage !== 'encalado' ? `${(results as DynamicCascadeOrPostlimingResults).annual_window?.[0]}–${(results as DynamicCascadeOrPostlimingResults).annual_window?.[1]}` : '—'}`} />
+      <Card title={t('days_simulated')} value={k.n_days_simulated == null ? '—' : String(k.n_days_simulated)} sub={`${t('dynres_annual_window')} ${results.stage !== 'encalado' ? `${(results as DynamicCascadeOrPostlimingResults).annual_window?.[0]}–${(results as DynamicCascadeOrPostlimingResults).annual_window?.[1]}` : '—'}`} />
       <Card title={t('aqsol_convergence')} value={`${fmt(k.aqsol_convergence_pct, 2)}%`} sub={results.stage === 'encalado' ? `${(results as DynamicEncaladoResults).n_days_aqsol_failed} ${t('dynres_days_failed')}` : 'days_ok / total'} />
       {/* Versión del motor termodinámico. Las ejecuciones anteriores al sello no la
           traen: se muestra "No registrada" en vez de asumir una. */}
@@ -810,9 +810,16 @@ export default function DynamicResultsView({ executionId, results, files, snapsh
   const [scaleFactor, setScaleFactor] = useState<number>(1);
   const [scaleInput, setScaleInput] = useState<string>('1');
 
+  // Una corrida guardada en el formato anterior (p. ej. las del modo con inventario de
+  // antes) no trae KPIs ni, a veces, la lista de pozas: no hay de dónde armar las
+  // pestañas ni el factor de escala. Se avisa y quedan los archivos, que sí están.
+  const formatoAnterior = !results.kpis
+    || (results.stage !== 'encalado'
+      && !Array.isArray((results as DynamicCascadeOrPostlimingResults).pond_names));
+
   const scaledResults = useMemo(
-    () => scaleResults(results, scaleFactor),
-    [results, scaleFactor],
+    () => (formatoAnterior ? results : scaleResults(results, scaleFactor)),
+    [results, scaleFactor, formatoAnterior],
   );
 
   // Las tablas anuales necesitan los agregados. Una ejecución vieja puede no
@@ -850,6 +857,19 @@ export default function DynamicResultsView({ executionId, results, files, snapsh
     },
     { key: 'archivos', label: `${t('files')} (${files.length})`, visible: true },
   ];
+
+  if (formatoAnterior) {
+    return (
+      <div data-testid="legacy-old-format">
+        <PartialRunBanner results={results} />
+        <p className="card p-3 mb-3 text-sm" role="status"
+           style={{ backgroundColor: 'var(--color-warning-bg)', borderColor: 'var(--color-warning)' }}>
+          {t('legacy_old_format_results')}
+        </p>
+        <ExecutionFilesTable executionId={executionId} files={files} />
+      </div>
+    );
+  }
 
   return (
     <XAxisModeProvider>

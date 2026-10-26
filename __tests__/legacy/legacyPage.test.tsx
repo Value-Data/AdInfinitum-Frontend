@@ -1,5 +1,7 @@
 /* Humo: la página de una ejecución de la versión anterior dibuja una del estático y
-   dos del dinámico (con la cadena) con datos reales recortados. */
+   dos del dinámico (con la cadena) con datos de prueba sintéticos: ids nuevos, fechas
+   corridas, pozas P1…Pn y todos los valores numéricos multiplicados por un factor fijo
+   por archivo (salvo días, índices y conteos, que arman la forma de los datos). */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -57,6 +59,22 @@ describe('ejecución de la versión anterior', () => {
     const { error, text } = await renderAndWalk(fx(dynEncalado).id);
     expect(error).toBeNull();
     expect(text).toContain('Planta de Reactivos (Pz8-Pz9)');
+  }, 30000);
+
+  it('dinámico del formato anterior (sin KPIs ni lista de pozas): lo dice y deja los archivos', async () => {
+    const viejo = structuredClone(fx(dynCascade)) as LegacyExecutionDetail;
+    viejo.id = 'formato-anterior';
+    viejo.project_id = 'p-viejo';
+    const res = viejo.results as Record<string, unknown>;
+    delete res.kpis;
+    delete res.pond_names;
+    store.set(viejo.id, viejo);
+    const { error, text } = await renderAndWalk(viejo.id);
+    expect(error).toBeNull();
+    expect(text).toContain('Resultados guardados en el formato anterior; ver archivos abajo.');
+    expect(text).toContain('cascade_feed_to_encalado_local.csv');
+    expect(text).not.toContain('undefined');
+    expect(text).not.toContain('Factor de escala');
   }, 30000);
 
   it('una ejecución que no existe muestra el aviso, no se cae', async () => {

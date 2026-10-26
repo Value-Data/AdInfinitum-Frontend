@@ -634,84 +634,6 @@
         }
       }
     },
-    "/api/v1/projects/inventario/escenarios": {
-      "get": {
-        "tags": [
-          "projects"
-        ],
-        "summary": "List Inventario Escenarios",
-        "description": "Escenarios que trae el motor con inventario, para elegir uno en la UI.\n\nCada entrada dice su descripcion, horizonte, fecha de inicio y si arranca con\ninventario o con las pozas vacias. Lista vacia si el motor no esta instalado.",
-        "operationId": "list_inventario_escenarios_api_v1_projects_inventario_escenarios_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/projects/inventario/escenarios/expandido": {
-      "get": {
-        "tags": [
-          "projects"
-        ],
-        "summary": "Get Inventario Escenario Expandido",
-        "description": "Un escenario con sus datos ADENTRO, para editarlo en la UI.\n\nLos escenarios de la entrega apuntan a JSON sueltos (pozas, feed, clima,\nfactores, inventario); esto los resuelve y devuelve todo embebido, que es lo que\nel editor necesita para mostrar tablas y lo que se guarda en el proyecto al\neditarlas. Sin `path` devuelve el de referencia.",
-        "operationId": "get_inventario_escenario_expandido_api_v1_projects_inventario_escenarios_expandido_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "path",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Path"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/projects/{project_id}/report-params": {
       "get": {
         "tags": [
@@ -1927,7 +1849,7 @@
           "executions"
         ],
         "summary": "Get Execution Detail",
-        "description": "Get execution detail with results.\n\nEl que no ve la configuración (el `cliente`) recibe `parameters_snapshot` en None.",
+        "description": "Get execution detail with results.\n\nSin `parameters_snapshot` (cambios finales, punto 18): el de las ejecuciones de antes\nse lee en `/legacy-executions/{id}`.",
         "operationId": "get_execution_detail_api_v1_executions__execution_id__get",
         "security": [
           {
@@ -3071,7 +2993,7 @@
           "excel"
         ],
         "summary": "Get Template",
-        "description": "Plantilla vacía para una versión de AQSOL (sin proyecto).",
+        "description": "Plantilla vacía para una versión de AQSOL (sin proyecto).\n\n`pond_params_mode`: la hoja \"Cambios de pozas\" va solo con `by_date`.",
         "operationId": "get_template_api_v1_excel_templates__process__get",
         "security": [
           {
@@ -3152,6 +3074,20 @@
             }
           },
           {
+            "name": "pond_params_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fixed",
+                "by_date"
+              ],
+              "type": "string",
+              "default": "fixed",
+              "title": "Pond Params Mode"
+            }
+          },
+          {
             "name": "language",
             "in": "query",
             "required": false,
@@ -3194,7 +3130,7 @@
           "excel"
         ],
         "summary": "Get Project Template",
-        "description": "Plantilla vacía con las especies y fases de la versión de AQSOL del proyecto.",
+        "description": "Plantilla vacía con las especies y fases de la versión de AQSOL del proyecto.\n\n`pond_params_mode`: la hoja \"Cambios de pozas\" va solo con `by_date`.",
         "operationId": "get_project_template_api_v1_projects__project_id__excel_template__process__get",
         "security": [
           {
@@ -3272,6 +3208,20 @@
               "type": "string",
               "default": "fixed",
               "title": "Composition Mode"
+            }
+          },
+          {
+            "name": "pond_params_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "fixed",
+                "by_date"
+              ],
+              "type": "string",
+              "default": "fixed",
+              "title": "Pond Params Mode"
             }
           },
           {
@@ -3682,109 +3632,6 @@
             "content": {
               "application/json": {
                 "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/inventario/escenarios": {
-      "get": {
-        "tags": [
-          "inventario"
-        ],
-        "summary": "List Escenarios",
-        "description": "Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,\npor qué: así la UI los muestra deshabilitados en vez de fallar al cargar.",
-        "operationId": "list_escenarios_api_v1_inventario_escenarios_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/InventarioEscenario"
-                  },
-                  "type": "array",
-                  "title": "Response List Escenarios Api V1 Inventario Escenarios Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/projects/{project_id}/inventario/load": {
-      "post": {
-        "tags": [
-          "inventario"
-        ],
-        "summary": "Load Escenario",
-        "description": "Carga un escenario de inventario en el proyecto.\n\nConvierte el escenario a secciones, valida cada una y, si ninguna tiene errores,\nlas guarda todas como versiones nuevas (una transacción: todas o ninguna). Con\nerrores responde igual 200, con `saved = false` y el informe de cada sección.",
-        "operationId": "load_escenario_api_v1_projects__project_id__inventario_load_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Project Id"
-            }
-          },
-          {
-            "name": "language",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "es",
-                "en"
-              ],
-              "type": "string",
-              "default": "es",
-              "title": "Language"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InventarioLoadRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InventarioLoadResponse"
-                }
               }
             }
           },
@@ -4247,6 +4094,22 @@
             },
             "type": "array",
             "title": "Section Kinds"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only",
+            "default": false
           }
         },
         "type": "object",
@@ -4382,7 +4245,6 @@
             "maximum": 1.0,
             "exclusiveMinimum": 0.0,
             "title": "Pond Factor",
-            "default": 0.7,
             "x-adinf": {
               "time_variable": true,
               "ui_section": "balance"
@@ -4393,7 +4255,6 @@
             "exclusiveMaximum": 100.0,
             "minimum": 0.0,
             "title": "Entrainment Pct",
-            "default": 10.0,
             "x-adinf": {
               "formula": "entrainment_t_d = salt_precipitated_t_d * p / (100 - p)",
               "time_variable": true,
@@ -4405,7 +4266,6 @@
             "type": "number",
             "minimum": 0.0,
             "title": "Leakage Mm D",
-            "default": 0.03,
             "x-adinf": {
               "time_variable": true,
               "ui_section": "balance",
@@ -4417,7 +4277,6 @@
             "exclusiveMaximum": 1.0,
             "minimum": 0.0,
             "title": "Dilution Frac",
-            "default": 0.005,
             "x-adinf": {
               "formula": "dilution_water_t_d = inflow_t_d / (density_kg_m3 / 1000) * dilution_frac",
               "time_variable": true,
@@ -4434,16 +4293,6 @@
             ],
             "title": "Pond Type"
           },
-          "external_water_inflow_t_d": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "External Water Inflow T D",
-            "default": 0.0,
-            "x-adinf": {
-              "ui_section": "balance",
-              "unit": "t/d"
-            }
-          },
           "target_height_m": {
             "anyOf": [
               {
@@ -4455,10 +4304,10 @@
               }
             ],
             "title": "Target Height M",
-            "default": 0.2,
             "x-adinf": {
               "ui_section": "pond_type",
-              "unit": "m"
+              "unit": "m",
+              "visible_if": "pond_type == 'target_height'"
             }
           },
           "height_floor_m": {
@@ -4478,13 +4327,20 @@
             }
           },
           "startup_height_m": {
-            "type": "number",
-            "minimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Startup Height M",
-            "default": 0.0,
             "x-adinf": {
               "ui_section": "pond_type",
-              "unit": "m"
+              "unit": "m",
+              "visible_if": "pond_type != 'target_height'"
             }
           },
           "target_outflow_t_d": {
@@ -4620,10 +4476,14 @@
         "required": [
           "name",
           "area_m2",
+          "pond_factor",
+          "entrainment_pct",
+          "leakage_mm_d",
+          "dilution_frac",
           "pond_type"
         ],
         "title": "DynamicPond",
-        "description": "Poza del dinámico: además, su tipo y lo que ese tipo necesita.\n\nCualquier tipo puede ir en cualquier posición de la cascada (§14)."
+        "description": "Poza del dinámico: además, su tipo y lo que ese tipo necesita.\n\nCualquier tipo puede ir en cualquier posición de la cascada (§14). Lo que no aplica\nal tipo se neutraliza antes de validar (`neutralize_pond_fields`)."
       },
       "ExecutionCreate": {
         "properties": {
@@ -4635,9 +4495,6 @@
               "modelo_dinamico_cascade",
               "modelo_dinamico_encalado",
               "modelo_dinamico_postliming",
-              "inventario_precon",
-              "inventario_encalado",
-              "inventario_postliming",
               "static_full",
               "static_precon",
               "static_liming",
@@ -4673,7 +4530,7 @@
               }
             ],
             "title": "Source Execution Id",
-            "description": "Required for modelo_dinamico_encalado and _postliming: id of the previous execution (cascade for encalado, encalado for postliming) whose feed CSV is used."
+            "description": "Required for modelo_dinamico_encalado and _postliming: id of the previous execution (cascade for encalado, encalado for postliming) whose feed CSV is used. F4 (static_liming/_postliming, dynamic_liming/_postliming): only when the section's feed_source is 'execution'; a section fed with data takes none."
           },
           "n_days_override": {
             "anyOf": [
@@ -4719,7 +4576,7 @@
               }
             ],
             "title": "Start Date",
-            "description": "Fecha del día 1 de la corrida (dynamic_precon)."
+            "description": "Fecha del día 1 de la corrida: obligatoria en dynamic_precon y en dynamic_liming / dynamic_postliming alimentadas con los datos de su sección (feed_source = data), salvo en una continuación. Una etapa alimentada por una ejecución sigue las fechas de su origen y no la lleva."
           },
           "n_days": {
             "anyOf": [
@@ -4732,7 +4589,7 @@
               }
             ],
             "title": "N Days",
-            "description": "Días a simular (dynamic_precon; opcional en dynamic_postliming, hasta los de su origen)."
+            "description": "Días a simular: obligatorio en dynamic_precon y en dynamic_liming / dynamic_postliming alimentadas con datos; opcional en dynamic_postliming alimentado por una ejecución (hasta los de su origen); la planta alimentada por una ejecución no lo lleva."
           },
           "initial_state_execution_id": {
             "anyOf": [
@@ -4932,6 +4789,44 @@
             ],
             "title": "Last Completed Day"
           },
+          "progress_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress Day"
+          },
+          "scenarios_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Total"
+          },
+          "scenarios_done": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Done"
+          },
+          "heartbeat_stale": {
+            "type": "boolean",
+            "title": "Heartbeat Stale",
+            "default": false
+          },
           "upload_status": {
             "anyOf": [
               {
@@ -5028,17 +4923,6 @@
           "status": {
             "type": "string",
             "title": "Status"
-          },
-          "parameters_snapshot": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parameters Snapshot"
           },
           "results": {
             "anyOf": [
@@ -5173,6 +5057,44 @@
             ],
             "title": "Last Completed Day"
           },
+          "progress_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress Day"
+          },
+          "scenarios_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Total"
+          },
+          "scenarios_done": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Done"
+          },
+          "heartbeat_stale": {
+            "type": "boolean",
+            "title": "Heartbeat Stale",
+            "default": false
+          },
           "initial_state_execution_id": {
             "anyOf": [
               {
@@ -5243,7 +5165,7 @@
           "created_at"
         ],
         "title": "ExecutionResultResponse",
-        "description": "Schema for execution detail with results."
+        "description": "Schema for execution detail with results.\n\nSin `parameters_snapshot` (cambios finales, punto 18): era del flujo antiguo y el\nactual no lo llena. Las ejecuciones de antes lo siguen trayendo por\n`/legacy-executions/{id}` (`schemas/legacy_execution.py`)."
       },
       "ExecutionStatusResponse": {
         "properties": {
@@ -5358,6 +5280,33 @@
               }
             ],
             "title": "Last Completed Day"
+          },
+          "scenarios_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Total"
+          },
+          "scenarios_done": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenarios Done"
+          },
+          "heartbeat_stale": {
+            "type": "boolean",
+            "title": "Heartbeat Stale",
+            "default": false
           }
         },
         "type": "object",
@@ -5425,44 +5374,68 @@
             "minLength": 1,
             "title": "Pond"
           },
-          "brine_mass_t": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "Brine Mass T",
+          "species_mass_t": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Species Mass T",
             "x-adinf": {
               "unit": "t"
             }
           },
+          "composition_pct": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Pct",
+            "x-adinf": {
+              "unit": "%p/p"
+            }
+          },
           "height_m": {
-            "type": "number",
-            "minimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Height M",
             "x-adinf": {
               "unit": "m"
             }
           },
           "density_kg_m3": {
-            "type": "number",
-            "exclusiveMinimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Density Kg M3",
             "x-adinf": {
               "unit": "kg/m3"
-            }
-          },
-          "water_activity": {
-            "type": "number",
-            "maximum": 1.0,
-            "exclusiveMinimum": 0.0,
-            "title": "Water Activity"
-          },
-          "species_mass_t": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "type": "object",
-            "title": "Species Mass T",
-            "x-adinf": {
-              "unit": "t"
             }
           },
           "salt_accumulated_t": {
@@ -5487,192 +5460,15 @@
             "type": "boolean",
             "title": "Outflow Started",
             "default": false
-          },
-          "at_operating_level": {
-            "type": "boolean",
-            "title": "At Operating Level",
-            "default": false
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "pond",
-          "brine_mass_t",
-          "height_m",
-          "density_kg_m3",
-          "water_activity",
-          "species_mass_t"
+          "pond"
         ],
         "title": "InitialPondState",
-        "description": "Estado con que arranca una poza cargada (el inventario a una fecha)."
-      },
-      "InventarioEscenario": {
-        "properties": {
-          "path": {
-            "type": "string",
-            "title": "Path"
-          },
-          "nombre": {
-            "type": "string",
-            "title": "Nombre"
-          },
-          "descripcion": {
-            "type": "string",
-            "title": "Descripcion"
-          },
-          "dias": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dias"
-          },
-          "start_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Start Date"
-          },
-          "con_inventario": {
-            "type": "boolean",
-            "title": "Con Inventario"
-          },
-          "loadable": {
-            "type": "boolean",
-            "title": "Loadable",
-            "default": true
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "path",
-          "nombre",
-          "descripcion",
-          "con_inventario"
-        ],
-        "title": "InventarioEscenario"
-      },
-      "InventarioLoadRequest": {
-        "properties": {
-          "escenario": {
-            "type": "string",
-            "title": "Escenario"
-          }
-        },
-        "type": "object",
-        "required": [
-          "escenario"
-        ],
-        "title": "InventarioLoadRequest"
-      },
-      "InventarioLoadResponse": {
-        "properties": {
-          "escenario": {
-            "type": "string",
-            "title": "Escenario"
-          },
-          "ok": {
-            "type": "boolean",
-            "title": "Ok"
-          },
-          "saved": {
-            "type": "boolean",
-            "title": "Saved"
-          },
-          "start_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Start Date"
-          },
-          "days_max": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Days Max"
-          },
-          "descripcion": {
-            "type": "string",
-            "title": "Descripcion",
-            "default": ""
-          },
-          "n_initial_states": {
-            "type": "integer",
-            "title": "N Initial States"
-          },
-          "sections": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/InventarioLoadedSection"
-            },
-            "type": "object",
-            "title": "Sections"
-          }
-        },
-        "type": "object",
-        "required": [
-          "escenario",
-          "ok",
-          "saved",
-          "n_initial_states",
-          "sections"
-        ],
-        "title": "InventarioLoadResponse"
-      },
-      "InventarioLoadedSection": {
-        "properties": {
-          "validation": {
-            "$ref": "#/components/schemas/ValidationReport"
-          },
-          "saved_version": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Saved Version"
-          }
-        },
-        "type": "object",
-        "required": [
-          "validation"
-        ],
-        "title": "InventarioLoadedSection"
+        "description": "Inventario con que arranca una poza cargada (cambios finales, punto 4).\n\nUna de dos formas, nunca las dos (lo exige la validación):\n  - `species_mass_t`: toneladas de cada especie en la salmuera de la poza;\n  - `composition_pct` (%p/p con el agua, suma 100) + `height_m`.\n`density_kg_m3` solo si se midió. Lo demás —masa, altura (con toneladas), la\ndensidad que falte y la actividad de agua— lo calcula la app con AQSOL al lanzar\n(`services/initial_states`)."
       },
       "LabelUpdate": {
         "properties": {
@@ -6249,6 +6045,7 @@
             ],
             "title": "Cacl2 Min So4 Mg Ratio",
             "x-adinf": {
+              "note": "empty_doses_always",
               "unit": "t/t"
             }
           },
@@ -6387,7 +6184,7 @@
           },
           "scenarios": {
             "items": {
-              "$ref": "#/components/schemas/Scenario"
+              "$ref": "#/components/schemas/PlantScenario"
             },
             "type": "array",
             "title": "Scenarios"
@@ -6419,6 +6216,97 @@
         ],
         "title": "LoginRequest",
         "description": "Schema for login request."
+      },
+      "PlantScenario": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "temperature_C": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 100.0,
+                "minimum": -50.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature C",
+            "x-adinf": {
+              "note": "climate_for_postliming",
+              "unit": "°C"
+            }
+          },
+          "evaporation_mm_d": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaporation Mm D",
+            "x-adinf": {
+              "note": "climate_for_postliming",
+              "unit": "mm/d"
+            }
+          },
+          "brine_flow_t_d": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Brine Flow T D",
+            "x-adinf": {
+              "unit": "t/d"
+            }
+          },
+          "feed_density_kg_m3": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feed Density Kg M3",
+            "x-adinf": {
+              "unit": "kg/m3"
+            }
+          },
+          "composition_pct": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Pct",
+            "x-adinf": {
+              "unit": "%p/p"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "brine_flow_t_d"
+        ],
+        "title": "PlantScenario",
+        "description": "Un escenario de la planta del estático alimentada con datos.\n\nLa planta calcula a su temperatura fija (`plant.plant_temperature_C`): el clima del\nescenario no lo usa. Es opcional (punto 11) y solo sirve para una concentración\nlanzada después desde esta planta, que hereda los escenarios; si falta, esa\nconcentración no se puede lanzar (`execution_v2.validate_launch`)."
       },
       "PondParamChange": {
         "properties": {
@@ -7084,12 +6972,22 @@
       "ReagentSpec": {
         "properties": {
           "purity_frac": {
-            "type": "number",
-            "maximum": 1.0,
-            "exclusiveMinimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Purity Frac",
-            "default": 1.0,
+            "readOnly": true,
             "x-adinf": {
+              "formula": "purity_frac = 1 - sum(impurities.frac)",
+              "note": "computed_purity",
+              "read_only": true,
               "unit": "frac"
             }
           },
@@ -7104,7 +7002,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ReagentSpec",
-        "description": "Ficha de un reactivo: pureza de su forma comercial e impurezas. Lo que no es\nreactivo ni impureza declarada va a la torta."
+        "description": "Ficha de un reactivo: sus impurezas y la pureza que dejan (punto 8).\n\nLa pureza se calcula: 1 − Σ impurezas (sin impurezas, 1). Lo no identificado va en\nla línea `inertes` (a la torta). Al guardar o validar una sección por la API, una\n`purity_frac` que llega no se usa (aviso `reagent_purity_ignored` si no es la\ncalculada). Solo los datos de antes, que la escribían a mano (versiones guardadas,\nlibros Excel, configuraciones JSON), la convierten: si no cierra con las impurezas,\nla diferencia se agrega como `inertes`, que da el mismo resultado. Después siempre\nvale 1 − Σ."
       },
       "RefreshRequest": {
         "properties": {
@@ -7254,21 +7152,6 @@
               "unit": "t/d"
             }
           },
-          "feed_density_kg_m3": {
-            "anyOf": [
-              {
-                "type": "number",
-                "exclusiveMinimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Feed Density Kg M3",
-            "x-adinf": {
-              "unit": "kg/m3"
-            }
-          },
           "composition_pct": {
             "anyOf": [
               {
@@ -7296,7 +7179,7 @@
           "brine_flow_t_d"
         ],
         "title": "Scenario",
-        "description": "Un escenario del estático. Los escenarios son independientes entre sí."
+        "description": "Un escenario del estático de una cascada de pozas (precon y concentración). Los\nescenarios son independientes entre sí.\n\nSin densidad de la alimentación (cambios finales, punto 10): la precon la calcula\ncon AQSOL y la concentración no la usa. Solo la planta la lee (`PlantScenario`)."
       },
       "SeasonalOutflowRequest": {
         "properties": {
@@ -7681,7 +7564,6 @@
             "maximum": 1.0,
             "exclusiveMinimum": 0.0,
             "title": "Pond Factor",
-            "default": 0.7,
             "x-adinf": {
               "time_variable": true,
               "ui_section": "balance"
@@ -7692,7 +7574,6 @@
             "exclusiveMaximum": 100.0,
             "minimum": 0.0,
             "title": "Entrainment Pct",
-            "default": 10.0,
             "x-adinf": {
               "formula": "entrainment_t_d = salt_precipitated_t_d * p / (100 - p)",
               "time_variable": true,
@@ -7704,7 +7585,6 @@
             "type": "number",
             "minimum": 0.0,
             "title": "Leakage Mm D",
-            "default": 0.03,
             "x-adinf": {
               "time_variable": true,
               "ui_section": "balance",
@@ -7716,7 +7596,6 @@
             "exclusiveMaximum": 1.0,
             "minimum": 0.0,
             "title": "Dilution Frac",
-            "default": 0.005,
             "x-adinf": {
               "formula": "dilution_water_t_d = inflow_t_d / (density_kg_m3 / 1000) * dilution_frac",
               "time_variable": true,
@@ -7729,10 +7608,14 @@
         "type": "object",
         "required": [
           "name",
-          "area_m2"
+          "area_m2",
+          "pond_factor",
+          "entrainment_pct",
+          "leakage_mm_d",
+          "dilution_frac"
         ],
         "title": "StaticPond",
-        "description": "Poza del estático: área y los cuatro parámetros del balance."
+        "description": "Poza del estático: área y los cuatro parámetros del balance.\n\nLos cuatro son obligatorios y sin valor por defecto (cambios finales, punto 5): un\ndato que cambia el balance no se inventa. Una dilución nula se escribe 0."
       },
       "TokenResponse": {
         "properties": {

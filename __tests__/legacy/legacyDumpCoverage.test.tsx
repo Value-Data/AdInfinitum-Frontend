@@ -59,7 +59,7 @@ interface Item {
   deleted: boolean;
   has_results: boolean;
   ok: boolean;
-  shows: 'results' | 'no_results' | 'legacy_inventario_notice' | 'error';
+  shows: 'results' | 'no_results' | 'error';
   /** Archivos Excel que generó el botón de descarga de la pantalla. */
   excel: number;
   excel_error?: string;
@@ -99,9 +99,7 @@ describe.skipIf(rows.length === 0)('volcado real: todas las ejecuciones de la ve
       ? 'error'
       : text.includes('no guardó resultados')
         ? 'no_results'
-        : text.includes('formato de resultados anterior')
-          ? 'legacy_inventario_notice'
-          : 'results';
+        : 'results';
     report.push({
       id,
       execution_type: r.execution_type!,

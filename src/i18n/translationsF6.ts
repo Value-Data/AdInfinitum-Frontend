@@ -337,6 +337,10 @@ export const F6_TRANSLATIONS = {
     en: 'It was left running in the previous version and never finished.',
   },
   legacy_no_results: { es: 'Esta ejecución no guardó resultados.', en: 'This execution saved no results.' },
+  legacy_old_format_results: {
+    es: 'Resultados guardados en el formato anterior; ver archivos abajo.',
+    en: 'Results saved in the previous format; see the files below.',
+  },
   legacy_not_found: { es: 'Ejecución no encontrada.', en: 'Execution not found.' },
   legacy_created_by: { es: 'Creada por', en: 'Created by' },
   legacy_started: { es: 'Inicio', en: 'Started' },
@@ -347,9 +351,46 @@ export const F6_TRANSLATIONS = {
   // Estado inicial de las pozas (inventario)
   f6_initial_states_title: { es: 'Estado inicial de las pozas (inventario)', en: 'Initial pond state (inventory)' },
   f6_initial_states_hint: {
-    es: 'Opcional. Una fila por poza; una fila vacía es una poza que arranca vacía. Pegar desde Excel: la poza primero (o en el orden de la tabla), luego las columnas y las masas por especie.',
-    en: 'Optional. One row per pond; an empty row is a pond that starts empty. Paste from Excel: pond first (or in table order), then the columns and the mass per species.',
+    es: 'Opcional. Una fila por poza; una fila vacía es una poza que arranca vacía. Cada poza se carga de una de dos formas: toneladas por especie (la altura la calcula la app) o composición %p/p con el agua (suma 100) más la altura. La densidad va solo si se midió; si falta, la app la calcula con AQSOL. Pegar desde Excel: la poza primero (o en el orden de la tabla), luego las columnas desde la altura y los valores por especie, que van a la forma elegida en cada poza.',
+    en: 'Optional. One row per pond; an empty row is a pond that starts empty. Each pond is loaded in one of two forms: tonnes per species (the app computes the height) or composition % w/w including water (adds up to 100) plus the height. Enter the density only if it was measured; if missing, the app computes it with AQSOL. Paste from Excel: pond first (or in table order), then the columns from the height on and the values per species, which go to the form chosen for each pond.',
   },
+  // Cambios finales (F9), puntos 4 y 5: formas del inventario y lo que no aplica.
+  f9_initial_form: { es: 'Forma del inventario', en: 'Inventory form' },
+  f9_initial_form_of: { es: 'Forma del inventario de {pond}', en: 'Inventory form of {pond}' },
+  f9_form_mass: { es: 'Toneladas por especie', en: 'Tonnes per species' },
+  f9_form_composition: { es: 'Composición %p/p + altura', en: 'Composition % w/w + height' },
+  f9_height_computed: { es: 'la calcula la app', en: 'computed by the app' },
+  f9_height_computed_hint: {
+    es: 'Con toneladas por especie, la altura la calcula la app con la masa, la densidad y el área de la poza.',
+    en: 'With tonnes per species, the app computes the height from the mass, the density and the pond area.',
+  },
+  f9_optional: { es: 'opcional', en: 'optional' },
+  f9_required: { es: 'obligatorio', en: 'required' },
+  f9_height_required_hint: { es: 'obligatoria en composición', en: 'required with composition' },
+  f9_density_hint: {
+    es: 'Solo si se midió; si falta, la app la calcula con AQSOL.',
+    en: 'Only if it was measured; if missing, the app computes it with AQSOL.',
+  },
+  f9_sum: { es: 'Suma', en: 'Sum' },
+  f9_sum_must_100: { es: 'debe sumar 100', en: 'must add up to 100' },
+  f9_na_pond_type: { es: 'No aplica a este tipo de poza', en: 'Does not apply to this pond type' },
+  f9_na_pending: { es: 'Elija primero «{field}»', en: 'Choose «{field}» first' },
+  f9_na_flag_on: { es: 'Solo aplica con «{field}» marcado', en: 'Only applies with «{field}» checked' },
+  f9_na_flag_off: { es: 'Solo aplica con «{field}» sin marcar', en: 'Only applies with «{field}» unchecked' },
+  f9_na_value: { es: 'No aplica con el valor de «{field}» de esta fila', en: "Does not apply with this row's «{field}»" },
+  f9_na_outflow_target: {
+    es: 'No aplica a una poza por altura objetivo: decide sola si entrega desde el día 1.',
+    en: 'Does not apply to a target-height pond: it decides on its own whether it delivers from day 1.',
+  },
+  f9_na_outflow_pending: {
+    es: 'Elija primero el tipo de la poza en la tabla de pozas.',
+    en: 'Choose the pond type in the ponds table first.',
+  },
+  // Avisos del reporte del dinámico (puntos 6 y 14).
+  f9_warnings_title: { es: 'Avisos', en: 'Warnings' },
+  f9_warning: { es: 'Aviso', en: 'Warning' },
+  f9_warning_one: { es: 'aviso', en: 'warning' },
+  f9_warning_many: { es: 'avisos', en: 'warnings' },
   f6_initial_states_loaded: { es: 'pozas cargadas', en: 'ponds loaded' },
   f6_initial_states_empty: { es: 'vacía', en: 'empty' },
   f6_initial_states_clear: { es: 'Vaciar todas', en: 'Clear all' },
@@ -363,28 +404,6 @@ export const F6_TRANSLATIONS = {
     es: 'La corrida arranca con las pozas cargadas con el estado inicial de la sección',
     en: 'The run starts with the ponds loaded with the section initial state',
   },
-  f6_inventory_title: { es: 'Cargar escenario de inventario (Mariana)', en: 'Load inventory scenario (Mariana)' },
-  f6_inventory_hint: {
-    es: 'Guarda la preconcentración dinámica del escenario —pozas, factores, clima, alimentación y el estado inicial de cada poza— como una versión nueva. Después se lanza como un dinámico.',
-    en: 'Saves the scenario dynamic preconcentration —ponds, factors, climate, feed and each pond initial state— as a new version. Then launch it as a dynamic run.',
-  },
-  f6_inventory_choose: { es: 'Escenario', en: 'Scenario' },
-  f6_inventory_load: { es: 'Cargar escenario', en: 'Load scenario' },
-  f6_inventory_loaded: { es: 'Escenario cargado', en: 'Scenario loaded' },
-  f6_inventory_not_saved: {
-    es: 'El escenario tiene errores y no se guardó.',
-    en: 'The scenario has errors and was not saved.',
-  },
-  f6_inventory_not_loadable: { es: 'no se puede cargar', en: 'cannot be loaded' },
-  f6_inventory_other_version: {
-    es: 'Los escenarios de Mariana son de AQSOL 027: no se pueden cargar en un proyecto de otra versión',
-    en: 'Mariana scenarios are AQSOL 027: they cannot be loaded into a project of another version',
-  },
-  f6_inventory_prefilled: {
-    es: 'precargados en Ejecuciones → Lanzar (se pueden cambiar)',
-    en: 'prefilled in Executions → Launch (can be changed)',
-  },
-  f6_inventory_launch_with: { es: 'Para correrlo como la entrega: inicio', en: 'To run it as delivered: start' },
 
   // Editor de sección: bloques plegables y tablas especie | valor (F8)
   f6_section_params: { es: 'Parámetros generales', en: 'General parameters' },
@@ -395,7 +414,49 @@ export const F6_TRANSLATIONS = {
   f6_kv_n_phases: { es: 'fases', en: 'phases' },
   f6_kv_not_neutral: { es: 'distintos de', en: 'other than' },
   f6_kv_none_filtered: { es: 'Ninguna con este filtro.', en: 'None match this filter.' },
-  // Los bloques juntan errores y avisos: "observación" no afirma que sea un error.
-  f8_issue_one: { es: 'observación', en: 'issue' },
-  f8_issue_many: { es: 'observaciones', en: 'issues' },
+
+  // Avance y latido de las ejecuciones (cambios finales, puntos 2 y 13)
+  f9_progress_col: { es: 'Avance', en: 'Progress' },
+  f9_progress_day: { es: 'día {x} de {n}', en: 'day {x} of {n}' },
+  f9_progress_scenario: { es: 'escenario {x} de {n}', en: 'scenario {x} of {n}' },
+  f9_progress_waiting: { es: 'esperando al trabajador', en: 'waiting for the worker' },
+  f9_heartbeat_badge: { es: 'Sin latido', en: 'No heartbeat' },
+  f9_heartbeat_stale_title: { es: 'Sin latido del trabajador:', en: 'No heartbeat from the worker:' },
+  f9_heartbeat_stale_body: {
+    es: 'la corrida puede haberse detenido. Si sigue así, revise el trabajador o cancele la ejecución.',
+    en: 'the run may have stopped. If this persists, check the worker or cancel the run.',
+  },
+  f9_heartbeat_ago: { es: 'Último latido hace {t}.', en: 'Last heartbeat {t} ago.' },
+  f9_heartbeat_never: {
+    es: 'El trabajador no ha registrado ningún latido.',
+    en: 'The worker has not recorded any heartbeat.',
+  },
+
+  // Editor de sección: avisos, valores por defecto, reactivos y lavado (cambios finales, puntos 8, 9, 21, 22)
+  f9_error_one: { es: 'error', en: 'error' },
+  f9_error_many: { es: 'errores', en: 'errors' },
+  f9_default: { es: 'por defecto', en: 'default' },
+  f9_default_is: { es: 'Valor por defecto: {value}', en: 'Default value: {value}' },
+  f9_default_if_empty: {
+    es: 'Vacío: se usa el valor por defecto ({value})',
+    en: 'Empty: the default value ({value}) is used',
+  },
+  f9_purity: { es: 'Pureza', en: 'Purity' },
+  f9_purity_computed: { es: 'calculada: 1 − Σ impurezas', en: 'computed: 1 − Σ impurities' },
+  f9_purity_overflow: {
+    es: 'Las impurezas suman 100 % o más: la pureza tiene que quedar sobre 0.',
+    en: 'Impurities add up to 100 % or more: purity must stay above 0.',
+  },
+  f9_inerts_label: { es: 'Inertes / otros', en: 'Inerts / other' },
+  f9_inerts_add: { es: 'Agregar «Inertes / otros»', en: 'Add «Inerts / other»' },
+  f9_inerts_hint: {
+    es: 'Lo no identificado del reactivo: solo va a la torta.',
+    en: 'The unidentified part of the reagent: it only goes to the cake.',
+  },
+  f9_no_impurities: { es: 'Sin impurezas (pureza 100 %).', en: 'No impurities (purity 100 %).' },
+  f9_wash_default: { es: 'Agua 100 % (valor por defecto)', en: 'Water 100 % (default value)' },
+  f9_wash_use_default: { es: 'Usar el valor por defecto', en: 'Use the default value' },
+  f9_pond_params_mode: { es: 'Parámetros de pozas', en: 'Pond parameters' },
+  f9_pond_params_fixed: { es: 'Fijos', en: 'Fixed' },
+  f9_pond_params_by_date: { es: 'Por fecha (hoja «Cambios de pozas»)', en: 'By date («Pond changes» sheet)' },
 } as const;

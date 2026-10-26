@@ -132,12 +132,11 @@ export default function HomePage() {
     fetchProjects();
   }, [fetchProjects]);
 
-  // Lo que el rol permite en algún proyecto: el cliente (solo resultados) no ve los
-  // módulos de configuración ni la comparación.
+  // Lo que el rol permite en algún proyecto: el cliente (solo resultados) no ve la
+  // comparación ni la administración.
   const algun = (cap: string) => isAdmin || projects.some((p) => canDo(p.capabilities, cap));
   const verComparar = algun('view_logs');
-  const verInventario = algun('view_config');
-  const conModulos = !loading && (verComparar || verInventario || isAdmin);
+  const conModulos = !loading && (verComparar || isAdmin);
   const lista = recientes(projects);
 
   return (
@@ -193,11 +192,6 @@ export default function HomePage() {
             {verComparar && (
               <Modulo title={t('f8_home_compare_title')} desc={t('f8_home_compare_desc')}>
                 <Ubicacion ruta={t('f8_home_compare_where')} />
-              </Modulo>
-            )}
-            {verInventario && (
-              <Modulo title={t('f8_home_inventory_title')} desc={t('f8_home_inventory_desc')}>
-                <Ubicacion ruta={t('f8_home_inventory_where')} />
               </Modulo>
             )}
             {isAdmin && (

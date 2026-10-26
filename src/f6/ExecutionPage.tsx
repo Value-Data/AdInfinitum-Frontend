@@ -23,7 +23,10 @@ import { useLanguage, useT } from '../i18n/LanguageContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import DecimalsSelect from '../components/common/DecimalsSelect';
 import ExecutionFilesTable from '../components/common/ExecutionFilesTable';
-import { PartialRunBanner, RunStatusBadge, dmy, executionTypeLabel, partialInfo } from './common';
+import {
+  PartialRunBanner, RunStatusBadge, StaleHeartbeatBanner, dmy, executionTypeLabel, partialInfo,
+  runProgress, runProgressLabel,
+} from './common';
 import ReportView from './ReportView';
 import { InventoryBadge } from './ConfigPanel';
 import { DailyCharts, ReportCharts } from './Charts';
@@ -283,7 +286,7 @@ export default function ExecutionPage() {
       const d = await getExecutionDetail(id);
       setDetail(d);
       if (ACTIVE.has(d.status)) {
-        // El avance día a día lo deja el proceso de la corrida en el estado.
+        // El avance ya viene en el detalle; el estado agrega cuándo latió el trabajador.
         getExecutionStatusV2(id).then(setEstado).catch(() => undefined);
       }
       if (isDynamicType(d.execution_type)) {
@@ -312,6 +315,9 @@ export default function ExecutionPage() {
   if (!detail) return <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>;
 
   const activa = ACTIVE.has(detail.status);
+  // "día X de N" (dinámico) o "escenario k de n" (estático) mientras corre; el detalle
+  // se vuelve a pedir cada 5 s.
+  const avance = runProgress(detail);
   const cancelar = async () => {
     try {
       await cancelExecution(id);
@@ -404,20 +410,22 @@ export default function ExecutionPage() {
 
       {aviso && <div className="card p-3 mb-4 text-sm">{aviso}</div>}
 
+      <StaleHeartbeatBanner stale={activa && detail.heartbeat_stale} heartbeatAt={estado?.heartbeat_at} />
+
       {(activa || detail.error_message) && (
         <div className="card p-3 mb-4">
           {activa && (
             <div className="flex items-center gap-3 mb-2">
               <LoadingSpinner size="sm" />
-              <span className="text-sm">
+              <span className="text-sm" data-testid="execution-progress">
                 {detail.status === 'pending' ? t('f6_waiting_worker') : t('f6_running')}
-                {detail.n_days ? ` (${estado?.progress_day ?? 0}/${detail.n_days})` : ''}
+                {avance ? ` (${runProgressLabel(avance, t)})` : ''}
               </span>
               <div className="flex-1" />
               {canDo(caps, 'cancel') && <button className="btn btn-outline" onClick={cancelar}>{t('cancel')}</button>}
             </div>
           )}
-          {activa && <ProgressBar day={estado?.progress_day} total={detail.n_days} />}
+          {avance && <ProgressBar day={avance.done} total={avance.total} />}
           {detail.error_message && (
             <pre className="text-xs whitespace-pre-wrap mt-2">{detail.error_message.split('\n')[0]}</pre>
           )}

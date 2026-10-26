@@ -6,7 +6,7 @@ Fuentes:
 
 Las capturas se tomaron sobre un stack 100 % local:
 - frontend `f7-ux` en :5176 → API local :8000 → SQLite;
-- datos: Galán dinámico y estático, y Mariana con inventario;
+- datos: el caso de referencia (dinámico y estático) y el caso con inventario;
 - tamaños: 1440×900, 1024×768 y 768×1024.
 
 Las capturas quedan fuera del repo porque pesan y llevan datos del cliente. Los mockups de Codex se reseñan al final.

@@ -207,54 +207,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/projects/inventario/escenarios": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Inventario Escenarios
-         * @description Escenarios que trae el motor con inventario, para elegir uno en la UI.
-         *
-         *     Cada entrada dice su descripcion, horizonte, fecha de inicio y si arranca con
-         *     inventario o con las pozas vacias. Lista vacia si el motor no esta instalado.
-         */
-        get: operations["list_inventario_escenarios_api_v1_projects_inventario_escenarios_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/inventario/escenarios/expandido": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Inventario Escenario Expandido
-         * @description Un escenario con sus datos ADENTRO, para editarlo en la UI.
-         *
-         *     Los escenarios de la entrega apuntan a JSON sueltos (pozas, feed, clima,
-         *     factores, inventario); esto los resuelve y devuelve todo embebido, que es lo que
-         *     el editor necesita para mostrar tablas y lo que se guarda en el proyecto al
-         *     editarlas. Sin `path` devuelve el de referencia.
-         */
-        get: operations["get_inventario_escenario_expandido_api_v1_projects_inventario_escenarios_expandido_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/projects/{project_id}/report-params": {
         parameters: {
             query?: never;
@@ -569,7 +521,8 @@ export interface paths {
          * Get Execution Detail
          * @description Get execution detail with results.
          *
-         *     El que no ve la configuración (el `cliente`) recibe `parameters_snapshot` en None.
+         *     Sin `parameters_snapshot` (cambios finales, punto 18): el de las ejecuciones de antes
+         *     se lee en `/legacy-executions/{id}`.
          */
         get: operations["get_execution_detail_api_v1_executions__execution_id__get"];
         put?: never;
@@ -882,6 +835,8 @@ export interface paths {
         /**
          * Get Template
          * @description Plantilla vacía para una versión de AQSOL (sin proyecto).
+         *
+         *     `pond_params_mode`: la hoja "Cambios de pozas" va solo con `by_date`.
          */
         get: operations["get_template_api_v1_excel_templates__process__get"];
         put?: never;
@@ -902,6 +857,8 @@ export interface paths {
         /**
          * Get Project Template
          * @description Plantilla vacía con las especies y fases de la versión de AQSOL del proyecto.
+         *
+         *     `pond_params_mode`: la hoja "Cambios de pozas" va solo con `by_date`.
          */
         get: operations["get_project_template_api_v1_projects__project_id__excel_template__process__get"];
         put?: never;
@@ -1033,51 +990,6 @@ export interface paths {
         get: operations["download_legacy_execution_file_api_v1_legacy_executions__execution_id__files__name__get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/inventario/escenarios": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Escenarios
-         * @description Escenarios de la entrega de Mariana, cada uno con si se puede cargar y, si no,
-         *     por qué: así la UI los muestra deshabilitados en vez de fallar al cargar.
-         */
-        get: operations["list_escenarios_api_v1_inventario_escenarios_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/{project_id}/inventario/load": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Load Escenario
-         * @description Carga un escenario de inventario en el proyecto.
-         *
-         *     Convierte el escenario a secciones, valida cada una y, si ninguna tiene errores,
-         *     las guarda todas como versiones nuevas (una transacción: todas o ninguna). Con
-         *     errores responde igual 200, con `saved = false` y el informe de cada sección.
-         */
-        post: operations["load_escenario_api_v1_projects__project_id__inventario_load_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1263,6 +1175,13 @@ export interface components {
             visible_if?: string | null;
             /** Section Kinds */
             section_kinds?: string[];
+            /** Note */
+            note?: string | null;
+            /**
+             * Read Only
+             * @default false
+             */
+            read_only: boolean;
         };
         /** DictionarySyncResponse */
         DictionarySyncResponse: {
@@ -1310,7 +1229,8 @@ export interface components {
          * DynamicPond
          * @description Poza del dinámico: además, su tipo y lo que ese tipo necesita.
          *
-         *     Cualquier tipo puede ir en cualquier posición de la cascada (§14).
+         *     Cualquier tipo puede ir en cualquier posición de la cascada (§14). Lo que no aplica
+         *     al tipo se neutraliza antes de validar (`neutralize_pond_fields`).
          */
         DynamicPond: {
             /** Name */
@@ -1319,48 +1239,25 @@ export interface components {
             designation?: string | null;
             /** Area M2 */
             area_m2: number;
-            /**
-             * Pond Factor
-             * @default 0.7
-             */
+            /** Pond Factor */
             pond_factor: number;
-            /**
-             * Entrainment Pct
-             * @default 10
-             */
+            /** Entrainment Pct */
             entrainment_pct: number;
-            /**
-             * Leakage Mm D
-             * @default 0.03
-             */
+            /** Leakage Mm D */
             leakage_mm_d: number;
-            /**
-             * Dilution Frac
-             * @default 0.005
-             */
+            /** Dilution Frac */
             dilution_frac: number;
             /**
              * Pond Type
              * @enum {string}
              */
             pond_type: "target_height" | "fixed_flow" | "seasonal_flow";
-            /**
-             * External Water Inflow T D
-             * @default 0
-             */
-            external_water_inflow_t_d: number;
-            /**
-             * Target Height M
-             * @default 0.2
-             */
-            target_height_m: number | null;
+            /** Target Height M */
+            target_height_m?: number | null;
             /** Height Floor M */
             height_floor_m?: number | null;
-            /**
-             * Startup Height M
-             * @default 0
-             */
-            startup_height_m: number;
+            /** Startup Height M */
+            startup_height_m?: number | null;
             /** Target Outflow T D */
             target_outflow_t_d?: number | null;
             /**
@@ -1405,7 +1302,7 @@ export interface components {
              * Execution Type
              * @enum {string}
              */
-            execution_type: "proceso_completo" | "preconcentracion" | "modelo_dinamico_cascade" | "modelo_dinamico_encalado" | "modelo_dinamico_postliming" | "inventario_precon" | "inventario_encalado" | "inventario_postliming" | "static_full" | "static_precon" | "static_liming" | "static_postliming" | "dynamic_precon" | "dynamic_liming" | "dynamic_postliming";
+            execution_type: "proceso_completo" | "preconcentracion" | "modelo_dinamico_cascade" | "modelo_dinamico_encalado" | "modelo_dinamico_postliming" | "static_full" | "static_precon" | "static_liming" | "static_postliming" | "dynamic_precon" | "dynamic_liming" | "dynamic_postliming";
             /**
              * Selected Days
              * @description Indices of days from daily_schedule to simulate. None = all days.
@@ -1413,7 +1310,7 @@ export interface components {
             selected_days?: number[] | null;
             /**
              * Source Execution Id
-             * @description Required for modelo_dinamico_encalado and _postliming: id of the previous execution (cascade for encalado, encalado for postliming) whose feed CSV is used.
+             * @description Required for modelo_dinamico_encalado and _postliming: id of the previous execution (cascade for encalado, encalado for postliming) whose feed CSV is used. F4 (static_liming/_postliming, dynamic_liming/_postliming): only when the section's feed_source is 'execution'; a section fed with data takes none.
              */
             source_execution_id?: string | null;
             /**
@@ -1433,12 +1330,12 @@ export interface components {
             aqsol_version?: ("027" | "066") | null;
             /**
              * Start Date
-             * @description Fecha del día 1 de la corrida (dynamic_precon).
+             * @description Fecha del día 1 de la corrida: obligatoria en dynamic_precon y en dynamic_liming / dynamic_postliming alimentadas con los datos de su sección (feed_source = data), salvo en una continuación. Una etapa alimentada por una ejecución sigue las fechas de su origen y no la lleva.
              */
             start_date?: string | null;
             /**
              * N Days
-             * @description Días a simular (dynamic_precon; opcional en dynamic_postliming, hasta los de su origen).
+             * @description Días a simular: obligatorio en dynamic_precon y en dynamic_liming / dynamic_postliming alimentadas con datos; opcional en dynamic_postliming alimentado por una ejecución (hasta los de su origen); la planta alimentada por una ejecución no lo lleva.
              */
             n_days?: number | null;
             /**
@@ -1510,6 +1407,17 @@ export interface components {
             n_days?: number | null;
             /** Last Completed Day */
             last_completed_day?: number | null;
+            /** Progress Day */
+            progress_day?: number | null;
+            /** Scenarios Total */
+            scenarios_total?: number | null;
+            /** Scenarios Done */
+            scenarios_done?: number | null;
+            /**
+             * Heartbeat Stale
+             * @default false
+             */
+            heartbeat_stale: boolean;
             /** Upload Status */
             upload_status?: string | null;
             /** Initial State Execution Id */
@@ -1531,6 +1439,10 @@ export interface components {
         /**
          * ExecutionResultResponse
          * @description Schema for execution detail with results.
+         *
+         *     Sin `parameters_snapshot` (cambios finales, punto 18): era del flujo antiguo y el
+         *     actual no lo llena. Las ejecuciones de antes lo siguen trayendo por
+         *     `/legacy-executions/{id}` (`schemas/legacy_execution.py`).
          */
         ExecutionResultResponse: {
             /** Id */
@@ -1541,8 +1453,6 @@ export interface components {
             execution_type: string;
             /** Status */
             status: string;
-            /** Parameters Snapshot */
-            parameters_snapshot?: Record<string, never> | null;
             /** Results */
             results?: Record<string, never> | null;
             /** Error Message */
@@ -1572,6 +1482,17 @@ export interface components {
             n_days?: number | null;
             /** Last Completed Day */
             last_completed_day?: number | null;
+            /** Progress Day */
+            progress_day?: number | null;
+            /** Scenarios Total */
+            scenarios_total?: number | null;
+            /** Scenarios Done */
+            scenarios_done?: number | null;
+            /**
+             * Heartbeat Stale
+             * @default false
+             */
+            heartbeat_stale: boolean;
             /** Initial State Execution Id */
             initial_state_execution_id?: string | null;
             /** Initial State Day */
@@ -1617,6 +1538,15 @@ export interface components {
             progress_day?: number | null;
             /** Last Completed Day */
             last_completed_day?: number | null;
+            /** Scenarios Total */
+            scenarios_total?: number | null;
+            /** Scenarios Done */
+            scenarios_done?: number | null;
+            /**
+             * Heartbeat Stale
+             * @default false
+             */
+            heartbeat_stale: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1640,23 +1570,30 @@ export interface components {
         };
         /**
          * InitialPondState
-         * @description Estado con que arranca una poza cargada (el inventario a una fecha).
+         * @description Inventario con que arranca una poza cargada (cambios finales, punto 4).
+         *
+         *     Una de dos formas, nunca las dos (lo exige la validación):
+         *       - `species_mass_t`: toneladas de cada especie en la salmuera de la poza;
+         *       - `composition_pct` (%p/p con el agua, suma 100) + `height_m`.
+         *     `density_kg_m3` solo si se midió. Lo demás —masa, altura (con toneladas), la
+         *     densidad que falte y la actividad de agua— lo calcula la app con AQSOL al lanzar
+         *     (`services/initial_states`).
          */
         InitialPondState: {
             /** Pond */
             pond: string;
-            /** Brine Mass T */
-            brine_mass_t: number;
-            /** Height M */
-            height_m: number;
-            /** Density Kg M3 */
-            density_kg_m3: number;
-            /** Water Activity */
-            water_activity: number;
             /** Species Mass T */
-            species_mass_t: {
+            species_mass_t?: {
                 [key: string]: number;
-            };
+            } | null;
+            /** Composition Pct */
+            composition_pct?: {
+                [key: string]: number;
+            } | null;
+            /** Height M */
+            height_m?: number | null;
+            /** Density Kg M3 */
+            density_kg_m3?: number | null;
             /**
              * Salt Accumulated T
              * @default 0
@@ -1672,68 +1609,6 @@ export interface components {
              * @default false
              */
             outflow_started: boolean;
-            /**
-             * At Operating Level
-             * @default false
-             */
-            at_operating_level: boolean;
-        };
-        /** InventarioEscenario */
-        InventarioEscenario: {
-            /** Path */
-            path: string;
-            /** Nombre */
-            nombre: string;
-            /** Descripcion */
-            descripcion: string;
-            /** Dias */
-            dias?: number | null;
-            /** Start Date */
-            start_date?: string | null;
-            /** Con Inventario */
-            con_inventario: boolean;
-            /**
-             * Loadable
-             * @default true
-             */
-            loadable: boolean;
-            /** Reason */
-            reason?: string | null;
-        };
-        /** InventarioLoadRequest */
-        InventarioLoadRequest: {
-            /** Escenario */
-            escenario: string;
-        };
-        /** InventarioLoadResponse */
-        InventarioLoadResponse: {
-            /** Escenario */
-            escenario: string;
-            /** Ok */
-            ok: boolean;
-            /** Saved */
-            saved: boolean;
-            /** Start Date */
-            start_date?: string | null;
-            /** Days Max */
-            days_max?: number | null;
-            /**
-             * Descripcion
-             * @default
-             */
-            descripcion: string;
-            /** N Initial States */
-            n_initial_states: number;
-            /** Sections */
-            sections: {
-                [key: string]: components["schemas"]["InventarioLoadedSection"];
-            };
-        };
-        /** InventarioLoadedSection */
-        InventarioLoadedSection: {
-            validation: components["schemas"]["ValidationReport"];
-            /** Saved Version */
-            saved_version?: number | null;
         };
         /**
          * LabelUpdate
@@ -1965,7 +1840,7 @@ export interface components {
             feed_source: "data" | "execution";
             plant: components["schemas"]["LimingPlant"];
             /** Scenarios */
-            scenarios?: components["schemas"]["Scenario"][];
+            scenarios?: components["schemas"]["PlantScenario"][];
         };
         /**
          * LoginRequest
@@ -1976,6 +1851,31 @@ export interface components {
             username: string;
             /** Password */
             password: string;
+        };
+        /**
+         * PlantScenario
+         * @description Un escenario de la planta del estático alimentada con datos.
+         *
+         *     La planta calcula a su temperatura fija (`plant.plant_temperature_C`): el clima del
+         *     escenario no lo usa. Es opcional (punto 11) y solo sirve para una concentración
+         *     lanzada después desde esta planta, que hereda los escenarios; si falta, esa
+         *     concentración no se puede lanzar (`execution_v2.validate_launch`).
+         */
+        PlantScenario: {
+            /** Label */
+            label: string;
+            /** Temperature C */
+            temperature_C?: number | null;
+            /** Evaporation Mm D */
+            evaporation_mm_d?: number | null;
+            /** Brine Flow T D */
+            brine_flow_t_d: number;
+            /** Feed Density Kg M3 */
+            feed_density_kg_m3?: number | null;
+            /** Composition Pct */
+            composition_pct?: {
+                [key: string]: number;
+            } | null;
         };
         /**
          * PondParamChange
@@ -2206,15 +2106,19 @@ export interface components {
         };
         /**
          * ReagentSpec
-         * @description Ficha de un reactivo: pureza de su forma comercial e impurezas. Lo que no es
-         *     reactivo ni impureza declarada va a la torta.
+         * @description Ficha de un reactivo: sus impurezas y la pureza que dejan (punto 8).
+         *
+         *     La pureza se calcula: 1 − Σ impurezas (sin impurezas, 1). Lo no identificado va en
+         *     la línea `inertes` (a la torta). Al guardar o validar una sección por la API, una
+         *     `purity_frac` que llega no se usa (aviso `reagent_purity_ignored` si no es la
+         *     calculada). Solo los datos de antes, que la escribían a mano (versiones guardadas,
+         *     libros Excel, configuraciones JSON), la convierten: si no cierra con las impurezas,
+         *     la diferencia se agrega como `inertes`, que da el mismo resultado. Después siempre
+         *     vale 1 − Σ.
          */
         ReagentSpec: {
-            /**
-             * Purity Frac
-             * @default 1
-             */
-            purity_frac: number;
+            /** Purity Frac */
+            readonly purity_frac?: number | null;
             /** Impurities */
             impurities?: components["schemas"]["Impurity"][];
         };
@@ -2271,7 +2175,11 @@ export interface components {
         };
         /**
          * Scenario
-         * @description Un escenario del estático. Los escenarios son independientes entre sí.
+         * @description Un escenario del estático de una cascada de pozas (precon y concentración). Los
+         *     escenarios son independientes entre sí.
+         *
+         *     Sin densidad de la alimentación (cambios finales, punto 10): la precon la calcula
+         *     con AQSOL y la concentración no la usa. Solo la planta la lee (`PlantScenario`).
          */
         Scenario: {
             /** Label */
@@ -2282,8 +2190,6 @@ export interface components {
             evaporation_mm_d: number;
             /** Brine Flow T D */
             brine_flow_t_d: number;
-            /** Feed Density Kg M3 */
-            feed_density_kg_m3?: number | null;
             /** Composition Pct */
             composition_pct?: {
                 [key: string]: number;
@@ -2424,6 +2330,9 @@ export interface components {
         /**
          * StaticPond
          * @description Poza del estático: área y los cuatro parámetros del balance.
+         *
+         *     Los cuatro son obligatorios y sin valor por defecto (cambios finales, punto 5): un
+         *     dato que cambia el balance no se inventa. Una dilución nula se escribe 0.
          */
         StaticPond: {
             /** Name */
@@ -2432,25 +2341,13 @@ export interface components {
             designation?: string | null;
             /** Area M2 */
             area_m2: number;
-            /**
-             * Pond Factor
-             * @default 0.7
-             */
+            /** Pond Factor */
             pond_factor: number;
-            /**
-             * Entrainment Pct
-             * @default 10
-             */
+            /** Entrainment Pct */
             entrainment_pct: number;
-            /**
-             * Leakage Mm D
-             * @default 0.03
-             */
+            /** Leakage Mm D */
             leakage_mm_d: number;
-            /**
-             * Dilution Frac
-             * @default 0.005
-             */
+            /** Dilution Frac */
             dilution_frac: number;
         };
         /**
@@ -2990,57 +2887,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_inventario_escenarios_api_v1_projects_inventario_escenarios_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
-    get_inventario_escenario_expandido_api_v1_projects_inventario_escenarios_expandido_get: {
-        parameters: {
-            query?: {
-                path?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
             };
             /** @description Validation Error */
             422: {
@@ -4166,6 +4012,7 @@ export interface operations {
                 engine_kind?: "static" | "dynamic";
                 feed_source?: ("data" | "execution") | null;
                 composition_mode?: "fixed" | "per_row";
+                pond_params_mode?: "fixed" | "by_date";
                 language?: "es" | "en";
             };
             header?: never;
@@ -4202,6 +4049,7 @@ export interface operations {
                 engine_kind?: "static" | "dynamic";
                 feed_source?: ("data" | "execution") | null;
                 composition_mode?: "fixed" | "per_row";
+                pond_params_mode?: "fixed" | "by_date";
                 language?: "es" | "en";
             };
             header?: never;
@@ -4420,63 +4268,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_escenarios_api_v1_inventario_escenarios_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InventarioEscenario"][];
-                };
-            };
-        };
-    };
-    load_escenario_api_v1_projects__project_id__inventario_load_post: {
-        parameters: {
-            query?: {
-                language?: "es" | "en";
-            };
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InventarioLoadRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InventarioLoadResponse"];
                 };
             };
             /** @description Validation Error */

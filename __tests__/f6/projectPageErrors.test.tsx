@@ -9,7 +9,7 @@ vi.mock('../../src/f6/LaunchPanel', () => ({ default: () => null }));
 vi.mock('../../src/legacy/LegacyExecutionsSection', () => ({ default: () => null }));
 vi.mock('../../src/services/apiV2', async (orig) => ({
   ...(await orig<typeof import('../../src/services/apiV2')>()),
-  getProjectV2: vi.fn(async () => ({ id: 'p1', name: 'Galán', description: null, aqsol_version: '027',
+  getProjectV2: vi.fn(async () => ({ id: 'p1', name: 'Proyecto A', description: null, aqsol_version: '027',
     my_role: 'editor', capabilities: ['view_results', 'view_config', 'view_legacy', 'view_logs', 'edit_config'] })),
   getSectionStates: vi.fn(async () => { throw new Error('secciones caídas'); }),
   listExecutions: vi.fn(async () => { throw new Error('ejecuciones caídas'); }),

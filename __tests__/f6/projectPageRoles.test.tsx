@@ -17,7 +17,7 @@ vi.mock('../../src/services/apiV2', async (orig) => ({
 
 import ProjectPage from '../../src/f6/ProjectPage';
 
-const base = { id: 'p1', name: 'Galán', description: null, aqsol_version: '027' };
+const base = { id: 'p1', name: 'Proyecto A', description: null, aqsol_version: '027' };
 const ver = (tab = '') => render(
   <MemoryRouter initialEntries={[`/projects/p1${tab}`]}>
     <Routes><Route path="/projects/:id" element={<ProjectPage />} /></Routes>

@@ -1,7 +1,8 @@
 /**
  * "Parámetros de entrada" del reporte impreso: las versiones de sección que usó la
  * ejecución, leídas tal cual (`GET .../sections/{kind}/versions/{n}`) y con las
- * etiquetas del diccionario. Sin lo que no aplica (como al guardar). La serie diaria va
+ * etiquetas del diccionario. Sin lo que no aplica (como al guardar) y con la pureza de
+ * cada reactivo (1 − Σ impurezas, que al guardar no se manda). La serie diaria va
  * resumida (inicio, días y promedio de cada columna): miles de filas no caben en un PDF;
  * la serie completa está en la configuración de la ejecución.
  */
@@ -11,7 +12,7 @@ import {
   apiError, getDictionary, getSectionVersion, type DictionaryEntry, type SectionKind,
 } from '../services/apiV2';
 import { useLanguage, useT } from '../i18n/LanguageContext';
-import { buildSchema, cleanPayload, type SectionSchema } from './sectionModel';
+import { buildSchema, displayPayload, type SectionSchema } from './sectionModel';
 import { displayNumber, seriesAverage } from './SectionEditorPage';
 
 export type ParamBlock =
@@ -97,7 +98,9 @@ export function describeSection(
     }
     return [...(campos.length ? [{ kind: 'fields' as const, title: titulo, rows: campos }] : []), ...bloques];
   };
-  return recorrer(cleanPayload(data), '', labels.general);
+  // Lo que aplica, como al guardar (también los campos de cada poza que su tipo deja
+  // fuera), pero sin las transformaciones de guardar: la pureza de cada reactivo se ve.
+  return recorrer(displayPayload(data, schema), '', labels.general);
 }
 
 function Block({ b }: { b: ParamBlock }) {

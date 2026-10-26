@@ -7,8 +7,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   apiError, downloadTemplate, exportConfiguration, getReportParams, importConfiguration,
-  listInventarioEscenarios, loadInventarioEscenario, saveBlob, updateReportParams,
-  type EngineKind, type ExcelImportResult, type InventarioEscenario, type InventarioLoadResult,
+  saveBlob, updateReportParams,
+  type EngineKind, type ExcelImportResult, type PondParamsMode,
   type Process, type ReportParams, type SectionKind, type SectionState, type ValidationIssue,
 } from '../services/apiV2';
 import { useLanguage, useT } from '../i18n/LanguageContext';
@@ -21,12 +21,19 @@ const ETAPAS = ['precon', 'liming', 'postliming'] as const;
 export function IssueList({ issues = [], kind }: {
   issues?: ValidationIssue[]; kind: 'error' | 'warning';
 }) {
+  const t = useT();
   if (issues.length === 0) return null;
   // El backend redacta el mensaje con la etiqueta del campo y la fila, en el idioma pedido.
+  // Un aviso no impide guardar: va en ámbar y con su palabra (no solo el color).
+  const aviso = kind === 'warning';
   return (
-    <ul className="text-sm list-disc pl-5" style={{ color: kind === 'error' ? '#b91c1c' : '#92400e' }}>
+    <ul className="text-sm list-disc pl-5" data-kind={kind}
+        style={{ color: aviso ? 'var(--color-warning-text)' : 'var(--color-danger-text)' }}>
       {issues.map((i, n) => (
-        <li key={`${i.field}-${i.row}-${n}`} title={i.field}>{i.message}</li>
+        <li key={`${i.field}-${i.row}-${n}`} title={i.field} data-code={i.code}>
+          {aviso && <span className="font-semibold">{t('f9_warning')}: </span>}
+          {i.message}
+        </li>
       ))}
     </ul>
   );
@@ -82,7 +89,7 @@ function SectionCards({ projectId, sections, engine }: {
   );
 }
 
-function ExcelPanel({ projectId, engine, onSaved }: {
+export function ExcelPanel({ projectId, engine, onSaved }: {
   projectId: string; engine: EngineKind; onSaved: () => void;
 }) {
   const t = useT();
@@ -90,6 +97,9 @@ function ExcelPanel({ projectId, engine, onSaved }: {
   const [process, setProcess] = useState<Process>('full');
   const [feed, setFeed] = useState<'data' | 'execution'>('execution');
   const [modo, setModo] = useState<'fixed' | 'per_row'>('fixed');
+  // Punto 25: las cascadas del dinámico bajan la hoja "Cambios de pozas" solo con `by_date`.
+  const [modoPozas, setModoPozas] = useState<PondParamsMode>('fixed');
+  const conPozasDinamicas = engine === 'dynamic' && process !== 'liming';
   const [archivo, setArchivo] = useState<File | null>(null);
   const [revision, setRevision] = useState<ExcelImportResult | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -103,8 +113,10 @@ function ExcelPanel({ projectId, engine, onSaved }: {
   };
 
   const plantilla = () => correr(async () => {
-    const b = await downloadTemplate(projectId, process, engine, lang,
-      { feed_source: feed, composition_mode: modo });
+    const b = await downloadTemplate(projectId, process, engine, lang, {
+      feed_source: feed, composition_mode: modo,
+      ...(conPozasDinamicas ? { pond_params_mode: modoPozas } : {}),
+    });
     saveBlob(b, `plantilla_${process}_${engine}_${lang}.xlsx`);
   });
   const exportar = () => correr(async () => {
@@ -147,6 +159,16 @@ function ExcelPanel({ projectId, engine, onSaved }: {
             <option value="per_row">{engine === 'static' ? t('f6_composition_per_scenario') : t('f6_composition_per_day')}</option>
           </select>
         </label>
+        {conPozasDinamicas && (
+          <label className="text-sm">
+            <span className="label">{t('f9_pond_params_mode')}</span>
+            <select className="input" value={modoPozas} data-testid="template-pond-params-mode"
+                    onChange={(e) => setModoPozas(e.target.value as PondParamsMode)}>
+              <option value="fixed">{t('f9_pond_params_fixed')}</option>
+              <option value="by_date">{t('f9_pond_params_by_date')}</option>
+            </select>
+          </label>
+        )}
         <button className="btn btn-outline" onClick={plantilla} disabled={ocupado}>{t('f6_download_template')}</button>
         <button className="btn btn-outline" onClick={exportar} disabled={ocupado}>{t('f6_export_config')}</button>
         <button className="btn btn-primary" onClick={() => input.current?.click()} disabled={ocupado}>
@@ -156,7 +178,7 @@ function ExcelPanel({ projectId, engine, onSaved }: {
                onChange={(e) => { const f = e.target.files?.[0]; if (f) revisar(f); e.target.value = ''; }} />
         {ocupado && <LoadingSpinner size="sm" />}
       </div>
-      {error && <p className="text-sm" style={{ color: '#b91c1c' }}>{error}</p>}
+      {error && <p className="text-sm" style={{ color: 'var(--color-danger-text)' }}>{error}</p>}
       {revision && (
         <div className="mt-2" data-testid="import-review">
           <p className="text-sm mb-2">
@@ -177,134 +199,6 @@ function ExcelPanel({ projectId, engine, onSaved }: {
               {t('f6_import_save')}
             </button>
           )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Cargar un escenario de la entrega de Mariana: guarda su preconcentración dinámica
- * con el estado inicial de cada poza (el "modo con inventario" de antes). Después se
- * lanza como cualquier dinámico; la fecha de inicio y los días del escenario se
- * muestran para correrlo como la entrega.
- */
-/** Los escenarios de Mariana son de AQSOL 027: en otra versión no se pueden cargar. */
-export const INVENTARIO_AQSOL = '027';
-
-/** Fecha de inicio y días con que corría el escenario, para precargar el lanzamiento. */
-export interface LaunchDefaults {
-  start_date: string;
-  n_days: number | null;
-}
-
-export function launchDefaultsFrom(r: InventarioLoadResult): LaunchDefaults | null {
-  return r.saved && r.start_date ? { start_date: r.start_date, n_days: r.days_max ?? null } : null;
-}
-
-export function InventarioPanel({ projectId, aqsolVersion, onSaved, onLoaded }: {
-  projectId: string; aqsolVersion?: string | null; onSaved: () => void;
-  onLoaded?: (d: LaunchDefaults) => void;
-}) {
-  const t = useT();
-  const otraVersion = aqsolVersion != null && aqsolVersion !== INVENTARIO_AQSOL;
-  const { lang } = useLanguage();
-  const [escenarios, setEscenarios] = useState<InventarioEscenario[]>([]);
-  const [elegido, setElegido] = useState('');
-  const [resultado, setResultado] = useState<InventarioLoadResult | null>(null);
-  const [ocupado, setOcupado] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    if (otraVersion) return;
-    listInventarioEscenarios().then(setEscenarios).catch(() => setEscenarios([]));
-  }, [otraVersion]);
-  if (otraVersion) {
-    return (
-      <div className="card p-4 mb-6" data-testid="inventario-panel">
-        <h3 className="text-base font-semibold mb-1">{t('f6_inventory_title')}</h3>
-        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }} data-testid="inventario-other-version">
-          {t('f6_inventory_other_version')} (AQSOL {aqsolVersion}).
-        </p>
-      </div>
-    );
-  }
-  if (escenarios.length === 0) return null;
-  const actual = escenarios.find((e) => e.path === elegido);
-  const cargar = async () => {
-    setOcupado(true);
-    setError(null);
-    setResultado(null);
-    try {
-      const r = await loadInventarioEscenario(projectId, elegido, lang);
-      setResultado(r);
-      if (r.saved) onSaved();
-      const d = launchDefaultsFrom(r);
-      if (d && onLoaded) onLoaded(d);
-    } catch (err) {
-      setError(apiError(err).message);
-    } finally {
-      setOcupado(false);
-    }
-  };
-  return (
-    <div className="card p-4 mb-6" data-testid="inventario-panel">
-      <h3 className="text-base font-semibold mb-1">{t('f6_inventory_title')}</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>{t('f6_inventory_hint')}</p>
-      <div className="flex flex-wrap items-end gap-3 mb-2">
-        <label className="text-sm" style={{ minWidth: 280 }}>
-          <span className="label">{t('f6_inventory_choose')}</span>
-          <select className="input" value={elegido} data-testid="inventario-select"
-                  onChange={(e) => { setElegido(e.target.value); setResultado(null); setError(null); }}>
-            <option value="">{t('f6_choose')}</option>
-            {escenarios.map((e) => (
-              <option key={e.path} value={e.path} disabled={!e.loadable} title={e.reason ?? undefined}>
-                {e.nombre}{e.start_date ? ` · ${e.start_date}` : ''}{e.dias ? ` · ${e.dias} ${t('f6_days')}` : ''}
-                {!e.loadable ? ` · ${t('f6_inventory_not_loadable')}` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className="btn btn-primary" onClick={cargar} disabled={!elegido || ocupado}
-                data-testid="inventario-load">
-          {t('f6_inventory_load')}
-        </button>
-        {ocupado && <LoadingSpinner size="sm" />}
-      </div>
-      {escenarios.some((e) => !e.loadable) && (
-        <ul className="text-xs mb-2 list-disc pl-5" style={{ color: '#92400e' }} data-testid="inventario-not-loadable">
-          {escenarios.filter((e) => !e.loadable).map((e) => (
-            <li key={e.path}>{e.nombre}: {e.reason}</li>
-          ))}
-        </ul>
-      )}
-      {actual?.descripcion && (
-        <p className="text-xs mb-2" style={{ color: 'var(--color-text-secondary)' }}>{actual.descripcion}</p>
-      )}
-      {error && <p className="text-sm" style={{ color: '#b91c1c' }} data-testid="inventario-error">{error}</p>}
-      {resultado && (
-        <div className="mt-2" data-testid="inventario-result">
-          <p className="text-sm mb-2">
-            {resultado.saved
-              ? `${t('f6_inventory_loaded')}: ${resultado.escenario} · ${resultado.n_initial_states} ${t('f6_initial_states_loaded')}`
-              : t('f6_inventory_not_saved')}
-          </p>
-          {resultado.saved && resultado.start_date && (
-            <p className="text-sm mb-2">
-              {t('f6_inventory_launch_with')} {resultado.start_date}
-              {resultado.days_max ? ` · ${resultado.days_max} ${t('f6_days')}` : ''}
-              {onLoaded ? ` · ${t('f6_inventory_prefilled')}` : ''}
-            </p>
-          )}
-          {Object.entries(resultado.sections).map(([kind, r]) => (
-            <div key={kind} className="mb-2">
-              <div className="text-sm font-semibold">
-                {t(`f6_kind_${kind}` as never)}: {r.validation.ok ? '✓' : '✗'}
-                {r.saved_version != null && ` → v${r.saved_version}`}
-              </div>
-              <IssueList issues={r.validation.errors} kind="error" />
-              <IssueList issues={r.validation.warnings} kind="warning" />
-            </div>
-          ))}
         </div>
       )}
     </div>
@@ -346,9 +240,8 @@ function ReportParamsCard({ projectId }: { projectId: string }) {
   );
 }
 
-export default function ConfigPanel({ projectId, sections, onChanged, aqsolVersion, onInventoryLoaded }: {
+export default function ConfigPanel({ projectId, sections, onChanged }: {
   projectId: string; sections: SectionState[]; onChanged: () => void;
-  aqsolVersion?: string | null; onInventoryLoaded?: (d: LaunchDefaults) => void;
 }) {
   const t = useT();
   const [engine, setEngine] = useState<EngineKind>('dynamic');
@@ -363,10 +256,6 @@ export default function ConfigPanel({ projectId, sections, onChanged, aqsolVersi
         ))}
       </div>
       <SectionCards projectId={projectId} sections={sections} engine={engine} />
-      {engine === 'dynamic' && (
-        <InventarioPanel projectId={projectId} aqsolVersion={aqsolVersion} onSaved={onChanged}
-                         onLoaded={onInventoryLoaded} />
-      )}
       <ExcelPanel projectId={projectId} engine={engine} onSaved={onChanged} />
       <ReportParamsCard projectId={projectId} />
     </div>

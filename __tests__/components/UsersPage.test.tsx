@@ -24,8 +24,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.getUsers.mockResolvedValue([usuario]);
   api.getProjects.mockResolvedValue([
-    { id: 'p1', name: 'Galán', description: null },
-    { id: 'p2', name: 'Mariana', description: null },
+    { id: 'p1', name: 'Proyecto A', description: null },
+    { id: 'p2', name: 'Proyecto B', description: null },
   ]);
   api.setUserAccesses.mockResolvedValue([]);
 });
@@ -40,11 +40,11 @@ describe('asignar proyectos con rol', () => {
   it('muestra el rol actual de cada proyecto y guarda los cambios con su rol', async () => {
     api.getUserAccesses.mockResolvedValue([{ project_id: 'p1', role: 'cliente' }]);
     const modal = await abrir();
-    const galan = within(modal).getByLabelText('Galán') as HTMLSelectElement;
-    const mariana = within(modal).getByLabelText('Mariana') as HTMLSelectElement;
-    expect(galan.value).toBe('cliente');
-    expect(mariana.value).toBe('');
-    fireEvent.change(mariana, { target: { value: 'operador' } });
+    const proyectoA = within(modal).getByLabelText('Proyecto A') as HTMLSelectElement;
+    const proyectoB = within(modal).getByLabelText('Proyecto B') as HTMLSelectElement;
+    expect(proyectoA.value).toBe('cliente');
+    expect(proyectoB.value).toBe('');
+    fireEvent.change(proyectoB, { target: { value: 'operador' } });
     fireEvent.click(within(modal).getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(api.setUserAccesses).toHaveBeenCalledWith('u1', [
       { project_id: 'p1', role: 'cliente' }, { project_id: 'p2', role: 'operador' }]));
